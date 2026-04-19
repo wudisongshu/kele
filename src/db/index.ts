@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { readFileSync, mkdirSync } from 'fs';
+import { readFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import type { Project, SubProject, Task, CreativeType, MonetizationChannel, Complexity, ProjectStatus, TaskStatus, AIProvider } from '../types/index.js';
@@ -19,11 +19,27 @@ export function getDbPath(): string {
   return join(home, '.kele', 'kele.db');
 }
 
+function loadSchema(): string {
+  // Try dist/db/schema.sql first (production)
+  const distPath = join(__dirname, 'schema.sql');
+  if (existsSync(distPath)) {
+    return readFileSync(distPath, 'utf-8');
+  }
+
+  // Fallback to src/db/schema.sql (development)
+  const srcPath = join(__dirname, '../../src/db/schema.sql');
+  if (existsSync(srcPath)) {
+    return readFileSync(srcPath, 'utf-8');
+  }
+
+  throw new Error('schema.sql not found in dist/db or src/db');
+}
+
 export function initDatabase(dbPath: string): Database.Database {
   const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
 
-  const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf-8');
+  const schema = loadSchema();
   db.exec(schema);
 
   return db;
