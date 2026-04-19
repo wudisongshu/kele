@@ -10,6 +10,7 @@ import { homedir } from 'os';
 import { randomBytes } from 'crypto';
 import { parseIdea } from '../core/idea-engine.js';
 import { incubate } from '../core/incubator.js';
+import { incubateWithAI } from '../core/ai-incubator.js';
 import { planTasks } from '../core/task-planner.js';
 import { executeProject } from '../core/executor.js';
 import { upgradeTask } from '../core/upgrade-engine.js';
@@ -190,11 +191,32 @@ async function handleCreateIntent(
     }
   }
 
-  // Step 3: Incubate sub-projects
+  // Step 3: Incubate sub-projects (AI-driven, fallback to local rules)
   const projectName = generateProjectSlug(ideaText, idea.type);
   const rootDir = join(options.output, projectName);
   mkdirSync(options.output, { recursive: true });
-  const incubateResult = incubate(idea, rootDir);
+
+  console.log('🧠 AI 正在分析项目结构...\n');
+  let incubateResult = await incubateWithAI(idea, rootDir, route.adapter);
+
+  if (!incubateResult.success) {
+    const mock = registry.get('mock');
+    if (mock && route.provider !== 'mock') {
+      console.log(`   ⚠️  AI incubator failed: ${incubateResult.error?.slice(0, 80)}`);
+      console.log('   🔄 Falling back to mock incubator...');
+      incubateResult = await incubateWithAI(idea, rootDir, mock);
+    }
+  }
+
+  if (!incubateResult.success || !incubateResult.subProjects) {
+    console.log('   ⚠️  AI incubator unavailable, using default structure');
+    const fallback = incubate(idea, rootDir);
+    incubateResult = {
+      success: fallback.success,
+      subProjects: fallback.subProjects,
+      error: fallback.error,
+    };
+  }
 
   if (!incubateResult.success || !incubateResult.subProjects) {
     console.error('❌ 孵化失败：', incubateResult.error);
@@ -202,6 +224,9 @@ async function handleCreateIntent(
   }
 
   const subProjects = incubateResult.subProjects;
+  if (incubateResult.reasoning) {
+    console.log(`💡 AI 设计思路: ${incubateResult.reasoning}`);
+  }
   console.log(`🥚 孵化出 ${subProjects.length} 个子项目：`);
   for (const sp of subProjects) {
     console.log(`   • ${sp.name} (${sp.type})`);
