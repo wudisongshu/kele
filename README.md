@@ -1,131 +1,134 @@
-# 🥤 kele
+# 🥤 kele — 想法→变现 AI 助手
 
-> **kele** — wudisongshu 的第一个完全由 AI 驱动的个人全方位助手。
-> Built entirely with Agentic Engineering. Zero manual code.
-
-## 这是什么？
-
-kele 是一个"无所不能"的个人 AI 助手项目。它不只是代码，它是 vibe-coding 理念的终极实践：
-
-- **你不写一行代码** — 描述意图，AI 实现一切
-- **你不写一行文档** — AI 自动生成并维护
-- **你只管提需求** — 架构、编码、测试、部署，全部交给 AI
-
-## 🚀 快速开始
+> **不是编程助手，是生意助手。**
+>
+> 你说一句话，kele 帮你变成一个能赚钱的产品。
 
 ```bash
-# 克隆项目
-git clone git@github.com:wudisongshu/kele.git
-cd kele
-
-# 安装依赖
-npm install
-npm run build
-
-# 告诉 kele 你的想法，它会自动完成从开发到变现的全部工作
-npx kele "我要做一个塔防游戏并部署到微信小程序赚钱"
+kele "做一个像牛牛消消乐那样的游戏，部署到抖音小游戏赚钱"
 ```
-
-## 📁 项目结构
-
-```
-kele/                          # CLI 工具源码
-├── src/
-│   ├── cli/
-│   │   └── index.ts         # 🚀 CLI 入口
-│   ├── core/
-│   │   ├── idea-engine.ts   # 🧠 想法解析引擎
-│   │   ├── incubator.ts     # 🥚 项目孵化器
-│   │   ├── task-planner.ts  # 📐 任务规划器
-│   │   └── executor.ts      # ⚡ 执行调度器
-│   ├── adapters/
-│   │   ├── mock.ts          # 🧪 Mock AI（零成本测试）
-│   │   └── deepseek.ts      # 🤖 DeepSeek 适配器
-│   ├── db/
-│   │   ├── schema.sql       # 🗄️ SQLite 数据库结构
-│   │   └── index.ts         # 💾 状态持久化
-│   └── types/
-│       └── index.ts         # 📋 核心数据类型
-├── tests/                   # ✅ 测试套件
-├── skills/                  # 🛠️ AI 行为技能
-├── docs/                    # 📚 文档
-├── AGENTS.md                # 📜 项目宪法
-├── .kimi/KIMI.md            # 🤖 Kimi 配置
-├── .cursorrules             # 🎯 Cursor 配置
-└── .clinerules/             # ⚡ Cline 配置
-```
-
-## 🧠 Vibe-Coding 基础设施
-
-本项目内置了业界最先进的 AI 协作基础设施：
-
-| 组件 | 作用 |
-|------|------|
-| **AGENTS.md** | 跨工具通用项目宪法，定义架构、安全红线、代码规范 |
-| **Memory Bank** | `memory/MEMORY.md` 记录每次会话的决策，AI 下次自动回忆 |
-| **Context Template** | `context/CONTEXT.md` 每次会话前更新，AI 立即知道当前状态 |
-| **Skills** | 可复用工作流：vibe-coding、Karpathy 原则、Planning、安全基线、代码质量门 |
-| **Self-Improvement** | 每次任务后 AI 自动反思，持续优化规则 |
-
-## 🎮 使用方式
-
-### 1. 描述需求（焚诀模板）
-
-```markdown
-## Task
-我要一个能自动整理日程的模块
-
-## Context
-目前项目为空，需要从零搭建
-
-## Requirements
-- 必须支持自然语言输入（"明天下午三点开会"）
-- 必须能识别并解析时间、地点、人物
-- 必须持久化存储到本地 SQLite
-- 禁止依赖外部日历 API
-
-## Output
-完整的模块代码 + 单元测试 + 使用文档
-```
-
-### 2. kele 自动执行
 
 kele 会：
-- 🔍 **解析想法**：识别创意类型（游戏/音乐/工具）、变现渠道、复杂度
-- 🥚 **孵化子项目**：自动生成开发、部署、上架等子项目
-- 📐 **拆解任务**：每个子项目拆解为可执行的具体任务
-- ⚡ **智能执行**：简单任务用免费 AI，复杂任务用付费 AI
-- 💾 **状态持久**：所有进度保存在本地 SQLite，随时恢复
-
-### 3. 变现完成
-
-你只需关注：
-- 想法是否清晰表达
-- 关键决策确认（使用 --yes 自动执行）
-- 最终审核和收款 💰
-
-## 📖 文档
-
-- [Vibe Coding Playbook](./docs/vibe-coding-playbook.md) — 完整工作流指南
-- [Prompt Engineering Guide](./docs/prompt-engineering-guide.md) — 提示词工程手册
-- [Architecture Decisions](./docs/adr/) — 架构决策记录
-
-## 🏗️ 设计理念
-
-本项目深受以下理念影响：
-
-> **"先对齐，再动手"** — 焚诀  
-> **"Agentic Engineering"** — Andrej Karpathy 2026  
-> **"AI 是需要 onboarding 的新同事"** — 不是搜索引擎
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 PR！不过记住：所有代码都应由 AI 生成，人类只负责审查和提出需求。
-
-## 📄 License
-
-[MIT](./LICENSE)
+1. 🔍 **研究** — 分析竞品、变现模式、目标受众
+2. 🥚 **孵化** — 拆成可执行的子项目（开发→测试→发布）
+3. 🤖 **执行** — 调用 AI 写代码、写配置、写文档
+4. 🔄 **升级** — 你对结果不满意？一句话改画面、改规则、改平台
 
 ---
 
-> *"The best prompt technique is when you no longer need to think about prompt techniques."* — 焚诀
+## 与编程助手的区别
+
+| | OpenClaw / Cursor | **kele** |
+|---|---|---|
+| **定位** | 帮你写代码 | 帮你赚钱 |
+| **输入** | "帮我写一个排序算法" | "做一个塔防游戏部署微信赚钱" |
+| **输出** | 代码片段 | 完整可运行的产品 + 发布方案 |
+| **迭代** | 改代码 | 改产品（画面、规则、平台） |
+| **持久化** | 单次会话 | SQLite 项目历史，随时升级 |
+
+kele 不关心你用什么技术栈，只关心你的东西能不能上线、能不能变现。
+
+---
+
+## 快速开始
+
+### 1. 安装
+
+```bash
+npm install -g kele
+```
+
+### 2. 配置 AI（任选一个）
+
+```bash
+# Kimi Code（推荐，代码能力强）
+kele config --provider kimi-code --key <你的key> --url https://api.kimi.com/coding/v1 --model kimi-for-coding
+
+# DeepSeek（免费额度多）
+kele config --provider deepseek --key <你的key> --url https://api.deepseek.com/v1 --model deepseek-chat
+
+# 通义千问
+kele config --provider qwen --key <你的key> --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo
+```
+
+### 3. 创建项目
+
+```bash
+# 基础用法
+kele "做一个塔防游戏并部署到微信小程序赚钱"
+
+# 自动执行所有任务（跳过确认）
+kele "做一个像牛牛消消乐那样的游戏" --yes
+
+# 指定输出目录
+kele "帮我写一首歌并发布到音乐平台" --output ~/my-music
+```
+
+### 4. 不满意？升级它
+
+```bash
+# 查看项目和任务
+kele list
+kele show <project-id>
+
+# 升级某个任务
+kele upgrade <project-id> <task-id> "把画面改成像素风"
+kele upgrade <project-id> <task-id> "增加多人对战模式"
+kele upgrade <project-id> <task-id> "从抖音小游戏改成微信小程序"
+```
+
+---
+
+## 核心能力
+
+### 🔍 商业研究
+检测到模糊需求或竞品引用时，自动启动研究：
+- 产品定位分析
+- 变现模式设计（广告/订阅/IAP）
+- 平台选择建议（微信/抖音/Steam/网页）
+- MVP 功能建议
+
+### 🥚 智能孵化
+根据复杂度自动调整子项目数量：
+- **简单**：Setup + 开发
+- **中等**：+ 测试
+- **复杂**：+ 部署 + 变现配置
+
+### 🤖 AI 执行
+- 自动选择最佳 AI 提供商
+- 代码质量约束（模块化、类型安全、错误处理）
+- 失败自动重试 + fallback
+- 每个任务 30 分钟超时，整体 3 小时
+
+### 🔄 持续迭代
+- 任务版本管理（v1 → v2 → v3）
+- 保留历史代码上下文
+- 只改该改的，不动不该动的
+
+---
+
+## 支持的变现平台
+
+| 平台 | 状态 |
+|---|---|
+| 微信小程序 | ✅ 模板 + 配置 |
+| 抖音小游戏 | ✅ 模板 + 配置 |
+| 网页 (PWA) | ✅ 模板 + 配置 |
+| Steam | 🚧 开发中 |
+| App Store | 🚧 开发中 |
+| Google Play | 🚧 开发中 |
+
+---
+
+## 技术栈
+
+- TypeScript + Node.js
+- SQLite（better-sqlite3）项目状态持久化
+- OpenAI-compatible API（Kimi / DeepSeek / Qwen / OpenAI）
+- Commander.js CLI
+
+---
+
+## License
+
+MIT

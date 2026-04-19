@@ -53,6 +53,20 @@ export function sortSubProjects(subProjects: SubProject[]): SubProject[] {
 }
 
 /**
+ * Code quality rules injected into every coding task prompt.
+ * Ensures AI-generated code is maintainable and follows best practices.
+ */
+const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
+1. Modularity: Each file has ONE clear responsibility. No god files.
+2. Naming: Use descriptive names (isValidEmail, not check). No abbreviations.
+3. Types: Use strict typing (TypeScript/JSDoc). No 'any' types.
+4. Error handling: Validate inputs, handle edge cases, fail gracefully.
+5. Comments: Explain WHY, not WHAT. Complex logic gets inline comments.
+6. No bloat: No speculative abstractions. If 200 lines could be 50, rewrite.
+7. Consistency: Match existing code style in the project.
+8. No hardcoded secrets: Use config/env for API keys, URLs, etc.`;
+
+/**
  * Build a prompt for a specific task.
  */
 function buildPrompt(task: Task, subProject: SubProject, project: Project): string {
@@ -73,6 +87,8 @@ User's original idea: "${project.idea.rawText}"`;
 
 Task: ${task.title}
 ${task.description}
+
+${CODE_QUALITY_RULES}
 
 CRITICAL: Return your response as a JSON object in this exact format (no markdown, no explanations outside the JSON):
 {

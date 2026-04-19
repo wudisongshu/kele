@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   ai_provider TEXT,
   result TEXT,
   error TEXT,
+  parent_task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  version INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   completed_at TEXT
 );
@@ -44,4 +46,5 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_sub_project ON tasks(sub_project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
 CREATE INDEX IF NOT EXISTS idx_sub_projects_project ON sub_projects(project_id);

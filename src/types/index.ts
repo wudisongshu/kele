@@ -83,6 +83,10 @@ export interface Task {
   result?: string;
   /** Error message if failed */
   error?: string;
+  /** If set, this task is an upgrade of the parent task */
+  parentTaskId?: string;
+  /** Version number — increments on each upgrade */
+  version: number;
   createdAt: string;
   completedAt?: string;
 }

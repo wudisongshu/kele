@@ -117,8 +117,8 @@ export class KeleDatabase {
 
   saveTask(task: Task, projectId: string): void {
     const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO tasks (id, sub_project_id, project_id, title, description, complexity, status, ai_provider, result, error, created_at, completed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO tasks (id, sub_project_id, project_id, title, description, complexity, status, ai_provider, result, error, parent_task_id, version, created_at, completed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       task.id,
@@ -131,6 +131,8 @@ export class KeleDatabase {
       task.aiProvider || null,
       task.result || null,
       task.error || null,
+      task.parentTaskId || null,
+      task.version,
       task.createdAt,
       task.completedAt || null
     );
@@ -196,6 +198,8 @@ export class KeleDatabase {
       aiProvider: (row.ai_provider as AIProvider) || undefined,
       result: (row.result as string) || undefined,
       error: (row.error as string) || undefined,
+      parentTaskId: (row.parent_task_id as string) || undefined,
+      version: (row.version as number) || 1,
       createdAt: row.created_at as string,
       completedAt: (row.completed_at as string) || undefined,
     };

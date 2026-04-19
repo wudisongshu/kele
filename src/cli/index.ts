@@ -8,6 +8,7 @@ import { parseIdea } from '../core/idea-engine.js';
 import { incubate } from '../core/incubator.js';
 import { planTasks } from '../core/task-planner.js';
 import { executeProject } from '../core/executor.js';
+import { upgradeTask } from '../core/upgrade-engine.js';
 import { createRegistryFromConfig } from '../adapters/index.js';
 import { KeleDatabase } from '../db/index.js';
 import { needsResearch, research } from '../core/research-engine.js';
@@ -42,8 +43,8 @@ function collectHeaders(value: string, previous: Record<string, string>): Record
 function parseTimeout(value: string): number {
   const parsed = parseInt(value, 10);
   if (isNaN(parsed) || parsed < 1) {
-    console.warn(`⚠️  Invalid timeout "${value}", using default 300s`);
-    return 300;
+    console.warn(`⚠️  Invalid timeout "${value}", using default 1800s`);
+    return 1800;
   }
   return parsed;
 }
@@ -60,7 +61,7 @@ program
   .argument('[idea]', 'Your idea, e.g. "我要做一个塔防游戏并部署赚钱"')
   .option('-o, --output <dir>', 'Output directory for generated projects', process.cwd())
   .option('-y, --yes', 'Skip confirmation and auto-execute all tasks', false)
-  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 300, env: KELE_TIMEOUT)', parseTimeout)
+  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
   .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number }) => {
     if (!ideaText) {
       printUsage();
@@ -163,6 +164,10 @@ program
     for (const sp of subProjects) {
       const planResult = planTasks(sp, idea);
       if (planResult.success && planResult.tasks) {
+        // Initialize version for new tasks
+        for (const t of planResult.tasks) {
+          t.version = 1;
+        }
         allTasks.push(...planResult.tasks);
       }
     }
@@ -202,6 +207,9 @@ program
     console.log(`\n✨ 项目完成！`);
     console.log(`   项目目录: ${rootDir}`);
     console.log(`   任务统计: ${result.completed} 完成, ${result.failed} 失败`);
+    console.log(`\n💡 对结果不满意？可以升级任务：`);
+    console.log(`   kele upgrade ${project.id} <task-id> "把画面改成像素风"`);
+    console.log(`   kele list    # 查看所有项目和任务`);
 
     if (result.failed > 0) {
       console.log(`\n⚠️  有 ${result.failed} 个任务失败，请检查日志或手动修复。`);
@@ -270,12 +278,150 @@ program
     }
   });
 
+// --- List command: kele list ---
+program
+  .command('list')
+  .description('List all projects and their tasks')
+  .action(() => {
+    const db = new KeleDatabase();
+    const projects = db.listProjects();
+
+    if (projects.length === 0) {
+      console.log('🥤 暂无项目。用 kele "你的想法" 创建一个！');
+      return;
+    }
+
+    console.log(`🥤 项目列表 (${projects.length} 个)\n`);
+
+    for (const project of projects) {
+      const subProjects = db.getSubProjects(project.id);
+      const tasks = db.getTasks(project.id);
+      const completed = tasks.filter((t) => t.status === 'completed').length;
+      const failed = tasks.filter((t) => t.status === 'failed').length;
+      const total = tasks.length;
+
+      console.log(`📁 ${project.name}`);
+      console.log(`   ID: ${project.id}`);
+      console.log(`   想法: ${project.idea.rawText.slice(0, 40)}${project.idea.rawText.length > 40 ? '...' : ''}`);
+      console.log(`   子项目: ${subProjects.length} | 任务: ${completed}/${total} 完成${failed > 0 ? `, ${failed} 失败` : ''}`);
+      console.log(`   目录: ${project.rootDir}`);
+      console.log();
+    }
+  });
+
+// --- Show command: kele show <project-id> ---
+program
+  .command('show')
+  .argument('<project-id>', 'Project ID')
+  .description('Show project details with all tasks')
+  .action((projectId: string) => {
+    const db = new KeleDatabase();
+    const project = db.getProject(projectId);
+
+    if (!project) {
+      console.error(`❌ 项目不存在: ${projectId}`);
+      console.log('   用 kele list 查看所有项目');
+      process.exit(1);
+    }
+
+    const subProjects = db.getSubProjects(projectId);
+    const tasks = db.getTasks(projectId);
+
+    console.log(`📁 ${project.name}`);
+    console.log(`   ID: ${project.id}`);
+    console.log(`   想法: ${project.idea.rawText}`);
+    console.log(`   类型: ${project.idea.type} | 复杂度: ${project.idea.complexity}`);
+    console.log(`   目录: ${project.rootDir}`);
+    console.log();
+
+    for (const sp of subProjects) {
+      const spTasks = tasks.filter((t) => t.subProjectId === sp.id);
+      console.log(`📦 ${sp.name} (${sp.type})`);
+      console.log(`   目录: ${sp.targetDir}`);
+
+      for (const task of spTasks) {
+        const statusIcon = task.status === 'completed' ? '✅' : task.status === 'failed' ? '❌' : task.status === 'running' ? '🔄' : '⏳';
+        const versionInfo = task.version > 1 ? ` v${task.version}` : '';
+        const providerInfo = task.aiProvider ? ` [${task.aiProvider}]` : '';
+        console.log(`   ${statusIcon} ${task.title}${versionInfo}${providerInfo}`);
+        console.log(`      ID: ${task.id}`);
+      }
+      console.log();
+    }
+  });
+
+// --- Upgrade command: kele upgrade <project-id> <task-id> <request> ---
+program
+  .command('upgrade')
+  .argument('<project-id>', 'Project ID')
+  .argument('<task-id>', 'Task ID to upgrade')
+  .argument('<request>', 'Upgrade request, e.g. "change art to pixel style"')
+  .description('Upgrade an existing task with new requirements')
+  .action(async (projectId: string, taskId: string, request: string) => {
+    if (!hasAnyProvider()) {
+      printNoProviderHelp();
+      return;
+    }
+
+    const db = new KeleDatabase();
+    const project = db.getProject(projectId);
+
+    if (!project) {
+      console.error(`❌ 项目不存在: ${projectId}`);
+      process.exit(1);
+    }
+
+    const tasks = db.getTasks(projectId);
+    const originalTask = tasks.find((t) => t.id === taskId);
+
+    if (!originalTask) {
+      console.error(`❌ 任务不存在: ${taskId}`);
+      console.log('   用 kele show <project-id> 查看所有任务');
+      process.exit(1);
+    }
+
+    const subProjects = db.getSubProjects(projectId);
+    const subProject = subProjects.find((sp) => sp.id === originalTask.subProjectId);
+
+    if (!subProject) {
+      console.error(`❌ 子项目不存在`);
+      process.exit(1);
+    }
+
+    // Load full project with sub-projects
+    const fullProject: Project = {
+      ...project,
+      subProjects,
+      tasks,
+    };
+
+    const registry = createRegistryFromConfig();
+
+    const result = await upgradeTask(originalTask, subProject, fullProject, request, {
+      registry,
+      db,
+      onProgress: (msg) => console.log(msg),
+    });
+
+    if (result.success) {
+      console.log(`\n✨ 升级完成！`);
+      console.log(`   项目目录: ${subProject.targetDir}`);
+    } else {
+      console.log(`\n❌ 升级失败: ${result.error}`);
+      process.exit(1);
+    }
+  });
+
 function printUsage(): void {
   console.log('🥤 kele — 你的创意变现助手\n');
   console.log('用法示例：');
   console.log('  kele "我要做一个塔防游戏并部署到微信小程序赚钱"');
   console.log('  kele "帮我写一首歌并发布到音乐平台" --output ~/my-music');
   console.log('  kele "做一个像牛牛消消乐那样的游戏" --yes');
+  console.log('\n管理项目：');
+  console.log('  kele list                    列出所有项目');
+  console.log('  kele show <project-id>       查看项目详情');
+  console.log('  kele upgrade <pid> <tid> "..."  升级某个任务');
   console.log('\n配置 AI：');
   console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
   console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
@@ -283,6 +429,7 @@ function printUsage(): void {
   console.log('\n选项：');
   console.log('  -o, --output <dir>   指定项目生成目录');
   console.log('  -y, --yes            自动执行所有任务（跳过确认）');
+  console.log('  -t, --timeout <s>    AI 超时时间（默认 1800 秒 = 30 分钟）');
   console.log('  -v, --version        显示版本号');
 }
 

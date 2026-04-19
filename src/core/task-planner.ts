@@ -169,6 +169,7 @@ export function planTasks(subProject: SubProject, idea: Idea): PlanResult {
       description: tpl.description,
       complexity: adjustComplexity(tpl.baseComplexity, idea.complexity),
       status: 'pending',
+      version: 1,
       createdAt: now,
     }));
 

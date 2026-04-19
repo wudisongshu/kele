@@ -29,46 +29,62 @@ export class OpenAICompatibleAdapter implements AIAdapter {
   /**
    * Execute a prompt with automatic retry and timeout.
    *
+   * Retry strategy:
+   * - 401/403: No retry (auth failure)
+   * - 429: Retry with exponential backoff
+   * - 502/503/504: Retry more aggressively (server-side transient errors)
+   * - Network errors: Retry
+   *
    * @param prompt - The prompt to send
-   * @param retryCount - Number of retries on transient failures (default: 1)
    * @returns The response text from the AI
    */
-  async execute(prompt: string, retryCount = 1): Promise<string> {
+  async execute(prompt: string): Promise<string> {
     if (!this.isAvailable()) {
       throw new Error(
         `${this.name} API key not configured. Run \`kele config --provider ${this.name}\` to set it up.`
       );
     }
 
+    const maxRetries = 5; // Up to ~2 min of backoff total
     let lastError: Error | undefined;
 
-    for (let attempt = 0; attempt <= retryCount; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await this.executeOnce(prompt);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
+        const msg = lastError.message;
 
-        // Don't retry on auth errors (4xx except 429 rate limit)
-        if (lastError.message.includes('401') || lastError.message.includes('403')) {
+        // Never retry auth errors
+        if (msg.includes('401') || msg.includes('403')) {
           throw lastError;
         }
 
-        // Don't retry on the last attempt
-        if (attempt >= retryCount) {
+        // Check if it's a server-side timeout (504) or gateway error (502/503)
+        const isGatewayError = msg.includes('502') || msg.includes('503') || msg.includes('504');
+        const isRateLimit = msg.includes('429');
+
+        // On last attempt, give up
+        if (attempt >= maxRetries) {
           throw lastError;
         }
 
-        // Exponential backoff: 1s, 2s
-        const delay = Math.pow(2, attempt) * 1000;
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s
+        // Gateway errors wait a bit longer on first retry
+        const baseDelay = isGatewayError ? 3000 : 1000;
+        const delay = baseDelay * Math.pow(2, attempt);
+
+        const reason = isGatewayError ? 'gateway timeout' : isRateLimit ? 'rate limit' : 'transient error';
+        console.log(`   🔄 ${this.name} ${reason}, retrying in ${delay / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
         await sleep(delay);
       }
     }
 
-    throw lastError ?? new Error(`${this.name} API call failed after ${retryCount + 1} attempts`);
+    throw lastError ?? new Error(`${this.name} API call failed after ${maxRetries + 1} attempts`);
   }
 
   private async executeOnce(prompt: string): Promise<string> {
-    const timeoutMs = (this.config.timeout ?? 10800) * 1000; // default 3 hours
+    const timeoutMs = (this.config.timeout ?? 1800) * 1000; // default 30 min per task
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
