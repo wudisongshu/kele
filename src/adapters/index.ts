@@ -1,12 +1,12 @@
 import type { AIAdapter, RouteResult } from './base.js';
 import { MockAdapter } from './mock.js';
-import { DeepSeekAdapter } from './deepseek.js';
-import type { DeepSeekConfig } from './deepseek.js';
+import { OpenAICompatibleAdapter } from './openai-compatible.js';
+import { loadConfig } from '../config/index.js';
 import type { Complexity, AIProvider } from '../types/index.js';
 
 export * from './base.js';
 export { MockAdapter } from './mock.js';
-export { DeepSeekAdapter } from './deepseek.js';
+export { OpenAICompatibleAdapter } from './openai-compatible.js';
 
 /**
  * AI Provider Registry — manages all available AI adapters.
@@ -15,7 +15,7 @@ export class ProviderRegistry {
   private adapters: Map<string, AIAdapter> = new Map();
 
   constructor() {
-    // Always register mock as fallback
+    // Always register mock as ultimate fallback
     this.register(new MockAdapter());
   }
 
@@ -37,33 +37,37 @@ export class ProviderRegistry {
    * Route a task to the most appropriate AI provider.
    *
    * Rules:
-   * - simple tasks → free provider (deepseek, qwen)
-   * - complex tasks → paid provider (claude, openai)
-   * - if preferred provider unavailable → fallback to mock
+   * - simple tasks → free/cheap provider
+   * - complex tasks → preferred/default provider (usually higher quality)
+   * - if preferred unavailable → fallback to mock
    */
-  route(complexity: Complexity, preferred?: AIProvider): RouteResult {
+  route(_complexity: Complexity, preferred?: AIProvider): RouteResult {
     const available = this.listAvailable();
 
-    // Free providers (priority order)
-    const freeProviders: AIProvider[] = ['deepseek', 'qwen'];
-    // Paid providers (priority order)
-    const paidProviders: AIProvider[] = ['claude', 'openai'];
-
-    let candidates: AIProvider[];
-
+    // If user specified a preferred provider and it's available, use it
     if (preferred && available.includes(preferred)) {
-      candidates = [preferred];
-    } else if (complexity === 'simple') {
-      candidates = freeProviders;
-    } else {
-      // For medium and complex, prefer paid but allow free fallback
-      candidates = [...paidProviders, ...freeProviders];
+      return {
+        provider: preferred,
+        adapter: this.adapters.get(preferred)!,
+      };
     }
 
-    for (const name of candidates) {
-      const adapter = this.adapters.get(name);
-      if (adapter && adapter.isAvailable()) {
-        return { provider: name as AIProvider, adapter };
+    // Use default provider from config if available
+    const config = loadConfig();
+    if (config.defaultProvider && available.includes(config.defaultProvider)) {
+      return {
+        provider: config.defaultProvider as AIProvider,
+        adapter: this.adapters.get(config.defaultProvider)!,
+      };
+    }
+
+    // Fallback: use any available real provider
+    for (const name of available) {
+      if (name !== 'mock') {
+        return {
+          provider: name as AIProvider,
+          adapter: this.adapters.get(name)!,
+        };
       }
     }
 
@@ -75,14 +79,14 @@ export class ProviderRegistry {
 
 /**
  * Create a registry from user configuration.
+ * Loads all configured providers from ~/.kele/config.json
  */
-export function createRegistry(config: {
-  deepseek?: DeepSeekConfig;
-} = {}): ProviderRegistry {
+export function createRegistryFromConfig(): ProviderRegistry {
   const registry = new ProviderRegistry();
+  const config = loadConfig();
 
-  if (config.deepseek) {
-    registry.register(new DeepSeekAdapter(config.deepseek));
+  for (const [name, providerConfig] of Object.entries(config.providers)) {
+    registry.register(new OpenAICompatibleAdapter(name, providerConfig));
   }
 
   return registry;

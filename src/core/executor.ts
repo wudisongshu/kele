@@ -92,7 +92,21 @@ export async function executeTask(
 
     // Build prompt and execute
     const prompt = buildPrompt(task, subProject, project);
-    const output = await route.adapter.execute(prompt);
+    let output: string;
+
+    try {
+      output = await route.adapter.execute(prompt);
+    } catch (err) {
+      // Fallback to mock adapter on failure
+      const mock = registry.get('mock');
+      if (mock && route.provider !== 'mock') {
+        onProgress?.(`   ⚠️  ${route.provider} failed, falling back to mock`);
+        task.aiProvider = 'mock';
+        output = await mock.execute(prompt);
+      } else {
+        throw err;
+      }
+    }
 
     // Update task as completed
     task.status = 'completed';

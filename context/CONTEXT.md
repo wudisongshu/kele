@@ -1,47 +1,35 @@
 # CONTEXT.md — Current Session Context
 
-> **Rewrite this file at the start of each session.**
-> It tells the AI where we left off and what we're doing today.
-
 ## Session Info
 
 - **Date**: 2026-04-19
 - **Branch**: main
-- **Goal**: Build kele CLI — Idea-to-Monetization workflow engine
+- **Goal**: kele v0.2.0 — Config system + Interactive execution + Research engine
 
 ## Current Status
 
-- [x] Vibe-coding infrastructure complete (AGENTS.md, KIMI.md, skills/, docs/)
-- [x] User confirmed: CLI tool, generic framework first, game→wechat as test case
-- [x] User confirmed: kele repo stays clean, user projects generated externally
-- [ ] Architecture plan pending user approval
-- [ ] Slice 1: Project skeleton + CLI + types
-- [ ] Slice 2: IdeaEngine
-- [ ] Slice 3: Incubator
-- [ ] Slice 4: TaskPlanner
-- [ ] Slice 5: AIRouter (DeepSeek/Qwen/Claude/OpenAI)
-- [ ] Slice 6: Executor
-- [ ] Slice 7: SQLite state persistence
-- [ ] Slice 8: Game plugin (test case)
+- [x] kele v0.1.0 core framework complete (S1-S8)
+- [x] 28 tests passing
+- [ ] C1: Config system (`kele config`, ~/.kele/config.json)
+- [ ] C2: OpenAI-compatible adapter (supports Kimi/DeepSeek/Qwen via baseURL)
+- [ ] A1: Interactive execution flow (phase-based with user confirmation)
+- [ ] B1: Business research engine (analyze competitors, market, monetization)
 
-## In-Progress Work
+## User Requirements (New)
 
-Presenting architecture plan to user for approval.
+1. **Flexible API Key**: User may provide Kimi/DeepSeek/Qwen keys. If none, use free tier.
+2. **Business Research**: For vague ideas like "牛牛消消乐", kele must research what it is, why it monetizes, and what makes games popular before building.
+3. **Interactive Confirmation**: Key decisions during incubation must pause for user confirmation.
 
-## Blockers
+## Priority (Self-Determined)
 
-None.
-
-## Recent Decisions
-
-- Tech stack: TypeScript + Node.js + Commander.js + SQLite + Axios + Zod + Vitest
-- User projects generated OUTSIDE kele repo (external directory)
-- kele repo only contains CLI tool code + templates
-- Free AI: DeepSeek, Qwen (API key required, free tier available)
-- Paid AI: Claude, OpenAI
+1. **C1+C2** (Config + OpenAI-compatible adapter) — Infrastructure for all AI calls
+2. **A1** (Interactive execution) — Framework capability for smart pauses
+3. **B1** (Research engine) — Differentiating business intelligence
 
 ## Next Steps
 
-1. User approves architecture plan
-2. Execute Slice 1: project skeleton
-3. Continue through slices sequentially
+1. Implement config system and OpenAI-compatible adapter
+2. Upgrade CLI to auto-detect and use configured providers
+3. Add interactive checkpoints to execution flow
+4. Add research phase before incubation
