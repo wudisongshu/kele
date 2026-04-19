@@ -114,6 +114,9 @@ program
       case 'RUN':
         await handleRunIntent(intent.projectQuery, db);
         break;
+      case 'RESUME':
+        await handleResumeIntent(intent.projectQuery, db);
+        break;
       case 'CHAT':
         await handleChatIntent(intent.message);
         break;
@@ -250,7 +253,7 @@ async function handleCreateIntent(
   const sigintHandler = () => {
     console.log('\n\n⏹️  收到中断信号，正在安全退出...');
     console.log('   当前任务状态已保存到数据库');
-    console.log('   之后可以用 kele resume 继续执行');
+    console.log('   之后可以用 kele "继续" 或 kele "接着干" 恢复');
     abortController.abort();
   };
   process.on('SIGINT', sigintHandler);
@@ -270,7 +273,7 @@ async function handleCreateIntent(
   if (result.aborted) {
     console.log('\n⏹️  执行已中断');
     console.log(`   项目目录: ${rootDir}`);
-    console.log('   使用 kele resume 从中断处继续');
+    console.log('   使用 kele "继续" 或 kele "接着干" 恢复');
     return;
   }
 
@@ -426,6 +429,109 @@ async function handleConfigIntent(configType: 'provider' | 'secrets' | 'unknown'
     return;
   }
   console.log(`🥤 配置意图: ${action}`);
+}
+
+async function handleResumeIntent(projectQuery: string | undefined, db: KeleDatabase) {
+  const projects = db.listProjects();
+  if (projects.length === 0) {
+    console.log('🥤 暂无项目。用 kele "你的想法" 创建一个！');
+    return;
+  }
+
+  // Find project with running tasks, or the most recent project
+  let targetProject: Project | undefined;
+
+  if (projectQuery) {
+    targetProject = projects.find((p) => p.name.includes(projectQuery) || projectQuery.includes(p.name));
+  }
+
+  if (!targetProject) {
+    // Check for projects with running tasks
+    for (const p of projects) {
+      const tasks = db.getTasks(p.id);
+      if (tasks.some((t) => t.status === 'running' || t.status === 'pending')) {
+        targetProject = p;
+        break;
+      }
+    }
+  }
+
+  if (!targetProject) {
+    targetProject = projects[projects.length - 1];
+  }
+
+  const tasks = db.getTasks(targetProject.id);
+  const pending = tasks.filter((t) => t.status === 'pending').length;
+  const running = tasks.filter((t) => t.status === 'running').length;
+  const failed = tasks.filter((t) => t.status === 'failed').length;
+  const completed = tasks.filter((t) => t.status === 'completed').length;
+
+  console.log(`🔄 恢复项目: ${targetProject.name}`);
+  console.log(`   任务进度: ${completed} 完成 / ${running} 进行中 / ${pending} 待执行 / ${failed} 失败\n`);
+
+  if (pending === 0 && running === 0) {
+    console.log('✅ 所有任务已完成！');
+    await printLocalRunGuide(targetProject.rootDir);
+    return;
+  }
+
+  // Reset running tasks back to pending so they can be re-executed
+  for (const task of tasks) {
+    if (task.status === 'running') {
+      task.status = 'pending';
+      db.saveTask(task, targetProject.id);
+    }
+  }
+
+  const registry = createRegistryFromConfig();
+
+  // Re-assemble project with updated tasks
+  const project: Project = {
+    ...targetProject,
+    subProjects: db.getSubProjects(targetProject.id),
+    tasks: db.getTasks(targetProject.id),
+  };
+
+  // Setup abort handling
+  const abortController = new AbortController();
+  const sigintHandler = () => {
+    console.log('\n\n⏹️  收到中断信号，正在安全退出...');
+    console.log('   当前任务状态已保存到数据库');
+    console.log('   之后可以用 kele "继续" 或 kele "接着干" 恢复');
+    abortController.abort();
+  };
+  process.on('SIGINT', sigintHandler);
+  process.on('SIGTERM', sigintHandler);
+
+  const result = await executeProject(project, {
+    registry,
+    db,
+    onProgress: (msg) => console.log(msg),
+    signal: abortController.signal,
+  });
+
+  process.off('SIGINT', sigintHandler);
+  process.off('SIGTERM', sigintHandler);
+
+  if (result.aborted) {
+    console.log('\n⏹️  执行已中断');
+    console.log(`   项目目录: ${project.rootDir}`);
+    console.log('   用 kele "继续" 或 kele "接着干" 恢复');
+    return;
+  }
+
+  console.log(`\n✨ 项目完成！`);
+  console.log(`   项目目录: ${project.rootDir}`);
+  console.log(`   任务统计: ${result.completed} 完成, ${result.failed} 失败`);
+
+  await printLocalRunGuide(project.rootDir);
+
+  if (targetProject.idea.monetization && targetProject.idea.monetization !== 'unknown') {
+    const checklist = formatReleaseChecklist(targetProject.idea.monetization);
+    if (checklist) {
+      console.log(checklist);
+    }
+  }
 }
 
 async function handleRunIntent(projectQuery: string | undefined, db: KeleDatabase) {
@@ -807,31 +913,6 @@ program
     }
   });
 
-// --- Resume command: kele resume ---
-program
-  .command('resume')
-  .description('Resume an interrupted project from where it left off')
-  .action(() => {
-    const db = new KeleDatabase();
-    const running = db.getRunningTasks();
-
-    if (running.length === 0) {
-      console.log('🥤 没有可恢复的项目');
-      console.log('   所有任务已完成，或没有运行中的任务');
-      console.log('   用 kele "你的想法" 创建一个新项目');
-      return;
-    }
-
-    console.log(`🔄 发现 ${running.length} 个可恢复的任务\n`);
-    for (let i = 0; i < running.length; i++) {
-      const r = running[i];
-      console.log(`  ${i + 1}. ${r.projectName}`);
-      console.log(`     任务: ${r.task.title}`);
-      console.log(`     项目ID: ${r.projectId}`);
-    }
-    console.log('\n   请用 kele resume <项目ID> 恢复指定项目');
-  });
-
 function printUsage(): void {
   console.log('🥤 kele — 你的创意变现助手\n');
   console.log('用法示例：');
@@ -842,7 +923,7 @@ function printUsage(): void {
   console.log('  kele list                    列出所有项目');
   console.log('  kele show <project-id>       查看项目详情');
   console.log('  kele upgrade <pid> <tid> "..."  升级某个任务');
-  console.log('  kele resume                  恢复中断的项目');
+  console.log('  kele "继续" 或 kele "接着干"    恢复中断的项目');
   console.log('\n配置 AI：');
   console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
   console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');

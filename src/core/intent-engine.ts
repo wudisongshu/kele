@@ -20,6 +20,7 @@ export type UserIntent =
   | { type: 'QUERY'; query: string }
   | { type: 'CONFIG'; configType: 'provider' | 'secrets' | 'unknown'; action: string }
   | { type: 'RUN'; projectQuery?: string }
+  | { type: 'RESUME'; projectQuery?: string }
   | { type: 'CHAT'; message: string };
 
 const INTENT_PROMPT = `You are an intent classification assistant for "kele" — an AI tool that turns ideas into products.
@@ -32,6 +33,7 @@ Intent types:
 - QUERY: User wants to check status, list projects, or get information (mentions "progress", "status", "list", "show", "how is", "where is")
 - CONFIG: User wants to configure settings, API keys, or credentials (mentions "config", "setup", "key", "provider", "secret", "account")
 - RUN: User wants to run or preview a project locally (mentions "run", "start", "preview", "launch", "启动", "运行", "打开", "预览")
+- RESUME: User wants to continue/resume an interrupted project (mentions "continue", "resume", "接着", "继续", "接着干", "接着做", "go on", "resume")
 - CHAT: General conversation, questions, or casual chat
 
 Rules:
@@ -43,7 +45,7 @@ Rules:
 
 Return JSON:
 {
-  "intent": "CREATE|UPGRADE|QUERY|CONFIG|RUN|CHAT",
+  "intent": "CREATE|UPGRADE|QUERY|CONFIG|RUN|RESUME|CHAT",
   "projectName": "project name if referenced, else null",
   "details": "the specific request or idea"
 }`;
@@ -93,6 +95,9 @@ export async function parseIntent(userInput: string, adapter: AIAdapter): Promis
       case 'RUN':
         return { type: 'RUN', projectQuery: parsed.projectName || undefined };
 
+      case 'RESUME':
+        return { type: 'RESUME', projectQuery: parsed.projectName || undefined };
+
       case 'CHAT':
       default:
         return { type: 'CHAT', message: userInput };
@@ -124,6 +129,10 @@ function heuristicParse(input: string): UserIntent {
   const upgradeSignals = ['上次', '之前的', 'existing', 'previous', 'last time', 'my', 'the', '改成', '改成', 'add', 'modify', 'upgrade', '改', '加', '换成', '变成'];
   const isUpgrade = upgradeSignals.some((s) => lower.includes(s.toLowerCase()));
 
+  // RESUME signals
+  const resumeSignals = ['continue', 'resume', '接着', '继续', '接着干', '接着做', 'go on', 'resume', '恢复', '继续执行'];
+  const isResume = resumeSignals.some((s) => lower.includes(s.toLowerCase()));
+
   // RUN signals
   const runSignals = ['run', 'start', 'preview', 'launch', '启动', '运行', '打开', '预览', '怎么运行', '怎么启动'];
   const isRun = runSignals.some((s) => lower.includes(s.toLowerCase()));
@@ -136,6 +145,7 @@ function heuristicParse(input: string): UserIntent {
   const configSignals = ['config', 'setup', 'key', 'provider', 'secret', '配置', '设置', 'key'];
   const isConfig = configSignals.some((s) => lower.includes(s.toLowerCase()));
 
+  if (isResume) return { type: 'RESUME', projectQuery: input };
   if (isRun) return { type: 'RUN', projectQuery: input };
   if (isQuery) return { type: 'QUERY', query: input };
   if (isConfig) return { type: 'CONFIG', configType: 'unknown', action: input };
