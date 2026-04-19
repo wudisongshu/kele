@@ -96,8 +96,14 @@ function buildPrompt(task: Task, subProject: SubProject, project: Project): stri
         return `${k}: ${display}`;
       });
       platformSection += `\nPlatform credentials available:\n${masked.map((m) => `  - ${m}`).join('\n')}\n`;
+      platformSection += `\nINSTRUCTION: Use these credentials to generate a MANUAL deployment guide (DEPLOY.md) with exact commands the user can copy-paste. NEVER generate scripts that auto-deploy.\n`;
     } else {
-      platformSection += `\nNOTE: No platform credentials configured yet. Generate deployment scripts with placeholder values and notes about what credentials are needed.\n`;
+      platformSection += `\nCRITICAL: No platform credentials configured. You MUST output a checklist/guide file (DEPLOY.md or MONETIZE.md) explaining:\n`;
+      platformSection += `  1. What platform accounts the user needs to create\n`;
+      platformSection += `  2. What credentials/materials are required\n`;
+      platformSection += `  3. How to configure them with: kele secrets --platform <name> --set key=value\n`;
+      platformSection += `  4. Step-by-step manual deployment commands\n`;
+      platformSection += `\nDO NOT generate auto-deployment scripts. The user must deploy manually.\n`;
     }
   }
 

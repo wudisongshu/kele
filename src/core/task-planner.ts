@@ -95,10 +95,13 @@ function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplat
     case 'setup':
       return [
         {
-          title: 'Initialize project with full configuration',
+          title: 'Initialize project with minimal configuration',
           description:
-            'Create directory layout, initialize package manager, set up build tools, ' +
-            'linter, formatter, TypeScript config, and all dev scripts in one go.',
+            'Create ONLY the essential project files: package.json with dev scripts, ' +
+            'vite.config.ts (or equivalent build tool), .gitignore, and a basic index.html. ' +
+            'DO NOT generate empty TypeScript classes, stub files, or boilerplate code. ' +
+            'The project must be runnable after this step with `npm install && npm run dev`. ' +
+            'NO TODO comments, NO placeholder functions.',
           baseComplexity: 'simple',
         },
       ];
@@ -164,8 +167,13 @@ function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplat
     case 'deployment':
       return [
         {
-          title: 'Deploy to platform',
-          description: 'Bundle assets, upload, configure domain, verify',
+          title: 'Generate deployment guide',
+          description:
+            'Check user-configured platform credentials. If credentials are missing, ' +
+            'output a clear guide on what accounts and materials are needed. ' +
+            'If credentials exist, generate step-by-step manual deployment instructions ' +
+            'with exact commands. NEVER attempt automatic deployment. ' +
+            'Output a checklist file (DEPLOY.md) that the user can follow manually.',
           baseComplexity: 'medium',
         },
       ];
@@ -182,8 +190,12 @@ function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplat
     case 'monetization':
       return [
         {
-          title: 'Set up monetization',
-          description: 'Configure ads, subscriptions, or payment flows',
+          title: 'Generate monetization guide',
+          description:
+            'Analyze the project type and recommend monetization strategies ' +
+            '(ads, in-app purchases, subscriptions). Output a MONETIZE.md file ' +
+            'with platform-specific setup steps, estimated revenue models, ' +
+            'and required account configurations. NEVER attempt automatic setup.',
           baseComplexity: 'medium',
         },
       ];

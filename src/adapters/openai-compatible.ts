@@ -45,7 +45,7 @@ export class OpenAICompatibleAdapter implements AIAdapter {
       );
     }
 
-    const maxRetries = 5; // Up to ~2 min of backoff total
+    const maxRetries = 2; // 3 attempts total, ~21s max backoff
     let lastError: Error | undefined;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -76,10 +76,12 @@ export class OpenAICompatibleAdapter implements AIAdapter {
 
         const reason = isGatewayError ? '服务端繁忙（504 Gateway Timeout）' : isRateLimit ? '请求频率限制（429）' : '临时网络错误';
         const estimatedWait = isGatewayError
-          ? 'Kimi Code 生成代码较慢，每次请求可能需要 3-10 分钟，请耐心等待'
+          ? 'Kimi Code 生成代码较慢，每次请求可能需要 3-10 分钟'
           : '';
         console.log(`   🔄 ${this.name} ${reason}，${estimatedWait}`);
         console.log(`      第 ${attempt + 1}/${maxRetries} 次重试，${delay / 1000}秒后再次尝试...`);
+        console.log(`      建议：配置 DeepSeek 作为备用 provider，避免单点故障`);
+        console.log(`      kele config --provider deepseek --key <key> --url https://api.deepseek.com/v1 --model deepseek-chat`);
         await sleep(delay);
       }
     }

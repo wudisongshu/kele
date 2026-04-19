@@ -94,6 +94,6 @@ describe('TaskPlanner', () => {
 
     expect(result.tasks!.length).toBe(1);
     const titles = result.tasks!.map((t) => t.title);
-    expect(titles).toContain('Initialize project with full configuration');
+    expect(titles).toContain('Initialize project with minimal configuration');
   });
 });
