@@ -1,7 +1,7 @@
 import type { Project, Task, SubProject, ExecuteResult } from '../types/index.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
-import { applyAIOutput } from './file-writer.js';
+import { applyAIOutput, parseAIOutput } from './file-writer.js';
 import { validateTaskOutput } from './task-validator.js';
 import { copyTemplate, getTemplateType, getTemplateDescription } from './template-loader.js';
 import { getPlatformCredentials } from '../platform-credentials.js';
@@ -10,6 +10,8 @@ import { debugLog } from '../debug.js';
 import { reviewTaskOutput } from './task-reviewer.js';
 import { reviewProjectHealth } from './project-reviewer.js';
 import { runProject, buildFixPrompt } from './run-validator.js';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 /**
  * Executor — schedules and runs tasks in dependency order.
@@ -258,9 +260,43 @@ export async function executeTask(
     db.saveTask(task, project.id);
 
     // Parse AI output and write files
-    const writtenFiles = applyAIOutput(subProject.targetDir, output);
-    if (writtenFiles.length > 0) {
+    let writtenFiles = applyAIOutput(subProject.targetDir, output);
+    if (writtenFiles.length > 0 && !(writtenFiles.length === 1 && writtenFiles[0] === 'notes.md')) {
       onProgress?.(`   📝 Written: ${writtenFiles.join(', ')}`);
+    } else if (writtenFiles.length === 1 && writtenFiles[0] === 'notes.md') {
+      // AI may have nested JSON inside notes.md (markdown code block) — try to extract files from it
+      onProgress?.(`   ⚠️  AI 输出只解析到 notes.md，尝试从中二次提取代码文件...`);
+      const notesPath = join(subProject.targetDir, 'notes.md');
+      if (existsSync(notesPath)) {
+        const notesContent = readFileSync(notesPath, 'utf-8');
+        const parsedFromNotes = parseAIOutput(notesContent);
+        if (parsedFromNotes.files.length > 0) {
+          // Write extracted files (clear notes.md first to avoid duplication)
+          const extractedFiles = applyAIOutput(subProject.targetDir, notesContent);
+          if (extractedFiles.length > 1 || (extractedFiles.length === 1 && extractedFiles[0] !== 'notes.md')) {
+            onProgress?.(`   📝 二次提取成功: ${extractedFiles.filter(f => f !== 'notes.md').join(', ')}`);
+            writtenFiles = extractedFiles;
+          }
+        }
+      }
+      // If still only notes.md, ask AI to reformat
+      if (writtenFiles.length === 1 && writtenFiles[0] === 'notes.md' && route.provider !== 'mock') {
+        onProgress?.(`   🔄 请求 AI 重新格式化输出...`);
+        const reformatPrompt = `Your previous response was saved as notes.md but the file structure could not be extracted. Please return ONLY a JSON object in this exact format (no markdown code blocks, no explanations outside JSON):
+{\n  "files": [\n    { "path": "relative/path/to/file", "content": "complete file content here" }\n  ],\n  "notes": "optional implementation notes"\n}`;
+        try {
+          const reformatOutput = await route.adapter.execute(reformatPrompt, onToken);
+          const reformatFiles = applyAIOutput(subProject.targetDir, reformatOutput);
+          if (reformatFiles.length > 1 || (reformatFiles.length === 1 && reformatFiles[0] !== 'notes.md')) {
+            onProgress?.(`   📝 重新格式化后写入: ${reformatFiles.filter(f => f !== 'notes.md').join(', ')}`);
+            writtenFiles = reformatFiles;
+            task.result = reformatOutput;
+            db.saveTask(task, project.id);
+          }
+        } catch {
+          // Reformat failed — continue with what we have
+        }
+      }
     } else {
       // AI returned empty or unparseable content — likely a 504/gateway timeout
       onProgress?.(`   ⚠️  AI 返回空内容，可能是服务端超时`);
@@ -294,11 +330,13 @@ export async function executeTask(
     onProgress?.(`   ✅ Validation passed (${validation.score}/100)`);
 
     // Phase 2.5: Runtime validation — actually run the code to prove it works
+    let runtimePassed = true;
     if (isCodingTask && route.provider !== 'mock') {
       onProgress?.(`   🚀 正在本地运行验证...`);
       const runResult = await runProject(subProject.targetDir);
       if (!runResult.success) {
         onProgress?.(`   ❌ 运行失败: ${runResult.stderr.slice(0, 200)}`);
+        runtimePassed = false;
         // Auto-fix loop: feed error back to AI, max 2 attempts
         let fixed = false;
         for (let fixAttempt = 1; fixAttempt <= 2; fixAttempt++) {
@@ -317,6 +355,7 @@ export async function executeTask(
             const reRun = await runProject(subProject.targetDir);
             if (reRun.success) {
               onProgress?.(`   ✅ 修复后运行通过`);
+              runtimePassed = true;
               fixed = true;
               break;
             }
@@ -339,6 +378,9 @@ export async function executeTask(
     }
 
     // Phase 3: Task-level supervision — AI reviews the output quality
+    // Save validation result for smart degradation decision
+    const validationPassed = validation.valid;
+
     if (isCodingTask && route.provider !== 'mock') {
       onProgress?.(`   🔍 AI 正在验收任务产出...`);
       let review = await reviewTaskOutput(task, subProject, project, route.adapter);
@@ -384,6 +426,14 @@ export async function executeTask(
             } else {
               onProgress?.(`   ⚠️  修复后仍未通过 (评分: ${review.score}/10)`);
               if (attempt >= maxRetries) {
+                // Smart degradation: if validation + runtime passed and review score >= 5, accept as WARNING
+                if (validationPassed && runtimePassed && review.score >= 5) {
+                  onProgress?.(`   ⚠️  修复用尽但代码可运行，接受为警告继续执行`);
+                  task.status = 'completed';
+                  task.error = `Quality review warning (score: ${review.score}/10). Issues: ${review.issues.join('; ')}`;
+                  db.saveTask(task, project.id);
+                  break; // Exit fix loop, continue execution
+                }
                 task.status = 'failed';
                 task.error = `Task failed quality review after ${maxRetries} fix attempts. Issues: ${review.issues.join('; ')}`;
                 db.saveTask(task, project.id);
@@ -394,6 +444,14 @@ export async function executeTask(
             const retryError = retryErr instanceof Error ? retryErr.message : String(retryErr);
             onProgress?.(`   ❌ 修复请求失败: ${retryError.slice(0, 120)}`);
             if (attempt >= maxRetries) {
+              // Smart degradation on retry failure too
+              if (validationPassed && runtimePassed && review.score >= 5) {
+                onProgress?.(`   ⚠️  修复请求失败但代码可运行，接受为警告继续执行`);
+                task.status = 'completed';
+                task.error = `Quality review warning (score: ${review.score}/10). Retry failed: ${retryError}`;
+                db.saveTask(task, project.id);
+                break;
+              }
               task.status = 'failed';
               task.error = `Fix attempt failed: ${retryError}`;
               db.saveTask(task, project.id);
