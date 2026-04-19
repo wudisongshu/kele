@@ -17,7 +17,7 @@ function makeIdea(overrides: Partial<Idea> = {}): Idea {
 
 describe('Incubator', () => {
   it('should always include project-setup as first sub-project', () => {
-    const idea = makeIdea({ type: 'game', monetization: 'wechat-miniprogram' });
+    const idea = makeIdea({ type: 'game', complexity: 'complex' });
     const result = incubate(idea, '/tmp/test-game');
 
     expect(result.success).toBe(true);
@@ -26,42 +26,32 @@ describe('Incubator', () => {
     expect(result.subProjects![0].targetDir).toBe('/tmp/test-game/project-setup');
   });
 
-  it('should generate game-dev + wechat pipeline for game + wechat', () => {
-    const idea = makeIdea({ type: 'game', monetization: 'wechat-miniprogram' });
+  it('simple: should generate only setup + dev', () => {
+    const idea = makeIdea({ type: 'tool', complexity: 'simple', monetization: 'web' });
     const result = incubate(idea, '/tmp/test');
 
     const ids = result.subProjects!.map((sp) => sp.id);
-    expect(ids).toContain('game-dev');
-    expect(ids).toContain('game-test');
-    expect(ids).toContain('wechat-config');
-    expect(ids).toContain('wechat-deploy');
-    expect(ids).toContain('wechat-submit');
+    expect(ids).toEqual(['project-setup', 'tool-dev']);
   });
 
-  it('should generate music + web pipeline for music + web', () => {
-    const idea = makeIdea({ type: 'music', monetization: 'web' });
+  it('medium: should add testing to setup + dev', () => {
+    const idea = makeIdea({ type: 'game', complexity: 'medium', monetization: 'wechat-miniprogram' });
     const result = incubate(idea, '/tmp/test');
 
     const ids = result.subProjects!.map((sp) => sp.id);
-    expect(ids).toContain('music-production');
-    expect(ids).toContain('web-deploy');
-    expect(ids).toContain('web-monetize');
+    expect(ids).toEqual(['project-setup', 'game-dev', 'game-test']);
   });
 
-  it('should generate tool + douyin pipeline for tool + douyin', () => {
-    const idea = makeIdea({ type: 'tool', monetization: 'douyin' });
+  it('complex: should include deploy + monetization', () => {
+    const idea = makeIdea({ type: 'tool', complexity: 'complex', monetization: 'web' });
     const result = incubate(idea, '/tmp/test');
 
     const ids = result.subProjects!.map((sp) => sp.id);
-    expect(ids).toContain('tool-dev');
-    expect(ids).toContain('tool-test');
-    expect(ids).toContain('douyin-config');
-    expect(ids).toContain('douyin-deploy');
-    expect(ids).toContain('douyin-submit');
+    expect(ids).toEqual(['project-setup', 'tool-dev', 'tool-test', 'deployment', 'monetization']);
   });
 
-  it('should set correct dependencies for wechat pipeline', () => {
-    const idea = makeIdea({ type: 'game', monetization: 'wechat-miniprogram' });
+  it('should set correct dependencies for complex pipeline', () => {
+    const idea = makeIdea({ type: 'game', complexity: 'complex', monetization: 'web' });
     const result = incubate(idea, '/tmp/test');
 
     const map = new Map(result.subProjects!.map((sp) => [sp.id, sp]));
@@ -69,27 +59,25 @@ describe('Incubator', () => {
     expect(map.get('project-setup')!.dependencies).toEqual([]);
     expect(map.get('game-dev')!.dependencies).toContain('project-setup');
     expect(map.get('game-test')!.dependencies).toContain('game-dev');
-    expect(map.get('wechat-deploy')!.dependencies).toContain('wechat-config');
-    expect(map.get('wechat-submit')!.dependencies).toContain('wechat-deploy');
+    expect(map.get('deployment')!.dependencies).toEqual([]);
+    expect(map.get('monetization')!.dependencies).toContain('deployment');
   });
 
-  it('should generate steam pipeline for steam monetization', () => {
-    const idea = makeIdea({ type: 'game', monetization: 'steam' });
-    const result = incubate(idea, '/tmp/test');
+  it('should handle all creative types', () => {
+    const types: Array<{ type: CreativeType; expectedDevId: string }> = [
+      { type: 'game', expectedDevId: 'game-dev' },
+      { type: 'music', expectedDevId: 'music-production' },
+      { type: 'content', expectedDevId: 'content-creation' },
+      { type: 'tool', expectedDevId: 'tool-dev' },
+      { type: 'unknown', expectedDevId: 'core-dev' },
+    ];
 
-    const ids = result.subProjects!.map((sp) => sp.id);
-    expect(ids).toContain('steam-build');
-    expect(ids).toContain('steam-config');
-    expect(ids).toContain('steam-submit');
-  });
-
-  it('should generate app-store pipeline for ios', () => {
-    const idea = makeIdea({ type: 'tool', monetization: 'app-store' });
-    const result = incubate(idea, '/tmp/test');
-
-    const ids = result.subProjects!.map((sp) => sp.id);
-    expect(ids).toContain('ios-build');
-    expect(ids).toContain('app-store-config');
-    expect(ids).toContain('app-store-submit');
+    for (const { type, expectedDevId } of types) {
+      const idea = makeIdea({ type, complexity: 'simple' });
+      const result = incubate(idea, '/tmp/test');
+      const ids = result.subProjects!.map((sp) => sp.id);
+      expect(ids).toContain('project-setup');
+      expect(ids).toContain(expectedDevId);
+    }
   });
 });

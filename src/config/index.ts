@@ -9,6 +9,7 @@ import { homedir } from 'os';
  *
  * Supports any OpenAI-compatible API provider:
  * - Kimi (Moonshot): https://api.moonshot.cn/v1
+ * - Kimi Code: https://api.kimi.com/coding/v1
  * - DeepSeek: https://api.deepseek.com/v1
  * - Qwen: https://dashscope.aliyuncs.com/compatible-mode/v1
  * - OpenAI: https://api.openai.com/v1
@@ -18,6 +19,14 @@ export interface ProviderConfig {
   apiKey: string;
   baseURL: string;
   model: string;
+  /** Optional extra headers (e.g. User-Agent for Kimi Code) */
+  headers?: Record<string, string>;
+  /** Request timeout in seconds (default: 300) */
+  timeout?: number;
+  /** Max tokens for response (default: 4096) */
+  maxTokens?: number;
+  /** Temperature for sampling (default: 0.7) */
+  temperature?: number;
 }
 
 export interface KeleConfig {
@@ -114,7 +123,13 @@ export function getConfigSummary(): string {
     const masked = cfg.apiKey.length > 12
       ? cfg.apiKey.slice(0, 8) + '...' + cfg.apiKey.slice(-4)
       : cfg.apiKey.slice(0, 4) + '****';
-    return `  ${name}: ${cfg.model} @ ${cfg.baseURL}\n    key: ${masked}`;
+    const headerInfo = cfg.headers ? `\n    headers: ${Object.keys(cfg.headers).join(', ')}` : '';
+    const opts = [
+      cfg.timeout && `timeout: ${cfg.timeout}s`,
+      cfg.maxTokens && `maxTokens: ${cfg.maxTokens}`,
+    ].filter(Boolean).join(', ');
+    const optStr = opts ? `\n    options: ${opts}` : '';
+    return `  ${name}: ${cfg.model} @ ${cfg.baseURL}\n    key: ${masked}${headerInfo}${optStr}`;
   });
 
   return `Providers (${providers.length}):\n${providers.join('\n')}\n\nDefault: ${config.defaultProvider ?? '(none)'}`;

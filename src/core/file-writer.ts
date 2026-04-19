@@ -22,18 +22,51 @@ export interface ParsedOutput {
 
 /**
  * Extract JSON from text, handling markdown code blocks.
+ *
+ * Strategy:
+ * 1. Try direct JSON parse first (fast path for well-formed output)
+ * 2. Try extracting from ```json code blocks
+ * 3. Try extracting from the first { to the matching } (last resort)
  */
 function extractJson(text: string): string | null {
-  // Try markdown code block first
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (codeBlockMatch) {
-    return codeBlockMatch[1].trim();
+  const trimmed = text.trim();
+
+  // Fast path: entire output is valid JSON
+  if (trimmed.startsWith('{')) {
+    try {
+      JSON.parse(trimmed);
+      return trimmed;
+    } catch {
+      // Not valid JSON as-is, continue to extraction
+    }
   }
 
-  // Try raw JSON object (starts with { and ends with })
-  const jsonMatch = text.match(/(\{[\s\S]*\})/);
+  // Try markdown code blocks — find the one that parses as valid JSON
+  // Use global match to find ALL code blocks, then try each
+  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+  let match: RegExpExecArray | null;
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    const candidate = match[1].trim();
+    if (candidate.startsWith('{') || candidate.startsWith('[')) {
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
+        // This code block isn't valid JSON, try next
+      }
+    }
+  }
+
+  // Last resort: find the outermost JSON object
+  // Match from first '{' to the last '}'
+  const jsonMatch = trimmed.match(/(\{[\s\S]*\})/);
   if (jsonMatch) {
-    return jsonMatch[1].trim();
+    try {
+      JSON.parse(jsonMatch[1]);
+      return jsonMatch[1];
+    } catch {
+      // Not valid JSON
+    }
   }
 
   return null;

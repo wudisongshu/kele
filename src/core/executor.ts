@@ -10,6 +10,7 @@ import { copyTemplate, getTemplateType, getTemplateDescription } from './templat
  * Features:
  * - Topological sorting of sub-projects by dependencies
  * - Per-task AI provider routing via ProviderRegistry
+ * - Automatic retry with fallback to mock adapter
  * - Real-time status updates via KeleDatabase
  * - Sequential execution within a sub-project
  */
@@ -21,6 +22,8 @@ export interface ExecutorOptions {
   autoRun?: boolean;
   /** Callback for progress updates */
   onProgress?: (message: string) => void;
+  /** Global timeout override in seconds (per-task) */
+  timeout?: number;
 }
 
 /**
@@ -94,6 +97,7 @@ Please provide clear step-by-step instructions. Return as JSON:
 
 /**
  * Execute a single task via the routed AI provider.
+ * Supports automatic fallback to mock on failure.
  */
 export async function executeTask(
   task: Task,
@@ -132,10 +136,15 @@ export async function executeTask(
     try {
       output = await route.adapter.execute(prompt);
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+
+      // Log the specific error for debugging
+      onProgress?.(`   ⚠️  ${route.provider} error: ${errorMsg.slice(0, 120)}`);
+
       // Fallback to mock adapter on failure
       const mock = registry.get('mock');
       if (mock && route.provider !== 'mock') {
-        onProgress?.(`   ⚠️  ${route.provider} failed, falling back to mock`);
+        onProgress?.(`   🔄 Falling back to mock adapter`);
         task.aiProvider = 'mock';
         output = await mock.execute(prompt);
       } else {
@@ -164,7 +173,7 @@ export async function executeTask(
     task.error = error;
     db.saveTask(task, project.id);
 
-    onProgress?.(`   ❌ Failed: ${error}`);
+    onProgress?.(`   ❌ Failed: ${error.slice(0, 200)}`);
 
     return { success: false, error };
   }
@@ -207,7 +216,7 @@ export async function executeProject(
         completed++;
       } else {
         failed++;
-        // For MVP, continue on failure. In production, might want to stop.
+        // Continue on failure for resilience, but warn user
         onProgress?.(`   ⚠️  Continuing despite failure...`);
       }
     }

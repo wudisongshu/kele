@@ -25,6 +25,29 @@ const __dirname = dirname(__filename);
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
 const { version } = packageJson;
 
+/**
+ * Collect repeatable --header options into a Record.
+ */
+function collectHeaders(value: string, previous: Record<string, string>): Record<string, string> {
+  const [k, v] = value.split(':');
+  if (k && v !== undefined) {
+    previous[k.trim()] = v.trim();
+  }
+  return previous;
+}
+
+/**
+ * Parse timeout from CLI option or environment variable.
+ */
+function parseTimeout(value: string): number {
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed) || parsed < 1) {
+    console.warn(`⚠️  Invalid timeout "${value}", using default 300s`);
+    return 300;
+  }
+  return parsed;
+}
+
 const program = new Command();
 
 program
@@ -37,7 +60,8 @@ program
   .argument('[idea]', 'Your idea, e.g. "我要做一个塔防游戏并部署赚钱"')
   .option('-o, --output <dir>', 'Output directory for generated projects', process.cwd())
   .option('-y, --yes', 'Skip confirmation and auto-execute all tasks', false)
-  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean }) => {
+  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 300, env: KELE_TIMEOUT)', parseTimeout)
+  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number }) => {
     if (!ideaText) {
       printUsage();
       return;
@@ -172,6 +196,7 @@ program
       registry,
       db,
       onProgress: (msg) => console.log(msg),
+      timeout: options.timeout,
     });
 
     console.log(`\n✨ 项目完成！`);
@@ -191,6 +216,7 @@ program
   .option('--key <apiKey>', 'API Key')
   .option('--url <baseURL>', 'Base URL for the API')
   .option('--model <model>', 'Model name')
+  .option('--header <header>', 'Extra header in key:value format (repeatable)', collectHeaders, {})
   .option('--default <name>', 'Set default provider')
   .option('--remove <name>', 'Remove a provider')
   .action((options: {
@@ -198,6 +224,7 @@ program
     key?: string;
     url?: string;
     model?: string;
+    header?: Record<string, string>;
     default?: string;
     remove?: string;
   }) => {
@@ -205,7 +232,8 @@ program
       console.log('🥤 kele 配置\n');
       console.log(getConfigSummary());
       console.log('\n添加 provider：');
-      console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model kimi-latest');
+      console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
+      console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
       console.log('  kele config --provider deepseek --key sk-xxx --url https://api.deepseek.com/v1 --model deepseek-chat');
       console.log('  kele config --provider qwen --key sk-xxx --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo');
       return;
@@ -233,6 +261,7 @@ program
         apiKey: options.key,
         baseURL: options.url,
         model: options.model,
+        headers: options.header && Object.keys(options.header).length > 0 ? options.header : undefined,
       });
 
       console.log(`✅ 已配置 provider: ${options.provider}`);
@@ -248,7 +277,8 @@ function printUsage(): void {
   console.log('  kele "帮我写一首歌并发布到音乐平台" --output ~/my-music');
   console.log('  kele "做一个像牛牛消消乐那样的游戏" --yes');
   console.log('\n配置 AI：');
-  console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model kimi-latest');
+  console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
+  console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
   console.log('  kele config --provider deepseek --key sk-xxx --url https://api.deepseek.com/v1 --model deepseek-chat');
   console.log('\n选项：');
   console.log('  -o, --output <dir>   指定项目生成目录');
@@ -259,7 +289,8 @@ function printUsage(): void {
 function printNoProviderHelp(): void {
   console.log('⚠️  未配置 AI API Key');
   console.log('kele 需要调用 AI 来完成任务。请配置至少一个 provider：\n');
-  console.log('  kele config --provider kimi --key <your-key> --url https://api.moonshot.cn/v1 --model kimi-latest');
+  console.log('  kele config --provider kimi --key <your-key> --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
+  console.log('  kele config --provider kimi-code --key <your-key> --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
   console.log('  kele config --provider deepseek --key <your-key> --url https://api.deepseek.com/v1 --model deepseek-chat');
   console.log('  kele config --provider qwen --key <your-key> --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo');
   console.log('\n或者使用 --yes 以 Mock 模式运行（仅用于测试）：');

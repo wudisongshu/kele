@@ -4,8 +4,8 @@ import type { Idea, SubProject, Task, PlanResult, Complexity } from '../types/in
 /**
  * TaskPlanner — breaks a SubProject into executable Tasks.
  *
- * Each task has a clear title, description, and complexity rating
- * that determines which AI provider will execute it.
+ * Optimized for MVP speed: fewer tasks per sub-project means faster
+ * AI execution (critical for slow providers like Kimi Code).
  */
 
 interface TaskTemplate {
@@ -16,14 +16,11 @@ interface TaskTemplate {
 
 /**
  * Adjust complexity based on the overall idea complexity.
- * A "simple" idea downgrades tasks; a "complex" idea upgrades them.
  */
 function adjustComplexity(base: Complexity, ideaComplexity: Complexity): Complexity {
   const levels: Complexity[] = ['simple', 'medium', 'complex'];
   const baseIndex = levels.indexOf(base);
   const ideaIndex = levels.indexOf(ideaComplexity);
-
-  // Shift by the difference between idea complexity and medium (1)
   const shift = ideaIndex - 1;
   const adjusted = Math.max(0, Math.min(2, baseIndex + shift));
   return levels[adjusted];
@@ -31,19 +28,17 @@ function adjustComplexity(base: Complexity, ideaComplexity: Complexity): Complex
 
 /**
  * Get task templates for a given sub-project type.
+ * Intentionally minimal — each sub-project gets 1-2 tasks max.
  */
 function getTaskTemplates(subProjectType: string): TaskTemplate[] {
   switch (subProjectType) {
     case 'setup':
       return [
         {
-          title: 'Initialize project structure',
-          description: 'Create directory layout, initialize package manager, set up build tools',
-          baseComplexity: 'simple',
-        },
-        {
-          title: 'Configure development environment',
-          description: 'Set up linter, formatter, TypeScript config, and dev scripts',
+          title: 'Initialize project with full configuration',
+          description:
+            'Create directory layout, initialize package manager, set up build tools, ' +
+            'linter, formatter, TypeScript config, and all dev scripts in one go.',
           baseComplexity: 'simple',
         },
       ];
@@ -51,23 +46,17 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
     case 'development':
       return [
         {
-          title: 'Technical architecture design',
-          description: 'Choose tech stack, design data models, define API contracts',
+          title: 'Implement core features and architecture',
+          description:
+            'Choose tech stack, design data models, implement primary functionality, ' +
+            'and build the core user interface.',
           baseComplexity: 'medium',
         },
         {
-          title: 'Core feature implementation',
-          description: 'Implement the primary functionality based on requirements',
-          baseComplexity: 'medium',
-        },
-        {
-          title: 'UI/UX implementation',
-          description: 'Build user interface, layout, interactions, and visual polish',
-          baseComplexity: 'medium',
-        },
-        {
-          title: 'Integration and wiring',
-          description: 'Connect frontend to backend, integrate third-party services',
+          title: 'Polish and integrate',
+          description:
+            'Connect all components, add interactions, visual polish, ' +
+            'and integrate third-party services if needed.',
           baseComplexity: 'medium',
         },
       ];
@@ -75,37 +64,27 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
     case 'production':
       return [
         {
-          title: 'Creative concept and planning',
-          description: 'Define creative direction, style, and production roadmap',
+          title: 'Create and produce assets',
+          description: 'Define creative direction and produce final deliverables',
           baseComplexity: 'medium',
         },
         {
-          title: 'Asset creation',
-          description: 'Create core assets (audio, visuals, copy) for the product',
+          title: 'Polish and finalize',
+          description: 'Mix, master, refine, and prepare for release',
           baseComplexity: 'medium',
-        },
-        {
-          title: 'Production and refinement',
-          description: 'Produce final deliverables, mix, master, or polish',
-          baseComplexity: 'complex',
         },
       ];
 
     case 'creation':
       return [
         {
-          title: 'Content planning',
-          description: 'Outline topics, structure, and content calendar',
-          baseComplexity: 'simple',
-        },
-        {
-          title: 'Content production',
-          description: 'Create the actual content (write, record, edit)',
+          title: 'Plan and produce content',
+          description: 'Outline structure and create the actual content',
           baseComplexity: 'medium',
         },
         {
-          title: 'Content optimization',
-          description: 'SEO, thumbnail, title optimization for distribution',
+          title: 'Optimize for distribution',
+          description: 'SEO, thumbnails, titles, and formatting',
           baseComplexity: 'simple',
         },
       ];
@@ -113,29 +92,14 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
     case 'testing':
       return [
         {
-          title: 'Write test cases',
-          description: 'Design unit tests, integration tests, and edge case coverage',
+          title: 'Write and run tests',
+          description: 'Design tests, execute, fix bugs, verify coverage',
           baseComplexity: 'medium',
-        },
-        {
-          title: 'Execute tests and fix bugs',
-          description: 'Run test suite, identify failures, fix issues, re-run',
-          baseComplexity: 'medium',
-        },
-        {
-          title: 'Performance and usability review',
-          description: 'Check performance metrics, usability, and accessibility',
-          baseComplexity: 'simple',
         },
       ];
 
     case 'platform-config':
       return [
-        {
-          title: 'Register platform account',
-          description: 'Create developer account, configure billing and legal info',
-          baseComplexity: 'simple',
-        },
         {
           title: 'Configure platform settings',
           description: 'Set up app manifest, permissions, icons, and metadata',
@@ -146,13 +110,8 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
     case 'build':
       return [
         {
-          title: 'Configure build pipeline',
-          description: 'Set up build scripts, environment variables, and signing',
-          baseComplexity: 'medium',
-        },
-        {
-          title: 'Execute production build',
-          description: 'Run production build, verify output, check bundle size',
+          title: 'Build production artifacts',
+          description: 'Configure pipeline, run build, verify output',
           baseComplexity: 'medium',
         },
       ];
@@ -160,37 +119,17 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
     case 'deployment':
       return [
         {
-          title: 'Prepare deployment artifacts',
-          description: 'Bundle assets, optimize images, generate manifest',
-          baseComplexity: 'simple',
-        },
-        {
           title: 'Deploy to platform',
-          description: 'Upload build, configure domain/URL, verify deployment',
+          description: 'Bundle assets, upload, configure domain, verify',
           baseComplexity: 'medium',
-        },
-        {
-          title: 'Post-deployment verification',
-          description: 'Smoke test in production environment, check logs',
-          baseComplexity: 'simple',
         },
       ];
 
     case 'store-submit':
       return [
         {
-          title: 'Prepare store listing',
-          description: 'Write description, prepare screenshots, set pricing',
-          baseComplexity: 'medium',
-        },
-        {
-          title: 'Submit for review',
-          description: 'Upload to store, fill compliance forms, submit review request',
-          baseComplexity: 'simple',
-        },
-        {
-          title: 'Handle review feedback',
-          description: 'Address rejection reasons, re-submit if needed',
+          title: 'Submit to store',
+          description: 'Prepare listing, upload, fill forms, submit review',
           baseComplexity: 'medium',
         },
       ];
@@ -198,13 +137,8 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
     case 'monetization':
       return [
         {
-          title: 'Set up revenue channel',
-          description: 'Configure ads, subscriptions, or payment processor',
-          baseComplexity: 'medium',
-        },
-        {
-          title: 'Implement monetization features',
-          description: 'Add paywall, ad slots, or in-app purchase flows',
+          title: 'Set up monetization',
+          description: 'Configure ads, subscriptions, or payment flows',
           baseComplexity: 'medium',
         },
       ];

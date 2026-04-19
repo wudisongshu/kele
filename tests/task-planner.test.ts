@@ -36,12 +36,11 @@ describe('TaskPlanner', () => {
     const result = planTasks(sp, idea);
 
     expect(result.success).toBe(true);
-    expect(result.tasks!.length).toBeGreaterThan(0);
+    expect(result.tasks!.length).toBe(2);
 
     const titles = result.tasks!.map((t) => t.title);
-    expect(titles).toContain('Technical architecture design');
-    expect(titles).toContain('Core feature implementation');
-    expect(titles).toContain('UI/UX implementation');
+    expect(titles).toContain('Implement core features and architecture');
+    expect(titles).toContain('Polish and integrate');
   });
 
   it('should generate tasks for store-submit sub-project', () => {
@@ -49,9 +48,9 @@ describe('TaskPlanner', () => {
     const idea = makeIdea();
     const result = planTasks(sp, idea);
 
+    expect(result.tasks!.length).toBe(1);
     const titles = result.tasks!.map((t) => t.title);
-    expect(titles).toContain('Prepare store listing');
-    expect(titles).toContain('Submit for review');
+    expect(titles).toContain('Submit to store');
   });
 
   it('should downgrade complexity for simple ideas', () => {
@@ -86,13 +85,13 @@ describe('TaskPlanner', () => {
     }
   });
 
-  it('should generate tasks for setup sub-project', () => {
+  it('should generate single task for setup sub-project', () => {
     const sp = makeSubProject({ type: 'setup' });
     const idea = makeIdea();
     const result = planTasks(sp, idea);
 
+    expect(result.tasks!.length).toBe(1);
     const titles = result.tasks!.map((t) => t.title);
-    expect(titles).toContain('Initialize project structure');
-    expect(titles).toContain('Configure development environment');
+    expect(titles).toContain('Initialize project with full configuration');
   });
 });
