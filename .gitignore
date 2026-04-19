@@ -30,6 +30,10 @@ out/
 .kele/
 .plans/
 
+# Generated projects (kele creates these for users)
+项目/
+我要*/
+
 # Test artifacts
 coverage/
 
