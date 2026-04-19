@@ -30,3 +30,22 @@ Default behavior: **Act first, ask later (only when blocked).**
 2. Self-prioritize by impact and dependency
 3. Execute independently
 4. Report progress, don't ask for permission
+
+## Documentation Rule (CRITICAL)
+
+**Every kele feature upgrade MUST update documentation.**
+
+When you modify kele's functionality, you MUST update:
+
+1. **README.md** — User-facing features, usage examples, quick start
+2. **AGENTS.md** — Agent behavior rules (if behavior changes)
+3. **docs/** — Any relevant documentation files
+4. **CHANGELOG** (if exists) — What changed and why
+
+**Before declaring a task complete**, verify:
+- [ ] README.md reflects the new feature
+- [ ] Examples in README are up-to-date
+- [ ] New commands/capabilities are documented
+- [ ] Removed/deprecated features are removed from docs
+
+**Why**: Users read docs first. Outdated docs are worse than no docs.
