@@ -25,3 +25,11 @@ out/
 .env
 .env.local
 .env.*.local
+
+# kele runtime
+.kele/
+.plans/
+
+# Test artifacts
+coverage/
+
