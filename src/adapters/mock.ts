@@ -15,8 +15,17 @@ export class MockAdapter implements AIAdapter {
     return true;
   }
 
-  async execute(prompt: string): Promise<string> {
+  async execute(prompt: string, _onToken?: (token: string) => void): Promise<string> {
     const lower = prompt.toLowerCase();
+
+    // Intent classification
+    if (lower.includes('intent classification') || lower.includes('intent:')) {
+      return JSON.stringify({
+        intent: 'CREATE',
+        projectName: null,
+        details: 'Create a match-3 game for Douyin platform',
+      });
+    }
 
     // Research / analysis mode
     if (lower.includes('research') || lower.includes('分析') || lower.includes('报告') || lower.includes('分析师')) {

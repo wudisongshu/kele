@@ -22,35 +22,23 @@ function getDevTaskTemplates(ideaType: string): TaskTemplate[] {
   if (ideaType === 'game') {
     return [
       {
-        title: 'Render game board and basic visuals',
+        title: 'Implement complete playable game',
         description:
-          'Create the game board/grid, render tiles/elements with colors or images, ' +
-          'and set up the canvas or DOM structure. The board MUST be visible and populated ' +
-          'with actual content when this task completes. NO empty canvases or placeholder grids.',
-        baseComplexity: 'medium',
-      },
-      {
-        title: 'Implement user interaction',
-        description:
-          'Add click/touch handling for selecting and swapping tiles, drag support if needed, ' +
-          'and visual feedback (highlight selected tiles). Interactions MUST work and be testable.',
-        baseComplexity: 'medium',
-      },
-      {
-        title: 'Implement core game logic',
-        description:
-          'Implement match detection (3+ in a row), elimination, gravity (tiles fall down), ' +
-          'new tile generation, scoring system, and game-over conditions. ' +
-          'The game MUST be fully playable after this task — matches eliminate, score updates, ' +
-          'and the game loop runs correctly. NO stub logic or TODO comments.',
+          'Implement the FULL game in one task: game board/grid rendering, click/touch input, ' +
+          'tile swap logic, match detection (3+ in a row), elimination, gravity/falling, ' +
+          'new tile generation, scoring system, and game loop. ' +
+          'The game MUST be fully playable and enjoyable when this task completes. ' +
+          'NO stub logic, NO TODO comments, NO placeholder functions.\n\n' +
+          'ACCEPTANCE CRITERIA (kele will verify by playing):\n' +
+          '1. Opening index.html shows an 8x8 grid of colored tiles with distinct colors/images\n' +
+          '2. Clicking a tile selects it; clicking an adjacent tile swaps them\n' +
+          '3. Swapping to create 3+ matching tiles triggers elimination\n' +
+          '4. Eliminated tiles disappear and tiles above fall down to fill gaps\n' +
+          '5. New tiles spawn from the top; the board always stays full\n' +
+          '6. Score counter increases when matches are made\n' +
+          '7. Invalid swaps (no match) automatically swap back\n' +
+          '8. The game board is responsive and fills the visible area',
         baseComplexity: 'complex',
-      },
-      {
-        title: 'Polish with animations and effects',
-        description:
-          'Add match animations, particle effects, sound cues, combo bonuses, and visual polish. ' +
-          'This is the final integration step ensuring all components work together smoothly.',
-        baseComplexity: 'medium',
       },
     ];
   }
@@ -90,9 +78,21 @@ function adjustComplexity(base: Complexity, ideaComplexity: Complexity): Complex
  * Get task templates for a given sub-project type.
  * Intentionally minimal — each sub-project gets 1-2 tasks max.
  */
-function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplate[] {
+function getTaskTemplates(subProjectType: string, ideaType: string, subProjectName: string, subProjectDesc: string): TaskTemplate[] {
   switch (subProjectType) {
-    case 'setup':
+    case 'setup': {
+      // If this is NOT the first setup (project-setup), generate different tasks
+      const isFirstSetup = subProjectName.toLowerCase().includes('project') || subProjectName.toLowerCase().includes('setup');
+      if (!isFirstSetup) {
+        return [
+          {
+            title: `Complete ${subProjectName}`,
+            description: `${subProjectDesc}\n\nGenerate the required files and configurations. ` +
+              'Output actual files, not just guides. NO TODO comments, NO placeholder functions.',
+            baseComplexity: 'medium',
+          },
+        ];
+      }
       return [
         {
           title: 'Initialize project with minimal configuration',
@@ -105,6 +105,7 @@ function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplat
           baseComplexity: 'simple',
         },
       ];
+    }
 
     case 'development':
       return getDevTaskTemplates(ideaType || 'unknown');
@@ -167,13 +168,17 @@ function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplat
     case 'deployment':
       return [
         {
-          title: 'Generate deployment guide',
+          title: 'Generate deployment configuration',
           description:
-            'Check user-configured platform credentials. If credentials are missing, ' +
-            'output a clear guide on what accounts and materials are needed. ' +
-            'If credentials exist, generate step-by-step manual deployment instructions ' +
-            'with exact commands. NEVER attempt automatic deployment. ' +
-            'Output a checklist file (DEPLOY.md) that the user can follow manually.',
+            'Generate ALL configuration files needed for deployment to the target platform. ' +
+            'This includes: CI/CD workflow files (.github/workflows/deploy.yml), ' +
+            'platform config files (project.config.json, game.json), ' +
+            'deployment scripts (deploy.sh), and ad integration code (adsense.html). ' +
+            'The user should be able to deploy with minimal manual steps — ideally just ' +
+            'running a single command or pushing to git. ' +
+            'If credentials exist, embed them in the config files. ' +
+            'If credentials are missing, generate placeholder configs and include a SETUP.md ' +
+            'explaining what credentials are needed and how to obtain them.',
           baseComplexity: 'medium',
         },
       ];
@@ -190,12 +195,15 @@ function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplat
     case 'monetization':
       return [
         {
-          title: 'Generate monetization guide',
+          title: 'Integrate monetization',
           description:
-            'Analyze the project type and recommend monetization strategies ' +
-            '(ads, in-app purchases, subscriptions). Output a MONETIZE.md file ' +
-            'with platform-specific setup steps, estimated revenue models, ' +
-            'and required account configurations. NEVER attempt automatic setup.',
+            'Generate and integrate monetization code for the target platform. ' +
+            'For H5/Web: embed Google AdSense or 百度联盟广告代码 into the HTML. ' +
+            'For WeChat: integrate 微信广告 SDK (激励视频、插屏广告). ' +
+            'For Douyin: integrate 穿山甲广告 SDK. ' +
+            'For Google Play: integrate AdMob SDK. ' +
+            'Generate the actual code files (not just guides) that can be copy-pasted into the project. ' +
+            'Also output a MONETIZE.md with revenue estimates and account setup instructions.',
           baseComplexity: 'medium',
         },
       ];
@@ -216,7 +224,7 @@ function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplat
  */
 export function planTasks(subProject: SubProject, idea: Idea): PlanResult {
   try {
-    const templates = getTaskTemplates(subProject.type, idea.type);
+    const templates = getTaskTemplates(subProject.type, idea.type, subProject.name, subProject.description);
     const now = new Date().toISOString();
 
     const tasks: Task[] = templates.map((tpl) => ({

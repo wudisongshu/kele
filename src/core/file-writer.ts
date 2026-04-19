@@ -131,6 +131,9 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
   }
 
   if (parsed.notes && parsed.notes.trim().length > 0) {
+    if (!existsSync(baseDir)) {
+      mkdirSync(baseDir, { recursive: true });
+    }
     const notesPath = join(baseDir, 'notes.md');
     writeFileSync(notesPath, parsed.notes, 'utf-8');
     written.push('notes.md');

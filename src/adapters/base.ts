@@ -9,8 +9,12 @@ export interface AIAdapter {
   /** Whether this provider is configured and available */
   isAvailable(): boolean;
 
-  /** Execute a prompt and return the response text */
-  execute(prompt: string): Promise<string>;
+  /**
+   * Execute a prompt and return the response text.
+   * @param onToken - Optional callback fired for each token during streaming.
+   *                  When provided, the adapter will use streaming mode if supported.
+   */
+  execute(prompt: string, onToken?: (token: string) => void): Promise<string>;
 }
 
 /**

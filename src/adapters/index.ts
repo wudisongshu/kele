@@ -91,3 +91,11 @@ export function createRegistryFromConfig(): ProviderRegistry {
 
   return registry;
 }
+
+/**
+ * Create a mock-only registry for fast testing.
+ * No API calls are made — all responses come from the mock adapter.
+ */
+export function createMockRegistry(): ProviderRegistry {
+  return new ProviderRegistry();
+}

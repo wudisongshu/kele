@@ -53,9 +53,12 @@ Return JSON:
 /**
  * Parse user input into a structured intent using AI.
  */
+import { debugLog } from '../debug.js';
+
 export async function parseIntent(userInput: string, adapter: AIAdapter): Promise<UserIntent> {
   try {
     const prompt = `${INTENT_PROMPT}\n\nUser input: "${userInput}"`;
+    debugLog('Intent Engine Prompt', prompt);
     const response = await adapter.execute(prompt);
 
     // Extract JSON from response

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { AIAdapter } from '../adapters/base.js';
+import { debugLog } from '../debug.js';
 
 /**
  * ResearchEngine — analyzes vague or competitor-based ideas before incubation.
@@ -195,6 +196,7 @@ export async function research(
   try {
     const subject = extractSubject(rawText) || rawText.slice(0, 50);
     const prompt = buildResearchPrompt(subject, rawText);
+    debugLog('Research Engine Prompt', prompt);
 
     const response = await adapter.execute(prompt);
     const report = parseResearchResponse(subject, response);

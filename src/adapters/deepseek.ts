@@ -27,7 +27,7 @@ export class DeepSeekAdapter implements AIAdapter {
     return !!this.config.apiKey && this.config.apiKey.length > 0;
   }
 
-  async execute(prompt: string): Promise<string> {
+  async execute(prompt: string, _onToken?: (token: string) => void): Promise<string> {
     if (!this.isAvailable()) {
       throw new Error('DeepSeek API key not configured. Run `kele config` to set it up.');
     }

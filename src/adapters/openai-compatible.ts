@@ -29,6 +29,10 @@ export class OpenAICompatibleAdapter implements AIAdapter {
   /**
    * Execute a prompt with automatic retry and timeout.
    *
+   * When onToken is provided, uses streaming mode (stream: true) to avoid
+   * gateway timeouts (504). Data flows continuously as SSE, so the connection
+   * stays alive even during long generations (3-10 min for code).
+   *
    * Retry strategy:
    * - 401/403: No retry (auth failure)
    * - 429: Retry with exponential backoff
@@ -36,21 +40,22 @@ export class OpenAICompatibleAdapter implements AIAdapter {
    * - Network errors: Retry
    *
    * @param prompt - The prompt to send
+   * @param onToken - Optional callback for real-time token streaming
    * @returns The response text from the AI
    */
-  async execute(prompt: string): Promise<string> {
+  async execute(prompt: string, onToken?: (token: string) => void): Promise<string> {
     if (!this.isAvailable()) {
       throw new Error(
         `${this.name} API key not configured. Run \`kele config --provider ${this.name}\` to set it up.`
       );
     }
 
-    const maxRetries = 2; // 3 attempts total, ~21s max backoff
+    const maxRetries = 2; // 3 attempts total
     let lastError: Error | undefined;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        return await this.executeOnce(prompt);
+        return await this.executeOnce(prompt, onToken);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         const msg = lastError.message;
@@ -69,16 +74,22 @@ export class OpenAICompatibleAdapter implements AIAdapter {
           throw lastError;
         }
 
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s
-        // Gateway errors wait a bit longer on first retry
-        const baseDelay = isGatewayError ? 3000 : 1000;
+        // Exponential backoff
+        // For gateway errors with streaming, this usually means the upstream
+        // is genuinely overloaded. Wait longer.
+        const baseDelay = isGatewayError ? 5000 : 1000;
         const delay = baseDelay * Math.pow(2, attempt);
 
-        const reason = isGatewayError ? '服务端繁忙（504 Gateway Timeout）' : isRateLimit ? '请求频率限制（429）' : '临时网络错误';
-        const estimatedWait = isGatewayError
-          ? 'Kimi Code 生成代码较慢，每次请求可能需要 3-10 分钟'
-          : '';
-        console.log(`   🔄 ${this.name} ${reason}，${estimatedWait}`);
+        const reason = isGatewayError
+          ? '服务端响应慢（可能 AI 正在生成中，但网关超时断开）'
+          : isRateLimit
+            ? '请求频率限制（429）'
+            : '临时网络错误';
+
+        console.log(`   🔄 ${this.name} ${reason}`);
+        if (isGatewayError && onToken) {
+          console.log(`      💡 已启用流式传输，通常可避免此问题。若仍出现，说明上游确实过载。`);
+        }
         console.log(`      第 ${attempt + 1}/${maxRetries} 次重试，${delay / 1000}秒后再次尝试...`);
         console.log(`      建议：配置 DeepSeek 作为备用 provider，避免单点故障`);
         console.log(`      kele config --provider deepseek --key <key> --url https://api.deepseek.com/v1 --model deepseek-chat`);
@@ -89,7 +100,7 @@ export class OpenAICompatibleAdapter implements AIAdapter {
     throw lastError ?? new Error(`${this.name} API call failed after ${maxRetries + 1} attempts`);
   }
 
-  private async executeOnce(prompt: string): Promise<string> {
+  private async executeOnce(prompt: string, onToken?: (token: string) => void): Promise<string> {
     const timeoutMs = (this.config.timeout ?? 1800) * 1000; // default 30 min per task
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -125,6 +136,13 @@ export class OpenAICompatibleAdapter implements AIAdapter {
         body.max_tokens = this.config.maxTokens;
       }
 
+      // Use streaming when onToken callback is provided
+      // This avoids 504 gateway timeouts because data flows continuously
+      const useStreaming = !!onToken;
+      if (useStreaming) {
+        body.stream = true;
+      }
+
       const response = await fetch(`${this.config.baseURL}/chat/completions`, {
         method: 'POST',
         headers,
@@ -135,6 +153,10 @@ export class OpenAICompatibleAdapter implements AIAdapter {
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`${this.name} API error (${response.status}): ${errorText}`);
+      }
+
+      if (useStreaming) {
+        return await this.parseStream(response, onToken!);
       }
 
       const data = (await response.json()) as {
@@ -152,6 +174,97 @@ export class OpenAICompatibleAdapter implements AIAdapter {
       throw err;
     } finally {
       clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * Parse an SSE (Server-Sent Events) stream from OpenAI-compatible API.
+   * Collects all tokens into a single response string.
+   */
+  private async parseStream(response: Response, onToken: (token: string) => void): Promise<string> {
+    if (!response.body) {
+      throw new Error(`${this.name} streaming response has no body`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    let tokenCount = 0;
+    let firstTokenTime: number | null = null;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines from buffer
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+          const data = trimmed.slice(5).trimStart(); // Remove 'data:' prefix, optional space
+
+          if (data === '[DONE]') {
+            continue; // End of stream marker
+          }
+
+          try {
+            const chunk = JSON.parse(data) as {
+              choices?: Array<{
+                delta?: { content?: string };
+                finish_reason?: string | null;
+              }>;
+            };
+
+            const delta = chunk.choices?.[0]?.delta?.content;
+            if (delta) {
+              content += delta;
+              tokenCount++;
+              if (firstTokenTime === null) {
+                firstTokenTime = Date.now();
+              }
+              onToken(delta);
+            }
+          } catch {
+            // Ignore malformed JSON lines (e.g. keep-alive pings)
+          }
+        }
+      }
+
+      // Process any remaining buffer
+      if (buffer.trim()) {
+        const trimmed = buffer.trim();
+        if (trimmed.startsWith('data:') && trimmed.slice(5).trimStart() !== '[DONE]') {
+          try {
+            const chunk = JSON.parse(trimmed.slice(5).trimStart()) as {
+              choices?: Array<{ delta?: { content?: string } }>;
+            };
+            const delta = chunk.choices?.[0]?.delta?.content;
+            if (delta) {
+              content += delta;
+              tokenCount++;
+              onToken(delta);
+            }
+          } catch {
+            // Ignore
+          }
+        }
+      }
+
+      if (firstTokenTime !== null) {
+        const elapsed = ((Date.now() - firstTokenTime) / 1000).toFixed(1);
+        console.log(`      ✅ 流式生成完成，共 ${tokenCount} 个 token，用时 ${elapsed} 秒`);
+      }
+
+      return content;
+    } finally {
+      reader.releaseLock();
     }
   }
 }

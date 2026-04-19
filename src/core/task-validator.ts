@@ -7,6 +7,7 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { validateGamePlayability } from './game-validator.js';
 
 export interface ValidationResult {
   valid: boolean;
@@ -87,8 +88,21 @@ export function validateTaskOutput(targetDir: string, taskTitle: string): Valida
     issues.push(...htmlIssues);
   }
 
+  // Game playability check — critical for game tasks
+  if (taskTitle.toLowerCase().includes('game') || taskTitle.toLowerCase().includes('游戏')) {
+    const playability = validateGamePlayability(targetDir);
+    if (!playability.playable) {
+      issues.push(`CRITICAL: Game is not playable (score: ${playability.score}/100). Missing core mechanics.`);
+    }
+    for (const issue of playability.issues) {
+      if (!issues.some(i => i.includes(issue.replace('CRITICAL: ', '').slice(0, 30)))) {
+        issues.push(issue);
+      }
+    }
+  }
+
   const score = calculateScore(totalFiles, stubFiles, emptyFiles, issues.length);
-  const valid = score >= 60 && !issues.some(i => i.includes('CRITICAL'));
+  const valid = score >= 80 && !issues.some(i => i.includes('CRITICAL'));
 
   return { valid, issues, score };
 }
@@ -143,9 +157,28 @@ function validateGameOutput(targetDir: string, _taskTitle: string): string[] {
   const htmlPath = findHtmlFile(targetDir);
   if (htmlPath) {
     const html = readFileSync(htmlPath, 'utf-8');
-    // Check for canvas with actual drawing
-    if (html.includes('<canvas') && !html.includes('fillRect') && !html.includes('drawImage') && !html.includes('arc')) {
-      issues.push('CRITICAL: HTML has <canvas> but no drawing operations found');
+    if (html.includes('<canvas')) {
+      // Drawing ops may be in JS files, not HTML. Scan all JS in the directory.
+      const drawOps = ['fillRect', 'drawImage', 'arc', 'fillStyle', 'strokeRect', 'beginPath'];
+      let foundDraw = drawOps.some((op) => html.includes(op));
+      if (!foundDraw) {
+        // Scan JS files for drawing operations
+        const jsFiles = findJsFiles(targetDir);
+        for (const jsPath of jsFiles) {
+          try {
+            const jsContent = readFileSync(jsPath, 'utf-8');
+            if (drawOps.some((op) => jsContent.includes(op))) {
+              foundDraw = true;
+              break;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+      if (!foundDraw) {
+        issues.push('CRITICAL: HTML has <canvas> but no drawing operations found in HTML or JS files');
+      }
     }
   }
 
@@ -191,6 +224,22 @@ function findHtmlFile(dir: string): string | undefined {
     }
   }
   return undefined;
+}
+
+function findJsFiles(dir: string): string[] {
+  const files: string[] = [];
+  if (!existsSync(dir)) return files;
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules' || entry === 'dist') continue;
+    const fullPath = join(dir, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      files.push(...findJsFiles(fullPath));
+    } else if (/\.(js|ts)$/.test(entry)) {
+      files.push(fullPath);
+    }
+  }
+  return files;
 }
 
 function calculateScore(total: number, stubs: number, empty: number, issueCount: number): number {

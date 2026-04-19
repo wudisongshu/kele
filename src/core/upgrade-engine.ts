@@ -3,6 +3,7 @@ import type { Task, Project, SubProject, ExecuteResult } from '../types/index.js
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput } from './file-writer.js';
+import { debugLog } from '../debug.js';
 
 /**
  * UpgradeEngine — enables iterative improvement of existing tasks.
@@ -111,6 +112,7 @@ export async function upgradeTask(
     onProgress?.(`   🤖 Using ${route.provider}`);
 
     const prompt = buildUpgradePrompt(originalTask, subProject, project, upgradeRequest);
+    debugLog(`Upgrade Prompt [${subProject.name} / ${originalTask.title}]`, prompt);
     let output: string;
 
     try {

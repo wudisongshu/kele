@@ -139,10 +139,18 @@ export function incubate(idea: Idea, rootDir: string): IncubateResult {
       templates.push(getTestingProject(idea.type));
     }
 
-    // Complex: add deployment and monetization
-    if (idea.complexity === 'complex') {
-      templates.push(getDeploymentProject());
-      templates.push(getMonetizationProject());
+    // Deployment is required when user explicitly wants to publish
+    const wantsPublish = idea.monetization && idea.monetization !== 'unknown';
+    if (wantsPublish || idea.complexity === 'complex') {
+      const deploy = getDeploymentProject();
+      // Deployment depends on the last non-deploy sub-project
+      const lastWork = templates[templates.length - 1];
+      deploy.dependencies = [lastWork.id];
+      templates.push(deploy);
+
+      const monetize = getMonetizationProject();
+      monetize.dependencies = [deploy.id];
+      templates.push(monetize);
     }
 
     const subProjects: SubProject[] = templates.map((tpl) => ({
@@ -154,6 +162,10 @@ export function incubate(idea: Idea, rootDir: string): IncubateResult {
       dependencies: tpl.dependencies,
       status: 'pending',
       createdAt: now,
+      monetizationRelevance: tpl.type === 'monetization' || tpl.type === 'development' || tpl.type === 'production' || tpl.type === 'creation' ? 'core' : 'supporting',
+      estimatedEffort: idea.complexity === 'simple' ? '2-4 hours' : idea.complexity === 'medium' ? '1-2 days' : '3-5 days',
+      criticalPath: tpl.type === 'setup' || tpl.type === 'development' || tpl.type === 'production' || tpl.type === 'creation' || tpl.type === 'deployment',
+      riskLevel: idea.complexity === 'complex' ? 'medium' : 'low',
     }));
 
     return { success: true, subProjects };

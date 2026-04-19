@@ -16,6 +16,7 @@ import { executeProject } from '../core/executor.js';
 import { upgradeTask } from '../core/upgrade-engine.js';
 import { parseIntent } from '../core/intent-engine.js';
 import { createRegistryFromConfig } from '../adapters/index.js';
+import type { AIProvider } from '../types/index.js';
 import { KeleDatabase } from '../db/index.js';
 import { needsResearch, research } from '../core/research-engine.js';
 import {
@@ -37,8 +38,10 @@ import {
 import {
   formatReleaseInsightForUser,
   formatReleaseChecklist,
+  getDeployCommandGuide,
 } from '../platform-knowledge.js';
-import type { Project } from '../types/index.js';
+import { routeMonetization, formatRouteRecommendations } from '../core/monetization-router.js';
+import type { Project, Idea } from '../types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -81,7 +84,14 @@ program
   .option('-o, --output <dir>', 'Output directory for generated projects', join(homedir(), 'kele-projects'))
   .option('-y, --yes', 'Skip confirmation and auto-execute all tasks', false)
   .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
-  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number }) => {
+  .option('--debug', 'Show all prompts sent to AI for debugging', false)
+  .option('--mock', 'Force mock AI mode for fast testing (no API calls)', false)
+  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean }) => {
+    if (options.debug) {
+      const { setDebug } = await import('../debug.js');
+      setDebug(true);
+      console.log('🔍 Debug mode enabled — all AI prompts will be logged\n');
+    }
     if (!ideaText) {
       printUsage();
       return;
@@ -96,12 +106,16 @@ program
     // === Intent Engine ===
     const db = new KeleDatabase();
     const registry = createRegistryFromConfig();
+    if (options.mock) {
+      const mockAdapter = registry.get('mock')!;
+      registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
+    }
     const route = registry.route('medium');
     const intent = await parseIntent(ideaText, route.adapter);
 
     switch (intent.type) {
       case 'CREATE':
-        await handleCreateIntent(intent.idea, options, db);
+        await handleCreateIntent(intent.idea, options, db, options.mock);
         break;
       case 'UPGRADE':
         await handleUpgradeIntent(intent.projectQuery, intent.taskQuery || undefined, intent.request, options, db);
@@ -128,6 +142,7 @@ async function handleCreateIntent(
   ideaText: string,
   options: { output: string; yes: boolean; timeout?: number },
   db: KeleDatabase,
+  useMock: boolean = false,
 ) {
   console.log('🥤 kele 收到了你的想法（创建项目）：');
   console.log(`   "${ideaText}"\n`);
@@ -146,7 +161,32 @@ async function handleCreateIntent(
   console.log(`   复杂度: ${idea.complexity}`);
   console.log(`   关键词: ${idea.keywords.join(', ')}\n`);
 
-  // Show release insight immediately so user knows what's needed
+  // Show monetization route recommendations
+  const routes = routeMonetization(idea);
+  console.log(formatRouteRecommendations(routes));
+
+  // If user didn't explicitly specify a platform, default to the top recommendation
+  const topRoute = routes[0];
+  if (idea.monetization === 'unknown' && topRoute) {
+    idea.monetization = topRoute.platform as Idea['monetization'];
+    console.log(`   kele 已自动选择最优路径: ${topRoute.platformLabel}\n`);
+  }
+
+  // Interactive confirmation: let user switch platform if they want
+  const selectedRoute = routes.find((r) => r.platform === idea.monetization) || topRoute;
+  if (selectedRoute) {
+    console.log(`💰 确认变现路径: ${selectedRoute.platformLabel}`);
+    console.log(`   收益模式: ${selectedRoute.revenueModel}`);
+    console.log(`   收款方式: ${selectedRoute.payoutMethod}`);
+    console.log(`   预估收益: ${selectedRoute.estimatedRevenue}`);
+    console.log();
+
+    if (!options.yes && !(await confirmCheckpoint(`确认使用 ${selectedRoute.platformLabel} 变现？`))) {
+      return;
+    }
+  }
+
+  // Show release insight for the selected platform
   if (idea.monetization && idea.monetization !== 'unknown') {
     const insight = formatReleaseInsightForUser(idea.monetization);
     if (insight) {
@@ -155,6 +195,10 @@ async function handleCreateIntent(
   }
 
   const registry = createRegistryFromConfig();
+  if (useMock) {
+    const mockAdapter = registry.get('mock')!;
+    registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
+  }
   const route = registry.route('medium');
 
   // Step 2: Business Research (if needed)
@@ -235,11 +279,68 @@ async function handleCreateIntent(
   if (incubateResult.reasoning) {
     console.log(`💡 AI 设计思路: ${incubateResult.reasoning}`);
   }
-  console.log(`🥚 孵化出 ${subProjects.length} 个子项目：`);
+
+  // Display monetization path
+  if (incubateResult.monetizationPath) {
+    console.log(`\n💰 变现路径:`);
+    console.log(`   ${incubateResult.monetizationPath}`);
+  }
+
+  // Display risk assessment
+  if (incubateResult.riskAssessment) {
+    const ra = incubateResult.riskAssessment;
+    console.log(`\n⚠️  风险评估:`);
+    if (ra.technicalRisks?.length) {
+      console.log(`   技术风险: ${ra.technicalRisks.join('; ')}`);
+    }
+    if (ra.marketRisks?.length) {
+      console.log(`   市场风险: ${ra.marketRisks.join('; ')}`);
+    }
+    if (ra.timeRisks?.length) {
+      console.log(`   时间风险: ${ra.timeRisks.join('; ')}`);
+    }
+    if (ra.mitigation) {
+      console.log(`   缓解方案: ${ra.mitigation}`);
+    }
+  }
+
+  // Display self-review notes
+  if (incubateResult.selfReviewNotes) {
+    console.log(`\n🔍 AI 自我审查:`);
+    console.log(`   ${incubateResult.selfReviewNotes}`);
+  }
+
+  // Display validation results (Phase 2)
+  if (incubateResult.validation) {
+    const v = incubateResult.validation;
+    console.log(`\n🛡️  孵化器质检报告:`);
+    if (v.localValid) {
+      console.log(`   ✅ 结构验证通过`);
+    } else {
+      console.log(`   ❌ 结构验证失败: ${v.localErrors.join('; ')}`);
+    }
+    if (v.localWarnings.length > 0) {
+      console.log(`   ⚠️  警告: ${v.localWarnings.join('; ')}`);
+    }
+    if (v.revisions > 0) {
+      console.log(`   🔄 AI 修正轮数: ${v.revisions}`);
+    }
+    if (v.aiApproved) {
+      console.log(`   ✅ AI 审查通过`);
+    } else {
+      console.log(`   ⚠️  AI 审查发现问题: ${v.aiIssues.join('; ')}`);
+    }
+  }
+
+  console.log(`\n🥚 孵化出 ${subProjects.length} 个子项目：`);
   for (const sp of subProjects) {
-    console.log(`   • ${sp.name} (${sp.type})`);
+    const relevanceIcon = sp.monetizationRelevance === 'core' ? '🔴' : sp.monetizationRelevance === 'supporting' ? '🟡' : '⚪';
+    const criticalIcon = sp.criticalPath ? '⏱️' : '';
+    const riskIcon = sp.riskLevel === 'high' ? '🔥' : sp.riskLevel === 'medium' ? '⚡' : '';
+    console.log(`   ${relevanceIcon} ${sp.name} ${criticalIcon}${riskIcon}`);
+    console.log(`      类型: ${sp.type}${sp.estimatedEffort ? ` | 预估: ${sp.estimatedEffort}` : ''}${sp.riskLevel ? ` | 风险: ${sp.riskLevel}` : ''}`);
     if (sp.dependencies.length > 0) {
-      console.log(`     依赖: ${sp.dependencies.join(', ')}`);
+      console.log(`      依赖: ${sp.dependencies.join(', ')}`);
     }
   }
   console.log();
@@ -288,6 +389,10 @@ async function handleCreateIntent(
     console.log('   当前任务状态已保存到数据库');
     console.log('   之后可以用 kele "继续" 或 kele "接着干" 恢复');
     abortController.abort();
+    // CRITICAL: Custom SIGINT handler overrides Node.js default (exit process).
+    // Async operations (stream readers, unclosed connections) may hang the event loop.
+    // Give code 100ms to clean up, then force exit.
+    setTimeout(() => process.exit(0), 100);
   };
   process.on('SIGINT', sigintHandler);
   process.on('SIGTERM', sigintHandler);
@@ -324,11 +429,11 @@ async function handleCreateIntent(
     console.log(`\n⚠️  有 ${result.failed} 个任务失败，请检查日志或手动修复。`);
   }
 
-  // Show release checklist if a platform was targeted
+  // Show deploy command guide after project completion
   if (idea.monetization && idea.monetization !== 'unknown') {
-    const checklist = formatReleaseChecklist(idea.monetization);
-    if (checklist) {
-      console.log(checklist);
+    const deployGuide = getDeployCommandGuide(idea.monetization, rootDir);
+    if (deployGuide) {
+      console.log(deployGuide);
     }
   }
 }
@@ -593,9 +698,10 @@ async function handleChatIntent(message: string) {
   console.log('🥤 kele: 让我想想...\n');
 
   try {
-    const response = await route.adapter.execute(
-      `你是 kele，一个帮用户把想法变成产品的 AI 助手。请用中文简洁回答以下问题：\n\n${message}`,
-    );
+    const chatPrompt = `你是 kele，一个帮用户把想法变成产品的 AI 助手。请用中文简洁回答以下问题：\n\n${message}`;
+    const { debugLog } = await import('../debug.js');
+    debugLog('Chat Prompt', chatPrompt);
+    const response = await route.adapter.execute(chatPrompt);
     console.log(response);
   } catch (err) {
     console.error('❌ AI 调用失败:', (err as Error).message);
@@ -613,6 +719,14 @@ async function confirmCheckpoint(question: string): Promise<boolean> {
   }
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  // Handle Ctrl+C during prompt — close readline and exit cleanly
+  rl.on('SIGINT', () => {
+    rl.close();
+    console.log('\n   ⏹️  已取消');
+    process.exit(0);
+  });
+
   const answer = await new Promise<string>((resolve) => {
     rl.question(`⏸️  ${question} [Y/n/e(edit)] `, resolve);
   });
@@ -842,7 +956,17 @@ program
   .argument('<task-id>', 'Task ID to upgrade')
   .argument('<request>', 'Upgrade request, e.g. "change art to pixel style"')
   .description('Upgrade an existing task with new requirements')
-  .action(async (projectId: string, taskId: string, request: string) => {
+  .option('--debug', 'Show all prompts sent to AI for debugging', false)
+  .action(async (projectId: string, taskId: string, request: string, options: { debug: boolean }) => {
+    if (options.debug) {
+      const { setDebug } = await import('../debug.js');
+      setDebug(true);
+      console.log('🔍 Debug mode enabled — all AI prompts will be logged\n');
+    }
+    if (!hasAnyProvider()) {
+      printNoProviderHelp();
+      return;
+    }
     if (!hasAnyProvider()) {
       printNoProviderHelp();
       return;
@@ -967,6 +1091,7 @@ function printUsage(): void {
   console.log('  -o, --output <dir>   指定项目生成目录');
   console.log('  -y, --yes            自动执行所有任务（跳过确认）');
   console.log('  -t, --timeout <s>    AI 超时时间（默认 1800 秒 = 30 分钟）');
+  console.log('  --debug              显示 kele 发给 AI 的所有 prompt');
   console.log('  -v, --version        显示版本号');
 }
 

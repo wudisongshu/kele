@@ -36,13 +36,10 @@ describe('TaskPlanner', () => {
     const result = planTasks(sp, idea);
 
     expect(result.success).toBe(true);
-    expect(result.tasks!.length).toBe(4);
+    expect(result.tasks!.length).toBe(1);
 
     const titles = result.tasks!.map((t) => t.title);
-    expect(titles).toContain('Render game board and basic visuals');
-    expect(titles).toContain('Implement user interaction');
-    expect(titles).toContain('Implement core game logic');
-    expect(titles).toContain('Polish with animations and effects');
+    expect(titles).toContain('Implement complete playable game');
   });
 
   it('should generate tasks for store-submit sub-project', () => {

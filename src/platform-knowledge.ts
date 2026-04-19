@@ -53,7 +53,7 @@ export const PLATFORM_RELEASE_GUIDE: Record<string, PlatformGuide> = {
       { field: 'companyName', label: '企业名称', reason: '微信认证和资质审核', required: false },
       { field: 'businessLicense', label: '营业执照号', reason: '企业主体认证', required: false },
     ],
-    notes: '微信小游戏审核较严格，棋牌类、文化互动类需额外资质。建议企业主体注册，个人主体无法接入支付。',
+    notes: '微信小游戏审核较严格，棋牌类、文化互动类需额外资质。建议企业主体注册，个人主体无法接入支付。\n\n⚠️ CRITICAL: 2026年3月起软著申请明确禁止AI生成代码。若使用kele/AI辅助开发，必须在代码基础上进行实质性人工改造（重写核心算法、重构代码结构、添加原创注释等），否则软著可能被驳回并纳入征信记录。\n\n替代方案：可先部署为H5网页游戏（无需任何资质），积累用户后再申请软著上架。',
   },
 
   douyin: {
@@ -80,7 +80,7 @@ export const PLATFORM_RELEASE_GUIDE: Record<string, PlatformGuide> = {
       { field: 'idCard', label: '身份证号', reason: '实名认证', required: true },
       { field: 'companyName', label: '企业名称', reason: '主体认证', required: false },
     ],
-    notes: '抖音小游戏审核相对微信宽松，但同样要求软著。eCPM 较高，适合 IAA（广告变现）。',
+    notes: '抖音小游戏审核相对微信宽松，但同样要求软著。eCPM 较高，适合 IAA（广告变现）。\n\n⚠️ CRITICAL: 2026年3月起软著申请明确禁止AI生成代码。若使用kele/AI辅助开发，必须在代码基础上进行实质性人工改造（重写核心算法、重构代码结构、添加原创注释等），否则软著可能被驳回并纳入征信记录。\n\n替代方案：可先部署为H5网页游戏（无需任何资质），积累用户后再申请软著上架。',
   },
 
   steam: {
@@ -113,15 +113,15 @@ export const PLATFORM_RELEASE_GUIDE: Record<string, PlatformGuide> = {
   web: {
     steps: [
       { title: '购买域名', description: '在阿里云/腾讯云/Cloudflare 购买域名', estimatedDays: 1 },
-      { title: 'ICP备案', description: '国内服务器必须备案，提交主体信息和域名', estimatedDays: 15 },
-      { title: '选择托管', description: 'Vercel/Netlify/Cloudflare Pages（海外）或阿里云 COS（国内）', estimatedDays: 1 },
+      { title: 'ICP备案（国内服务器）', description: '国内服务器必须备案，提交主体信息和域名。使用海外托管可跳过', estimatedDays: 15 },
+      { title: '选择托管', description: 'Vercel/Netlify/Cloudflare Pages（海外，免备案）或阿里云 COS（国内）', estimatedDays: 1 },
       { title: '配置 DNS', description: '将域名解析到托管平台', estimatedDays: 1 },
       { title: '部署上线', description: '上传构建产物，配置 HTTPS', estimatedDays: 1 },
       { title: '接入广告', description: 'Google AdSense / 百度联盟等', estimatedDays: 3 },
     ],
     requiredMaterials: [
       '域名',
-      'ICP备案号（国内）',
+      'ICP备案号（国内服务器）',
     ],
     userInfoNeeded: [
       { field: 'email', label: '邮箱', reason: '域名注册和托管平台账号', required: true },
@@ -150,7 +150,7 @@ export const PLATFORM_RELEASE_GUIDE: Record<string, PlatformGuide> = {
       { field: 'email', label: '邮箱', reason: 'Apple ID 和开发者账号', required: true },
       { field: 'appleId', label: 'Apple ID', reason: '开发者账号登录', required: true },
     ],
-    notes: 'App Store 审核较严格，需符合 Human Interface Guidelines。首次审核通常 1-2 天，更新审核几小时。',
+    notes: 'App Store 审核较严格，需符合 Human Interface Guidelines。首次审核通常 1-2 天，更新审核几小时。\n\n✅ 优势：国际版 App Store 不需要软著，也不需要版号。适合个人开发者快速上架。如果目标用户在国内，需考虑 App Store 中国区是否需要额外资质。',
   },
 
   'google-play': {
@@ -174,7 +174,7 @@ export const PLATFORM_RELEASE_GUIDE: Record<string, PlatformGuide> = {
       { field: 'email', label: '邮箱', reason: 'Google 账号', required: true },
       { field: 'googleAccount', label: 'Google 账号', reason: 'Play Console 登录', required: true },
     ],
-    notes: 'Google Play 审核比 App Store 宽松，但同样要求隐私政策和内容分级。支持 A/B 测试和分阶段发布。',
+    notes: 'Google Play 审核比 App Store 宽松，但同样要求隐私政策和内容分级。支持 A/B 测试和分阶段发布。\n\n✅ 优势：不需要软著，不需要版号，25美元一次性费用即可上架。个人开发者最友好的国际平台之一。',
   },
 };
 
@@ -257,7 +257,10 @@ export function formatReleaseInsightForUser(platform: string): string {
   output += `\n💡 ${guide.notes}\n`;
   output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
   output += '\n   配置平台凭证：kele secrets --platform <平台名> --set key=val\n';
-  output += '   支持平台：wechat-miniprogram, douyin, steam, app-store, google-play\n';
+  output += '   支持平台：wechat-miniprogram, douyin, steam, web, app-store, google-play\n';
+  output += '\n   ⚠️  注意：wechat-miniprogram 和 douyin 需要软著。如果代码由AI辅助生成，\n';
+  output += '      必须先进行实质性人工改造（重写核心算法、重构代码结构等）才能申请软著。\n';
+  output += '      若不想等软著，可先部署为 web（H5网页）版本，无需任何资质即可上线变现。\n';
 
   return output;
 }
@@ -280,4 +283,196 @@ export function formatReleaseChecklist(platform: string): string {
 
   output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
   return output;
+}
+
+/**
+ * Get a one-command deploy guide for a platform.
+ * Shown after project completion so the user knows exactly what to run.
+ */
+export function getDeployCommandGuide(platform: string, projectDir: string): string {
+  const guides: Record<string, string> = {
+    'web': `\n🚀 一键部署指南（H5 网页版）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你的游戏已经准备好了！部署只需 2 步：
+
+Step 1: 进入项目目录
+   cd ${projectDir}
+
+Step 2: 部署到 Vercel（推荐，免费）
+   npx vercel --yes
+
+或者部署到 Cloudflare Pages（免费）：
+   npm install -g wrangler
+   wrangler pages deploy .
+
+✅ 部署完成后，你会得到一个 URL，分享出去就能开始赚钱！
+
+💰 下一步：注册 Google AdSense
+   1. 访问 https://www.google.com/adsense/start
+   2. 用 Google 账号注册，填写网站 URL（你的部署地址）
+   3. 将 AdSense 提供的代码粘贴到 adsense.html 中
+   4. 重新部署：npx vercel --yes
+
+🏦 收款：AdSense 会在余额满 $100 时自动电汇到你的银行卡
+`,
+
+    'wechat-miniprogram': `\n🚀 部署指南（微信小程序）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你的游戏代码已生成，但微信小游戏需要额外步骤：
+
+Step 1: 安装微信开发者工具
+   https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html
+
+Step 2: 导入项目
+   打开开发者工具 → 导入项目 → 选择 ${projectDir}
+
+Step 3: 配置 AppID
+   编辑 project.config.json，填入你的 AppID
+
+Step 4: 上传代码
+   点击「上传」按钮，填写版本号
+
+⚠️  注意：上架前必须完成
+   1. 申请软著（AI代码需人工改造后才能申请）
+   2. 完成 ICP 备案
+   3. 提交自审自查报告
+
+💰 收益：接入微信广告后，日活 1000 ≈ ¥30-100/天
+`,
+
+    'google-play': `\n🚀 部署指南（Google Play）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: 注册 Google Play 开发者账号
+   https://play.google.com/console
+   费用：$25 一次性
+
+Step 2: 安装 fastlane
+   cd ${projectDir}
+   npm install -g fastlane
+
+Step 3: 配置 Fastfile
+   编辑 fastlane/Appfile，填入你的 package_name
+
+Step 4: 构建并上传
+   fastlane android deploy
+
+✅ 不需要软著！不需要版号！
+
+💰 收益：AdMob 广告 + 内购，日活 1000 ≈ $10-50/天
+🏦 收款：Google 自动打款至你的银行卡
+`,
+
+    'app-store': `\n🚀 部署指南（App Store）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: 注册 Apple Developer
+   https://developer.apple.com
+   费用：$99/年
+
+Step 2: 使用 Xcode 打开项目
+   open ${projectDir}/*.xcodeproj
+
+Step 3: 配置签名
+   在 Xcode 中选择你的 Team，配置 Bundle Identifier
+
+Step 4: 上传构建
+   Product → Archive → Distribute App → App Store Connect
+
+✅ 不需要软著！不需要版号！
+
+💰 收益：AdMob 广告 + 内购，日活 1000 ≈ $15-60/天
+🏦 收款：Apple 自动打款至你的银行账户
+`,
+
+    'steam': `\n🚀 部署指南（Steam）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: 注册 Steamworks
+   https://partner.steamgames.com
+   费用：$100/游戏（销量满 $1000 后返还）
+
+Step 2: 配置 steamworks_config.json
+   编辑文件，填入你的 Steam App ID
+
+Step 3: 上传构建
+   cd ${projectDir}
+   ./build-upload.sh
+
+✅ 不需要软著！不需要版号！
+
+💰 收益：付费下载，定价你自己定
+🏦 收款：Steam 钱包提现至 PayPal / 银行
+`,
+
+    'douyin': `\n🚀 部署指南（抖音小游戏）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: 注册抖音开发者
+   https://developer.open-douyin.com
+
+Step 2: 安装抖音开发者工具
+   https://developer.open-douyin.com/docs/resource/zh-CN/mini-game/introduction/development-environment
+
+Step 3: 导入项目
+   打开开发者工具 → 导入 ${projectDir}
+
+Step 4: 上传代码
+   点击「上传」按钮
+
+⚠️  注意：上架前必须完成
+   1. 申请软著（AI代码需人工改造后才能申请）
+   2. 完成 ICP 备案
+
+💰 收益：穿山甲广告，日活 1000 ≈ ¥50-200/天
+`,
+  };
+
+  return guides[platform] || '';
+}
+
+/**
+ * Get a deployable config template for a platform.
+ * Injected into AI prompts so the AI knows what actual files to generate.
+ */
+export function getDeployableConfigTemplate(platform: string): string {
+  const templates: Record<string, string> = {
+    'web': `For H5/Web deployment, generate these actual files (not guides):
+1. .github/workflows/deploy.yml — GitHub Actions workflow for Vercel/Cloudflare Pages deploy
+2. adsense.html or ad-code.js — Google AdSense or 百度联盟广告接入代码 snippet
+3. CNAME — Domain configuration file
+4. SETUP.md — One-page setup guide with the single command to deploy`,
+
+    'wechat-miniprogram': `For WeChat Mini Game deployment, generate these actual files:
+1. project.config.json — WeChat developer tool project config (include appId from credentials)
+2. game.json — Mini game manifest (orientation, deviceOrientation, networkTimeout)
+3. deploy-wechat.sh — Shell script that uses miniprogram-ci to upload code
+4. SETUP.md — How to install miniprogram-ci and run the deploy script`,
+
+    'douyin': `For Douyin Mini Game deployment, generate these actual files:
+1. project.config.json — Douyin developer tool project config
+2. game.json — Game manifest
+3. SETUP.md — How to use the Douyin developer tool to upload`,
+
+    'google-play': `For Google Play deployment, generate these actual files:
+1. fastlane/Appfile — Fastlane app configuration
+2. fastlane/Fastfile — Fastlane deployment lane (build + upload)
+3. privacy-policy.html — Privacy policy page content
+4. SETUP.md — How to install fastlane and run deployment`,
+
+    'app-store': `For App Store deployment, generate these actual files:
+1. fastlane/Appfile — Fastlane app configuration
+2. fastlane/Fastfile — Fastlane deployment lane (build + upload to TestFlight)
+3. PrivacyInfo.xcprivacy — Apple privacy manifest
+4. SETUP.md — How to install fastlane and deploy`,
+
+    'steam': `For Steam deployment, generate these actual files:
+1. steamworks_config.json — Steamworks app configuration
+2. build-upload.sh — Script using steamcmd to upload builds
+3. SETUP.md — How to install steamcmd and run the upload`,
+  };
+
+  return templates[platform] || '';
 }
