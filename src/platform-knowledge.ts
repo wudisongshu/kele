@@ -215,3 +215,69 @@ ${userInfo}
 
 Notes: ${guide.notes}`;
 }
+
+/**
+ * Format a user-friendly release insight for terminal display.
+ * Shown immediately after idea parsing so the user knows what they're getting into.
+ */
+export function formatReleaseInsightForUser(platform: string): string {
+  const guide = getPlatformGuide(platform);
+  if (!guide) return '';
+
+  const totalDays = guide.steps.reduce((sum, s) => sum + s.estimatedDays, 0);
+  const requiredInfo = guide.userInfoNeeded.filter((u) => u.required);
+  const optionalInfo = guide.userInfoNeeded.filter((u) => !u.required);
+
+  let output = `\n📢 发布洞察：${platform} 平台\n`;
+  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  output += `⏱️  预估总时间：约 ${totalDays} 个工作日\n\n`;
+
+  output += '📋 你需要准备的材料：\n';
+  for (const m of guide.requiredMaterials) {
+    output += `   • ${m}\n`;
+  }
+
+  output += '\n👤 必填信息：\n';
+  for (const u of requiredInfo) {
+    output += `   • ${u.label} — ${u.reason}\n`;
+  }
+
+  if (optionalInfo.length > 0) {
+    output += '\n👤 可选信息：\n';
+    for (const u of optionalInfo) {
+      output += `   • ${u.label} — ${u.reason}\n`;
+    }
+  }
+
+  output += '\n📝 发布步骤概览：\n';
+  for (const s of guide.steps) {
+    output += `   ${s.title}（约 ${s.estimatedDays} 天）\n`;
+  }
+
+  output += `\n💡 ${guide.notes}\n`;
+  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  output += '\n   配置平台凭证：kele secrets --platform <平台名> --set key=val\n';
+  output += '   支持平台：wechat-miniprogram, douyin, steam, app-store, google-play\n';
+
+  return output;
+}
+
+/**
+ * Format a concise release checklist for post-project completion.
+ */
+export function formatReleaseChecklist(platform: string): string {
+  const guide = getPlatformGuide(platform);
+  if (!guide) return '';
+
+  let output = '\n📦 发布准备清单\n';
+  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+
+  for (let i = 0; i < guide.steps.length; i++) {
+    const s = guide.steps[i];
+    output += `${i + 1}. [ ] ${s.title}\n`;
+    output += `   ${s.description}（约 ${s.estimatedDays} 天）\n\n`;
+  }
+
+  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  return output;
+}

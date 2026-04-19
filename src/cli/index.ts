@@ -31,6 +31,10 @@ import {
   PLATFORM_FIELDS,
   getCredentialPrompt,
 } from '../platform-credentials.js';
+import {
+  formatReleaseInsightForUser,
+  formatReleaseChecklist,
+} from '../platform-knowledge.js';
 import type { Project } from '../types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -135,6 +139,14 @@ async function handleCreateIntent(
   console.log(`   变现渠道: ${idea.monetization}`);
   console.log(`   复杂度: ${idea.complexity}`);
   console.log(`   关键词: ${idea.keywords.join(', ')}\n`);
+
+  // Show release insight immediately so user knows what's needed
+  if (idea.monetization && idea.monetization !== 'unknown') {
+    const insight = formatReleaseInsightForUser(idea.monetization);
+    if (insight) {
+      console.log(insight);
+    }
+  }
 
   const registry = createRegistryFromConfig();
   const route = registry.route('medium');
@@ -249,6 +261,14 @@ async function handleCreateIntent(
 
   if (result.failed > 0) {
     console.log(`\n⚠️  有 ${result.failed} 个任务失败，请检查日志或手动修复。`);
+  }
+
+  // Show release checklist if a platform was targeted
+  if (idea.monetization && idea.monetization !== 'unknown') {
+    const checklist = formatReleaseChecklist(idea.monetization);
+    if (checklist) {
+      console.log(checklist);
+    }
   }
 }
 
