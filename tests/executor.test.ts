@@ -8,8 +8,8 @@ function makeIdea(overrides: Partial<Idea> = {}): Idea {
   return {
     id: 'idea-1',
     rawText: 'test idea',
-    type: 'game',
-    monetization: 'wechat-miniprogram',
+    type: 'tool',
+    monetization: 'web',
     complexity: 'medium',
     keywords: [],
     createdAt: new Date().toISOString(),

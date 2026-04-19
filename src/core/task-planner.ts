@@ -15,6 +15,66 @@ interface TaskTemplate {
 }
 
 /**
+ * Get development task templates based on project type.
+ * Games are split into smaller, verifiable tasks to prevent AI from generating skeletons.
+ */
+function getDevTaskTemplates(ideaType: string): TaskTemplate[] {
+  if (ideaType === 'game') {
+    return [
+      {
+        title: 'Render game board and basic visuals',
+        description:
+          'Create the game board/grid, render tiles/elements with colors or images, ' +
+          'and set up the canvas or DOM structure. The board MUST be visible and populated ' +
+          'with actual content when this task completes. NO empty canvases or placeholder grids.',
+        baseComplexity: 'medium',
+      },
+      {
+        title: 'Implement user interaction',
+        description:
+          'Add click/touch handling for selecting and swapping tiles, drag support if needed, ' +
+          'and visual feedback (highlight selected tiles). Interactions MUST work and be testable.',
+        baseComplexity: 'medium',
+      },
+      {
+        title: 'Implement core game logic',
+        description:
+          'Implement match detection (3+ in a row), elimination, gravity (tiles fall down), ' +
+          'new tile generation, scoring system, and game-over conditions. ' +
+          'The game MUST be fully playable after this task — matches eliminate, score updates, ' +
+          'and the game loop runs correctly. NO stub logic or TODO comments.',
+        baseComplexity: 'complex',
+      },
+      {
+        title: 'Polish with animations and effects',
+        description:
+          'Add match animations, particle effects, sound cues, combo bonuses, and visual polish. ' +
+          'This is the final integration step ensuring all components work together smoothly.',
+        baseComplexity: 'medium',
+      },
+    ];
+  }
+
+  // Default for non-game projects
+  return [
+    {
+      title: 'Implement core features and architecture',
+      description:
+        'Choose tech stack, design data models, implement primary functionality, ' +
+        'and build the core user interface. All features MUST be complete and working.',
+      baseComplexity: 'medium',
+    },
+    {
+      title: 'Polish and integrate',
+      description:
+        'Connect all components, add interactions, visual polish, ' +
+        'and integrate third-party services if needed.',
+      baseComplexity: 'medium',
+    },
+  ];
+}
+
+/**
  * Adjust complexity based on the overall idea complexity.
  */
 function adjustComplexity(base: Complexity, ideaComplexity: Complexity): Complexity {
@@ -30,7 +90,7 @@ function adjustComplexity(base: Complexity, ideaComplexity: Complexity): Complex
  * Get task templates for a given sub-project type.
  * Intentionally minimal — each sub-project gets 1-2 tasks max.
  */
-function getTaskTemplates(subProjectType: string): TaskTemplate[] {
+function getTaskTemplates(subProjectType: string, ideaType: string): TaskTemplate[] {
   switch (subProjectType) {
     case 'setup':
       return [
@@ -44,22 +104,7 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
       ];
 
     case 'development':
-      return [
-        {
-          title: 'Implement core features and architecture',
-          description:
-            'Choose tech stack, design data models, implement primary functionality, ' +
-            'and build the core user interface.',
-          baseComplexity: 'medium',
-        },
-        {
-          title: 'Polish and integrate',
-          description:
-            'Connect all components, add interactions, visual polish, ' +
-            'and integrate third-party services if needed.',
-          baseComplexity: 'medium',
-        },
-      ];
+      return getDevTaskTemplates(ideaType || 'unknown');
 
     case 'production':
       return [
@@ -159,7 +204,7 @@ function getTaskTemplates(subProjectType: string): TaskTemplate[] {
  */
 export function planTasks(subProject: SubProject, idea: Idea): PlanResult {
   try {
-    const templates = getTaskTemplates(subProject.type);
+    const templates = getTaskTemplates(subProject.type, idea.type);
     const now = new Date().toISOString();
 
     const tasks: Task[] = templates.map((tpl) => ({

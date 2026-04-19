@@ -2,6 +2,7 @@ import type { Project, Task, SubProject, ExecuteResult } from '../types/index.js
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput } from './file-writer.js';
+import { validateTaskOutput } from './task-validator.js';
 import { copyTemplate, getTemplateType, getTemplateDescription } from './template-loader.js';
 import { getPlatformCredentials } from '../platform-credentials.js';
 import { formatPlatformGuideForPrompt } from '../platform-knowledge.js';
@@ -59,14 +60,18 @@ export function sortSubProjects(subProjects: SubProject[]): SubProject[] {
  * Ensures AI-generated code is maintainable and follows best practices.
  */
 const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
-1. Modularity: Each file has ONE clear responsibility. No god files.
-2. Naming: Use descriptive names (isValidEmail, not check). No abbreviations.
-3. Types: Use strict typing (TypeScript/JSDoc). No 'any' types.
-4. Error handling: Validate inputs, handle edge cases, fail gracefully.
-5. Comments: Explain WHY, not WHAT. Complex logic gets inline comments.
-6. No bloat: No speculative abstractions. If 200 lines could be 50, rewrite.
-7. Consistency: Match existing code style in the project.
-8. No hardcoded secrets: Use config/env for API keys, URLs, etc.`;
+1. COMPLETE IMPLEMENTATION: You MUST generate FULLY WORKING code. NO stubs, NO TODOs, NO placeholder functions. Every function must do something real.
+2. PLAYABLE FIRST: For games, the core gameplay loop MUST be fully implemented and playable. Do NOT leave rendering, scoring, or game logic as stubs.
+3. Modularity: Each file has ONE clear responsibility. No god files.
+4. Naming: Use descriptive names (isValidEmail, not check). No abbreviations.
+5. Types: Use strict typing (TypeScript/JSDoc). No 'any' types.
+6. Error handling: Validate inputs, handle edge cases, fail gracefully.
+7. Comments: Explain WHY, not WHAT. Complex logic gets inline comments.
+8. No bloat: No speculative abstractions. If 200 lines could be 50, rewrite.
+9. Consistency: Match existing code style in the project.
+10. No hardcoded secrets: Use config/env for API keys, URLs, etc.
+
+DEATH LINE: If you output code with empty functions, TODO comments, or stub implementations, the task will be REJECTED and you will be asked to rewrite it completely.`;
 
 /**
  * Build a prompt for a specific task.
@@ -200,6 +205,21 @@ export async function executeTask(
     if (writtenFiles.length > 0) {
       onProgress?.(`   📝 Written: ${writtenFiles.join(', ')}`);
     }
+
+    // Validate output quality — reject empty/stub code
+    onProgress?.(`   🔍 Validating code quality...`);
+    const validation = validateTaskOutput(subProject.targetDir, task.title);
+    if (!validation.valid) {
+      onProgress?.(`   ❌ Validation FAILED (score: ${validation.score}/100)`);
+      for (const issue of validation.issues.slice(0, 5)) {
+        onProgress?.(`      • ${issue}`);
+      }
+      task.status = 'failed';
+      task.error = `Code validation failed: ${validation.issues.join('; ')}`;
+      db.saveTask(task, project.id);
+      return { success: false, error: task.error };
+    }
+    onProgress?.(`   ✅ Validation passed (${validation.score}/100)`);
 
     onProgress?.(`   ✅ Completed`);
 

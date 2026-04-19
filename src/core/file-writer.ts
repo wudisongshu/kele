@@ -119,7 +119,14 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
       mkdirSync(dir, { recursive: true });
     }
 
-    writeFileSync(filePath, file.content, 'utf-8');
+    let content = file.content;
+
+    // Auto-fix HTML files for local file opening
+    if (file.path.endsWith('.html')) {
+      content = fixHtmlForLocal(content);
+    }
+
+    writeFileSync(filePath, content, 'utf-8');
     written.push(file.path);
   }
 
@@ -130,6 +137,44 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
   }
 
   return written;
+}
+
+/**
+ * Fix common HTML issues that break local file opening:
+ * 1. Remove crossorigin attributes (breaks file:// protocol)
+ * 2. Move scripts from <head> to end of <body> (DOM ready)
+ * 3. Convert absolute /assets/ paths to relative ./assets/
+ */
+function fixHtmlForLocal(html: string): string {
+  let fixed = html;
+
+  // Remove crossorigin attributes
+  fixed = fixed.replace(/\scrossorigin(?:="[^"]*")?/gi, '');
+
+  // Convert absolute /assets/ to relative ./assets/
+  fixed = fixed.replace(/src="\/assets\//g, 'src="./assets/');
+  fixed = fixed.replace(/href="\/assets\//g, 'href="./assets/');
+
+  // Move scripts from <head> to end of <body>
+  const headMatch = fixed.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (headMatch) {
+    const headContent = headMatch[1];
+    const scripts: string[] = [];
+    const newHead = headContent.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, (match) => {
+      scripts.push(match);
+      return '';
+    }).replace(/<script[^>]*\/>/gi, (match) => {
+      scripts.push(match);
+      return '';
+    });
+
+    if (scripts.length > 0) {
+      fixed = fixed.replace(headMatch[0], `<head>${newHead}</head>`);
+      fixed = fixed.replace(/<\/body>/i, `${scripts.join('\n')}\n</body>`);
+    }
+  }
+
+  return fixed;
 }
 
 /**

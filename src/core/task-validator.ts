@@ -1,0 +1,203 @@
+/**
+ * Task Validator — detects incomplete/placeholder code after AI generation.
+ *
+ * Core philosophy: AI MUST generate working code, not skeletons.
+ * If we detect stubs, the task fails and AI must rewrite.
+ */
+
+import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
+import { join } from 'path';
+
+export interface ValidationResult {
+  valid: boolean;
+  issues: string[];
+  score: number; // 0-100
+}
+
+const STUB_PATTERNS = [
+  /\/\/\s*TODO[:\s]/i,
+  /\/\/\s*FIXME[:\s]/i,
+  /\/\/\s*STUB[:\s]/i,
+  /\/\*\s*TODO/i,
+  /\/\*\s*FIXME/i,
+  /function\s+\w+\s*\([^)]*\)\s*\{\s*\/\/\s*TODO/i,
+  /function\s+\w+\s*\([^)]*\)\s*\{\s*\/\*\s*TODO/i,
+  /function\s+\w+\s*\([^)]*\)\s*\{\s*return;?\s*\}/,
+  /function\s+\w+\s*\([^)]*\)\s*\{\s*\/\/\s*placeholder/i,
+  /const\s+\w+\s*=\s*\{\};?\s*\/\/\s*TODO/i,
+  /class\s+\w+\s*\{[^}]*\}\s*\/\/\s*TODO/i,
+  /will\s+be\s+implemented/i,
+  /to\s+be\s+implemented/i,
+  /placeholder\s+implementation/i,
+  /not\s+yet\s+implemented/i,
+  /coming\s+soon/i,
+];
+
+/**
+
+ * Validate all source files in a directory for completeness.
+ */
+export function validateTaskOutput(targetDir: string, taskTitle: string): ValidationResult {
+  const issues: string[] = [];
+  let totalFiles = 0;
+  let stubFiles = 0;
+  let emptyFiles = 0;
+
+  function scanDir(dir: string) {
+    if (!existsSync(dir)) return;
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      const fullPath = join(dir, entry);
+      const stat = statSync(fullPath);
+      if (stat.isDirectory()) {
+        if (entry === 'node_modules' || entry === '.git' || entry === 'dist') continue;
+        scanDir(fullPath);
+      } else if (isSourceFile(entry)) {
+        totalFiles++;
+        const content = readFileSync(fullPath, 'utf-8');
+        const fileIssues = validateFile(content, entry);
+        if (fileIssues.length > 0) {
+          stubFiles++;
+          issues.push(`[${entry}] ${fileIssues.join(', ')}`);
+        }
+        // Skip empty-file check for config/meta files
+        const isMetaFile = /package\.json|README|\.config\.|tsconfig|vite\.config|eslint|prettier/.test(entry);
+        if (!isMetaFile && content.trim().length < 50) {
+          emptyFiles++;
+          if (!issues.some(i => i.includes(entry))) {
+            issues.push(`[${entry}] File is nearly empty (${content.trim().length} chars)`);
+          }
+        }
+      }
+    }
+  }
+
+  scanDir(targetDir);
+
+  // Game-specific checks
+  if (taskTitle.toLowerCase().includes('game') || taskTitle.toLowerCase().includes('游戏')) {
+    const gameIssues = validateGameOutput(targetDir, taskTitle);
+    issues.push(...gameIssues);
+  }
+
+  // HTML-specific checks
+  const htmlPath = findHtmlFile(targetDir);
+  if (htmlPath) {
+    const htmlIssues = validateHtmlFile(htmlPath);
+    issues.push(...htmlIssues);
+  }
+
+  const score = calculateScore(totalFiles, stubFiles, emptyFiles, issues.length);
+  const valid = score >= 60 && !issues.some(i => i.includes('CRITICAL'));
+
+  return { valid, issues, score };
+}
+
+function isSourceFile(name: string): boolean {
+  const exts = ['.ts', '.js', '.tsx', '.jsx', '.html', '.css', '.py', '.go', '.rs', '.java', '.json', '.md'];
+  return exts.some(ext => name.endsWith(ext));
+}
+
+function validateFile(content: string, _filename: string): string[] {
+  const issues: string[] = [];
+
+  for (const pattern of STUB_PATTERNS) {
+    if (pattern.test(content)) {
+      issues.push(`Contains TODO/stub: "${content.match(pattern)?.[0]?.slice(0, 40)}"`);
+    }
+  }
+
+  // Check for empty function bodies (but allow getters/setters with returns)
+  const lines = content.split('\n');
+  let emptyFuncCount = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/function\s+\w+|\w+\([^)]*\)\s*\{|constructor\s*\(/.test(line)) {
+      // Count non-empty lines until closing brace
+      let j = i + 1;
+      let nonEmpty = 0;
+      let depth = 1;
+      while (j < lines.length && depth > 0) {
+        const l = lines[j].trim();
+        if (l.includes('{')) depth++;
+        if (l.includes('}')) depth--;
+        if (depth > 0 && l.length > 0 && !l.startsWith('//') && !l.startsWith('*')) {
+          nonEmpty++;
+        }
+        j++;
+      }
+      if (nonEmpty <= 1) emptyFuncCount++;
+    }
+  }
+  if (emptyFuncCount > 2) {
+    issues.push(`${emptyFuncCount} functions have empty/minimal bodies`);
+  }
+
+  return issues;
+}
+
+function validateGameOutput(targetDir: string, _taskTitle: string): string[] {
+  const issues: string[] = [];
+
+  // Check if there's any actual game rendering logic
+  const htmlPath = findHtmlFile(targetDir);
+  if (htmlPath) {
+    const html = readFileSync(htmlPath, 'utf-8');
+    // Check for canvas with actual drawing
+    if (html.includes('<canvas') && !html.includes('fillRect') && !html.includes('drawImage') && !html.includes('arc')) {
+      issues.push('CRITICAL: HTML has <canvas> but no drawing operations found');
+    }
+  }
+
+  return issues;
+}
+
+function validateHtmlFile(htmlPath: string): string[] {
+  const issues: string[] = [];
+  const content = readFileSync(htmlPath, 'utf-8');
+
+  // Check for crossorigin on file:// (breaks local opening)
+  if (content.includes('crossorigin') && content.includes('file:')) {
+    issues.push('HTML has crossorigin attribute which breaks local file opening');
+  }
+
+  // Check script position: if in <head> and no defer/async, might fail
+  const headMatch = content.match(/<head>[\s\S]*?<\/head>/i);
+  const bodyMatch = content.match(/<body>[\s\S]*?<\/body>/i);
+  if (headMatch && bodyMatch) {
+    const hasScriptInHead = /<script[^>]*src=/.test(headMatch[0]);
+    const hasCanvasInBody = /<canvas/.test(bodyMatch[0]);
+    if (hasScriptInHead && hasCanvasInBody && !headMatch[0].includes('defer') && !headMatch[0].includes('async')) {
+      issues.push('CRITICAL: <script> in <head> before <canvas> in <body> — will fail because DOM not ready');
+    }
+  }
+
+  return issues;
+}
+
+function findHtmlFile(dir: string): string | undefined {
+  if (!existsSync(dir)) return undefined;
+  const entries = readdirSync(dir);
+  for (const entry of entries) {
+    const fullPath = join(dir, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      const found = findHtmlFile(fullPath);
+      if (found) return found;
+    } else if (entry.endsWith('.html') && entry !== 'index.html') {
+      return fullPath;
+    } else if (entry === 'index.html') {
+      return fullPath;
+    }
+  }
+  return undefined;
+}
+
+function calculateScore(total: number, stubs: number, empty: number, issueCount: number): number {
+  if (total === 0) return 100; // No source files to validate = pass
+  let score = 100;
+  score -= stubs * 15;
+  score -= empty * 20;
+  score -= issueCount * 5;
+  return Math.max(0, Math.min(100, score));
+}
