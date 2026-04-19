@@ -18,34 +18,41 @@ kele 是一个"无所不能"的个人 AI 助手项目。它不只是代码，它
 git clone git@github.com:wudisongshu/kele.git
 cd kele
 
-# 告诉 AI 你要什么
-# 例如："我要一个能自动整理我日程的模块"
-# AI 会：规划 → 实现 → 测试 → 提交 → 生成文档
+# 安装依赖
+npm install
+npm run build
+
+# 告诉 kele 你的想法，它会自动完成从开发到变现的全部工作
+npx kele "我要做一个塔防游戏并部署到微信小程序赚钱"
 ```
 
 ## 📁 项目结构
 
 ```
-kele/
-├── AGENTS.md              # 📜 项目宪法 — AI 的行为准则
-├── .kimi/KIMI.md          # 🤖 Kimi Code CLI 专属配置
-├── .cursorrules           # 🎯 Cursor 兼容配置
-├── .clinerules/           # ⚡ Cline 兼容配置
-├── memory/MEMORY.md       # 🧠 跨会话记忆库
-├── context/CONTEXT.md     # 📋 当前会话状态
-├── skills/                # 🛠️ 可复用技能/工作流
-│   ├── vibe-coding.md
-│   ├── karpathy-guidelines.md  # 🧠 Karpathy 四大原则
-│   ├── planning.md             # 📐 行业最佳规划方法
-│   ├── agentic-engineering.md
-│   ├── code-quality.md
-│   ├── security.md
-│   └── self-improvement.md
-├── docs/                  # 📚 自动生成的文档
-│   ├── vibe-coding-playbook.md
-│   ├── prompt-engineering-guide.md
-│   └── adr/               # 架构决策记录
-└── src/                   # 💻 源代码（100% AI 生成）
+kele/                          # CLI 工具源码
+├── src/
+│   ├── cli/
+│   │   └── index.ts         # 🚀 CLI 入口
+│   ├── core/
+│   │   ├── idea-engine.ts   # 🧠 想法解析引擎
+│   │   ├── incubator.ts     # 🥚 项目孵化器
+│   │   ├── task-planner.ts  # 📐 任务规划器
+│   │   └── executor.ts      # ⚡ 执行调度器
+│   ├── adapters/
+│   │   ├── mock.ts          # 🧪 Mock AI（零成本测试）
+│   │   └── deepseek.ts      # 🤖 DeepSeek 适配器
+│   ├── db/
+│   │   ├── schema.sql       # 🗄️ SQLite 数据库结构
+│   │   └── index.ts         # 💾 状态持久化
+│   └── types/
+│       └── index.ts         # 📋 核心数据类型
+├── tests/                   # ✅ 测试套件
+├── skills/                  # 🛠️ AI 行为技能
+├── docs/                    # 📚 文档
+├── AGENTS.md                # 📜 项目宪法
+├── .kimi/KIMI.md            # 🤖 Kimi 配置
+├── .cursorrules             # 🎯 Cursor 配置
+└── .clinerules/             # ⚡ Cline 配置
 ```
 
 ## 🧠 Vibe-Coding 基础设施
@@ -81,20 +88,21 @@ kele/
 完整的模块代码 + 单元测试 + 使用文档
 ```
 
-### 2. AI 工作
+### 2. kele 自动执行
 
-AI 会自动：
-- 进入 Plan Mode，向你确认方案
-- 编写代码、测试、文档
-- 运行验证，确保通过
-- 提交代码，更新记忆库
+kele 会：
+- 🔍 **解析想法**：识别创意类型（游戏/音乐/工具）、变现渠道、复杂度
+- 🥚 **孵化子项目**：自动生成开发、部署、上架等子项目
+- 📐 **拆解任务**：每个子项目拆解为可执行的具体任务
+- ⚡ **智能执行**：简单任务用免费 AI，复杂任务用付费 AI
+- 💾 **状态持久**：所有进度保存在本地 SQLite，随时恢复
 
-### 3. 审核 & 迭代
+### 3. 变现完成
 
 你只需关注：
-- 架构设计是否符合预期
-- 安全关键路径（认证、数据验证）
-- 最终效果是否满足需求
+- 想法是否清晰表达
+- 关键决策确认（使用 --yes 自动执行）
+- 最终审核和收款 💰
 
 ## 📖 文档
 
