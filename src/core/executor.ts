@@ -4,6 +4,7 @@ import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput } from './file-writer.js';
 import { copyTemplate, getTemplateType, getTemplateDescription } from './template-loader.js';
 import { getPlatformCredentials } from '../platform-credentials.js';
+import { formatPlatformGuideForPrompt } from '../platform-knowledge.js';
 
 /**
  * Executor — schedules and runs tasks in dependency order.
@@ -75,18 +76,23 @@ function buildPrompt(task: Task, subProject: SubProject, project: Project): stri
   const templateDesc = getTemplateDescription(templateType);
   const isCodingTask = ['setup', 'development', 'production', 'creation', 'build'].includes(subProject.type);
 
-  // Inject platform credentials for deployment tasks
-  let credentialSection = '';
+  // Inject platform knowledge + credentials for deployment tasks
+  let platformSection = '';
   if (['deployment', 'monetization', 'store-submit', 'platform-config'].includes(subProject.type)) {
+    const guideText = formatPlatformGuideForPrompt(project.idea.monetization);
+    if (guideText) {
+      platformSection = `\n${guideText}\n`;
+    }
+
     const creds = getPlatformCredentials(project.idea.monetization);
     if (creds && Object.keys(creds).length > 0) {
       const masked = Object.entries(creds).map(([k, v]) => {
         const display = v.length > 8 ? v.slice(0, 4) + '****' + v.slice(-4) : '****';
         return `${k}: ${display}`;
       });
-      credentialSection = `\nPlatform credentials available:\n${masked.map((m) => `  - ${m}`).join('\n')}\n`;
+      platformSection += `\nPlatform credentials available:\n${masked.map((m) => `  - ${m}`).join('\n')}\n`;
     } else {
-      credentialSection = `\nNOTE: No platform credentials configured yet. Generate deployment scripts with placeholder values.\n`;
+      platformSection += `\nNOTE: No platform credentials configured yet. Generate deployment scripts with placeholder values and notes about what credentials are needed.\n`;
     }
   }
 
@@ -96,7 +102,7 @@ Sub-project: ${subProject.name}
 Description: ${subProject.description}
 Target directory: ${subProject.targetDir}
 Platform template: ${templateDesc}
-User's original idea: "${project.idea.rawText}"${credentialSection}`;
+User's original idea: "${project.idea.rawText}"${platformSection}`;
 
   if (isCodingTask) {
     return `${baseContext}

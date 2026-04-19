@@ -32,6 +32,8 @@ export interface ProviderConfig {
 export interface KeleConfig {
   providers: Record<string, ProviderConfig>;
   defaultProvider?: string;
+  /** If true, skip all confirmation checkpoints */
+  autoYes?: boolean;
 }
 
 const CONFIG_DIR = join(homedir(), '.kele');
@@ -39,6 +41,7 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
 const DEFAULT_CONFIG: KeleConfig = {
   providers: {},
+  autoYes: false,
 };
 
 export function getConfigPath(): string {
@@ -104,6 +107,16 @@ export function getDefaultProvider(): string | undefined {
 export function setDefaultProvider(name: string): void {
   const config = loadConfig();
   config.defaultProvider = name;
+  saveConfig(config);
+}
+
+export function getAutoYes(): boolean {
+  return loadConfig().autoYes ?? false;
+}
+
+export function setAutoYes(value: boolean): void {
+  const config = loadConfig();
+  config.autoYes = value;
   saveConfig(config);
 }
 

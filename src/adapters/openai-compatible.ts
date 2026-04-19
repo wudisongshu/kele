@@ -74,8 +74,12 @@ export class OpenAICompatibleAdapter implements AIAdapter {
         const baseDelay = isGatewayError ? 3000 : 1000;
         const delay = baseDelay * Math.pow(2, attempt);
 
-        const reason = isGatewayError ? 'gateway timeout' : isRateLimit ? 'rate limit' : 'transient error';
-        console.log(`   🔄 ${this.name} ${reason}, retrying in ${delay / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
+        const reason = isGatewayError ? '服务端繁忙（504 Gateway Timeout）' : isRateLimit ? '请求频率限制（429）' : '临时网络错误';
+        const estimatedWait = isGatewayError
+          ? 'Kimi Code 生成代码较慢，每次请求可能需要 3-10 分钟，请耐心等待'
+          : '';
+        console.log(`   🔄 ${this.name} ${reason}，${estimatedWait}`);
+        console.log(`      第 ${attempt + 1}/${maxRetries} 次重试，${delay / 1000}秒后再次尝试...`);
         await sleep(delay);
       }
     }
