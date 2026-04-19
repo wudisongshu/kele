@@ -1,6 +1,8 @@
 import type { Project, Task, SubProject, ExecuteResult } from '../types/index.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
+import { applyAIOutput } from './file-writer.js';
+import { copyTemplate, getTemplateType, getTemplateDescription } from './template-loader.js';
 
 /**
  * Executor — schedules and runs tasks in dependency order.
@@ -51,19 +53,43 @@ export function sortSubProjects(subProjects: SubProject[]): SubProject[] {
  * Build a prompt for a specific task.
  */
 function buildPrompt(task: Task, subProject: SubProject, project: Project): string {
-  return `You are a senior software engineer working on the project "${project.name}".
+  const templateType = getTemplateType(project.idea.monetization);
+  const templateDesc = getTemplateDescription(templateType);
+  const isCodingTask = ['setup', 'development', 'production', 'creation', 'build'].includes(subProject.type);
+
+  const baseContext = `You are a senior software engineer working on the project "${project.name}".
 
 Sub-project: ${subProject.name}
 Description: ${subProject.description}
 Target directory: ${subProject.targetDir}
+Platform template: ${templateDesc}
+User's original idea: "${project.idea.rawText}"`;
+
+  if (isCodingTask) {
+    return `${baseContext}
 
 Task: ${task.title}
 ${task.description}
 
-User's original idea: "${project.idea.rawText}"
+CRITICAL: Return your response as a JSON object in this exact format (no markdown, no explanations outside the JSON):
+{
+  "files": [
+    { "path": "relative/path/to/file", "content": "file content here" }
+  ],
+  "notes": "optional notes about the implementation"
+}`;
+  }
 
-Please provide a complete implementation. If generating code, return it as a JSON object with a "files" array containing {path, content} objects.
-If the task is non-coding (configuration, submission, etc.), provide clear step-by-step instructions.`;
+  return `${baseContext}
+
+Task: ${task.title}
+${task.description}
+
+Please provide clear step-by-step instructions. Return as JSON:
+{
+  "files": [],
+  "notes": "your detailed instructions here"
+}`;
 }
 
 /**
@@ -90,6 +116,15 @@ export async function executeTask(
 
     onProgress?.(`   🤖 Using ${route.provider}`);
 
+    // For setup tasks, copy template first
+    if (subProject.type === 'setup') {
+      const templateType = getTemplateType(project.idea.monetization);
+      const copied = copyTemplate(templateType, subProject.targetDir);
+      if (copied.length > 0) {
+        onProgress?.(`   📁 Template copied: ${copied.join(', ')}`);
+      }
+    }
+
     // Build prompt and execute
     const prompt = buildPrompt(task, subProject, project);
     let output: string;
@@ -112,6 +147,12 @@ export async function executeTask(
     task.status = 'completed';
     task.result = output;
     db.saveTask(task, project.id);
+
+    // Parse AI output and write files
+    const writtenFiles = applyAIOutput(subProject.targetDir, output);
+    if (writtenFiles.length > 0) {
+      onProgress?.(`   📝 Written: ${writtenFiles.join(', ')}`);
+    }
 
     onProgress?.(`   ✅ Completed`);
 

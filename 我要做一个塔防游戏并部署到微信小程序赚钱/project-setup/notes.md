@@ -1,0 +1,1 @@
+Project initialized with basic structure
