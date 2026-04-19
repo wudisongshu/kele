@@ -35,6 +35,8 @@ kele/
 ├── context/CONTEXT.md     # 📋 当前会话状态
 ├── skills/                # 🛠️ 可复用技能/工作流
 │   ├── vibe-coding.md
+│   ├── karpathy-guidelines.md  # 🧠 Karpathy 四大原则
+│   ├── planning.md             # 📐 行业最佳规划方法
 │   ├── agentic-engineering.md
 │   ├── code-quality.md
 │   ├── security.md
@@ -55,7 +57,7 @@ kele/
 | **AGENTS.md** | 跨工具通用项目宪法，定义架构、安全红线、代码规范 |
 | **Memory Bank** | `memory/MEMORY.md` 记录每次会话的决策，AI 下次自动回忆 |
 | **Context Template** | `context/CONTEXT.md` 每次会话前更新，AI 立即知道当前状态 |
-| **Skills** | 可复用的工作流模板：vibe-coding、安全基线、代码质量门 |
+| **Skills** | 可复用工作流：vibe-coding、Karpathy 原则、Planning、安全基线、代码质量门 |
 | **Self-Improvement** | 每次任务后 AI 自动反思，持续优化规则 |
 
 ## 🎮 使用方式

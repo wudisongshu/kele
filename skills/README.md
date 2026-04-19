@@ -6,6 +6,8 @@
 | Skill | File | Trigger | Description |
 |-------|------|---------|-------------|
 | Vibe Coding | `vibe-coding.md` | Any coding task | Core workflow, prompt templates, anti-patterns |
+| Karpathy Guidelines | `karpathy-guidelines.md` | All coding tasks | 4 principles: think/simple/surgical/goal-driven |
+| Planning | `planning.md` | Non-trivial tasks | Task sizing, vertical slicing, persistent plans |
 | Agentic Engineering | `agentic-engineering.md` | Architecture decisions | Karpathy 2026 standards, multi-agent orchestration |
 | Code Quality | `code-quality.md` | Code review / testing | Quality gates, testing standards, review criteria |
 | Security | `security.md` | Auth / data handling | Security baseline, red lines, incident response |

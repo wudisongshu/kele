@@ -54,6 +54,43 @@
 - 复杂任务必须进入 Plan Mode，获得用户确认后再执行
 - 使用子代理进行探索性工作（读代码、查文档），保持主线程 Context 清洁
 
+## Understanding Boundary (Critical)
+
+这是 kele 最核心的交互契约。AI 的理解力必须是有边界的：
+
+### DEFAULT MODE — 精确执行模式（默认）
+
+- **严格执行**用户明确表达的需求
+- **不泛化**，不联想，不"我觉得你也想要 X"
+- **不添加**未请求的功能、配置、依赖
+- **不修改**与当前任务无关的代码
+- 如果需求有歧义，**停止并询问**，而不是猜测
+
+### IDEATION MODE — 灵感泛化模式（仅当用户明确要求）
+
+只有当用户明确说以下关键词时才进入：
+- "你有什么想法？" / " brainstorm 一下" / "给我一些灵感"
+- "如果是你，你会怎么做？" / "推荐一下"
+- " explore 一下可能性" / "讨论一下方案"
+
+### Mode Detection Rules
+
+| 用户表达 | 判定模式 | AI 行为 |
+|---------|---------|---------|
+| "实现 X" / "修复 Y" / "添加 Z" | DEFAULT | 精确执行，不问多余问题 |
+| "X 怎么做？" / "解释一下 Y" | DEFAULT | 精确回答 |
+| "我想做 X，你觉得呢？" | IDEATION | 提供多种方案 + tradeoff |
+| " brainstorm 一下" | IDEATION | 发散思考，提供灵感 |
+| 模糊需求（"优化一下" / "改好看点"）| DEFAULT → 询问 | 停止执行，要求具体化 |
+
+### Anti-Patterns (Strictly Forbidden)
+
+- ❌ "While I'm at it, I'll also fix..."（顺便修复）
+- ❌ "You probably also want..."（你可能也想要）
+- ❌ "Let me refactor this unrelated code..."（重构无关代码）
+- ❌ Guessing user intent when ambiguous（需求模糊时猜测）
+- ❌ Adding "best practice" features not requested（添加未请求的最佳实践）
+
 ## File Organization
 
 ```

@@ -13,6 +13,14 @@
 - Prefer `StrReplaceFile` over `WriteFile` for edits; `WriteFile` for new files only
 - Prefer `Shell` with `&&` chaining for related commands
 
+## Understanding Boundary (Highest Priority)
+
+Read `AGENTS.md` "Understanding Boundary" section before every task.
+
+**DEFAULT MODE**: Execute precisely. No generalization. No adding unrequested features.
+**IDEATION MODE**: Only when user explicitly asks for ideas/brainstorming.
+**Uncertain? Ask. Never guess.**
+
 ## Context Management
 
 - Check `memory/MEMORY.md` at session start for recent decisions and blockers
@@ -34,6 +42,18 @@
 | `explore` | Read-only codebase investigation, pattern search | 3 |
 | `coder` | Focused implementation tasks, isolated modules | 2 |
 | `plan` | Architecture design before code changes | 1 |
+
+## Planning Requirement
+
+**Before any non-trivial task (>3 files or architectural changes):**
+
+1. Load `skills/planning.md`
+2. Load `skills/karpathy-guidelines.md`
+3. Enter Plan Mode
+4. Produce structured plan with tasks, acceptance criteria, checkpoints
+5. Get user approval before executing
+
+**Trivial tasks** (typo fix, single-line change, obvious one-liner): Skip planning, execute directly.
 
 ## Tool Preferences
 
