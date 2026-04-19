@@ -34,6 +34,11 @@ export class MockAdapter implements AIAdapter {
       });
     }
 
+    // Research / analysis mode
+    if (lower.includes('research') || lower.includes('分析') || lower.includes('报告') || lower.includes('分析师')) {
+      return `## 1. 产品分析\n这是一款消除类休闲游戏，核心玩法是三消匹配，目标受众是18-35岁休闲玩家。\n\n## 2. 变现分析\n主要通过广告变现（插屏广告+激励视频）和道具内购。留存率高，适合流量变现。\n\n## 3. 市场洞察\n关键成功因素：简单易上手、关卡难度曲线合理、每日任务和排行榜增加粘性。\n\n## 4. 建议\n- 核心玩法：经典三消+特殊道具\n- USP：加入社交排行榜和好友助力\n- 推荐平台：微信小程序（用户基数大，传播快）\n- 复杂度：中等\n- MVP功能：50关、3种道具、排行榜\n\n## 5. 关键词\n消除游戏、三消、休闲、微信、小程序、广告变现、内购、排行榜`;
+    }
+
     return JSON.stringify({
       message: `Mock AI received prompt: "${prompt.slice(0, 100)}..."`,
       note: 'Configure a real AI provider with `kele config` for actual code generation.',

@@ -10,6 +10,7 @@ import { planTasks } from '../core/task-planner.js';
 import { executeProject } from '../core/executor.js';
 import { createRegistryFromConfig } from '../adapters/index.js';
 import { KeleDatabase } from '../db/index.js';
+import { needsResearch, research } from '../core/research-engine.js';
 import {
   setProvider,
   removeProvider,
@@ -38,30 +39,13 @@ program
   .option('-y, --yes', 'Skip confirmation and auto-execute all tasks', false)
   .action(async (ideaText: string | undefined, options: { output: string; yes: boolean }) => {
     if (!ideaText) {
-      console.log('🥤 kele — 你的创意变现助手\n');
-      console.log('用法示例：');
-      console.log('  kele "我要做一个塔防游戏并部署到微信小程序赚钱"');
-      console.log('  kele "帮我写一首歌并发布到音乐平台" --output ~/my-music');
-      console.log('  kele "做一个记账工具小程序" --yes');
-      console.log('\n配置 AI：');
-      console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model kimi-latest');
-      console.log('  kele config --provider deepseek --key sk-xxx --url https://api.deepseek.com/v1 --model deepseek-chat');
-      console.log('\n选项：');
-      console.log('  -o, --output <dir>   指定项目生成目录');
-      console.log('  -y, --yes            自动执行所有任务（不询问确认）');
-      console.log('  -v, --version        显示版本号');
+      printUsage();
       return;
     }
 
     // Check if any AI provider is configured
     if (!hasAnyProvider()) {
-      console.log('⚠️  未配置 AI API Key');
-      console.log('kele 需要调用 AI 来完成任务。请配置至少一个 provider：\n');
-      console.log('  kele config --provider kimi --key <your-key> --url https://api.moonshot.cn/v1 --model kimi-latest');
-      console.log('  kele config --provider deepseek --key <your-key> --url https://api.deepseek.com/v1 --model deepseek-chat');
-      console.log('  kele config --provider qwen --key <your-key> --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo');
-      console.log('\n或者使用 --yes 以 Mock 模式运行（仅用于测试）：');
-      console.log('  kele "你的 idea" --yes');
+      printNoProviderHelp();
       return;
     }
 
@@ -82,7 +66,47 @@ program
     console.log(`   复杂度: ${idea.complexity}`);
     console.log(`   关键词: ${idea.keywords.join(', ')}\n`);
 
-    // Step 2: Incubate sub-projects
+    const registry = createRegistryFromConfig();
+    const route = registry.route('medium');
+
+    // Step 2: Business Research (if needed)
+    if (needsResearch(ideaText, idea.keywords)) {
+      console.log('🔍 检测到模糊/竞品参考需求，启动商业研究...\n');
+
+      let researchResult = await research(ideaText, route.adapter);
+
+      // Fallback to mock if real provider fails
+      if (!researchResult.success) {
+        const mock = registry.get('mock');
+        if (mock && route.provider !== 'mock') {
+          console.log('   ⚠️  AI provider 调用失败，使用 Mock 模式生成研究报告\n');
+          researchResult = await research(ideaText, mock);
+        }
+      }
+
+      if (researchResult.success && researchResult.report) {
+        const report = researchResult.report;
+        console.log('📊 研究报告');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`🎯 研究对象: ${report.subject}`);
+        console.log(`\n📌 产品分析:`);
+        console.log(report.productAnalysis.slice(0, 300) + (report.productAnalysis.length > 300 ? '...' : ''));
+        console.log(`\n💰 变现分析:`);
+        console.log(report.monetizationAnalysis.slice(0, 300) + (report.monetizationAnalysis.length > 300 ? '...' : ''));
+        console.log(`\n💡 核心建议:`);
+        console.log(report.recommendations.slice(0, 400) + (report.recommendations.length > 400 ? '...' : ''));
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+        if (!options.yes) {
+          console.log('⏸️  CHECKPOINT: 请确认研究方向是否正确');
+          console.log('   如果方向正确，请添加 --yes 继续执行');
+          console.log('   如果需要调整，请重新描述你的想法\n');
+          return;
+        }
+      }
+    }
+
+    // Step 3: Incubate sub-projects
     const projectName = ideaText.slice(0, 30).replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '-');
     const rootDir = join(options.output, projectName);
     const incubateResult = incubate(idea, rootDir);
@@ -96,10 +120,21 @@ program
     console.log(`🥚 孵化出 ${subProjects.length} 个子项目：`);
     for (const sp of subProjects) {
       console.log(`   • ${sp.name} (${sp.type})`);
+      if (sp.dependencies.length > 0) {
+        console.log(`     依赖: ${sp.dependencies.join(', ')}`);
+      }
     }
     console.log();
 
-    // Step 3: Plan tasks for each sub-project
+    // Checkpoint: confirm sub-projects
+    if (!options.yes) {
+      console.log('⏸️  CHECKPOINT: 请确认子项目计划');
+      console.log('   以上子项目将依次执行，每个完成后进入下一个');
+      console.log('   确认无误请添加 --yes 继续\n');
+      return;
+    }
+
+    // Step 4: Plan tasks for each sub-project
     const allTasks = [];
     for (const sp of subProjects) {
       const planResult = planTasks(sp, idea);
@@ -110,7 +145,15 @@ program
 
     console.log(`📐 拆解出 ${allTasks.length} 个任务\n`);
 
-    // Step 4: Assemble project
+    // Checkpoint: confirm tasks
+    if (!options.yes) {
+      console.log('⏸️  CHECKPOINT: 任务拆解完成');
+      console.log(`   共 ${allTasks.length} 个任务待执行`);
+      console.log('   确认执行请添加 --yes\n');
+      return;
+    }
+
+    // Step 5: Assemble and execute project
     const project: Project = {
       id: idea.id,
       name: projectName,
@@ -123,15 +166,6 @@ program
       updatedAt: idea.createdAt,
     };
 
-    // Step 5: Confirm with user (unless --yes)
-    if (!options.yes) {
-      console.log('🚀 即将开始执行。使用 --yes 跳过确认。\n');
-      // In non-interactive environments, we proceed after showing the plan.
-      // In a real TTY, we would prompt the user here.
-    }
-
-    // Step 6: Execute
-    const registry = createRegistryFromConfig();
     const db = new KeleDatabase();
 
     const result = await executeProject(project, {
@@ -143,6 +177,10 @@ program
     console.log(`\n✨ 项目完成！`);
     console.log(`   项目目录: ${rootDir}`);
     console.log(`   任务统计: ${result.completed} 完成, ${result.failed} 失败`);
+
+    if (result.failed > 0) {
+      console.log(`\n⚠️  有 ${result.failed} 个任务失败，请检查日志或手动修复。`);
+    }
   });
 
 // --- Config command: kele config ---
@@ -163,7 +201,6 @@ program
     default?: string;
     remove?: string;
   }) => {
-    // Show current config
     if (!options.provider && !options.default && !options.remove) {
       console.log('🥤 kele 配置\n');
       console.log(getConfigSummary());
@@ -174,21 +211,18 @@ program
       return;
     }
 
-    // Remove provider
     if (options.remove) {
       removeProvider(options.remove);
       console.log(`✅ 已移除 provider: ${options.remove}`);
       return;
     }
 
-    // Set default provider
     if (options.default) {
       setDefaultProvider(options.default);
       console.log(`✅ 默认 provider 已设为: ${options.default}`);
       return;
     }
 
-    // Add/update provider
     if (options.provider) {
       if (!options.key || !options.url || !options.model) {
         console.error('❌ 添加 provider 需要提供 --key, --url, --model');
@@ -206,5 +240,30 @@ program
       console.log(`   url: ${options.url}`);
     }
   });
+
+function printUsage(): void {
+  console.log('🥤 kele — 你的创意变现助手\n');
+  console.log('用法示例：');
+  console.log('  kele "我要做一个塔防游戏并部署到微信小程序赚钱"');
+  console.log('  kele "帮我写一首歌并发布到音乐平台" --output ~/my-music');
+  console.log('  kele "做一个像牛牛消消乐那样的游戏" --yes');
+  console.log('\n配置 AI：');
+  console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model kimi-latest');
+  console.log('  kele config --provider deepseek --key sk-xxx --url https://api.deepseek.com/v1 --model deepseek-chat');
+  console.log('\n选项：');
+  console.log('  -o, --output <dir>   指定项目生成目录');
+  console.log('  -y, --yes            自动执行所有任务（跳过确认）');
+  console.log('  -v, --version        显示版本号');
+}
+
+function printNoProviderHelp(): void {
+  console.log('⚠️  未配置 AI API Key');
+  console.log('kele 需要调用 AI 来完成任务。请配置至少一个 provider：\n');
+  console.log('  kele config --provider kimi --key <your-key> --url https://api.moonshot.cn/v1 --model kimi-latest');
+  console.log('  kele config --provider deepseek --key <your-key> --url https://api.deepseek.com/v1 --model deepseek-chat');
+  console.log('  kele config --provider qwen --key <your-key> --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo');
+  console.log('\n或者使用 --yes 以 Mock 模式运行（仅用于测试）：');
+  console.log('  kele "你的 idea" --yes');
+}
 
 program.parse();
