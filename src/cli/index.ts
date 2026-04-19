@@ -19,6 +19,13 @@ import {
   getConfigSummary,
   hasAnyProvider,
 } from '../config/index.js';
+import {
+  setPlatformCredentials,
+  getPlatformCredentials,
+  hasPlatformCredentials,
+  PLATFORM_FIELDS,
+  getCredentialPrompt,
+} from '../platform-credentials.js';
 import type { Project } from '../types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -412,6 +419,55 @@ program
     }
   });
 
+// --- Secrets command: kele secrets ---
+program
+  .command('secrets')
+  .description('Manage platform deployment credentials')
+  .option('--platform <name>', 'Platform name (wechat-miniprogram, douyin, steam, app-store, google-play)')
+  .option('--set <kvs>', 'Set credentials as key=value,key2=value2')
+  .action((options: { platform?: string; set?: string }) => {
+    if (!options.platform) {
+      console.log('🥤 平台凭证管理\n');
+      console.log('已配置的平台：');
+      for (const platform of Object.keys(PLATFORM_FIELDS)) {
+        const ok = hasPlatformCredentials(platform);
+        console.log(`  ${ok ? '✅' : '❌'} ${platform}`);
+      }
+      console.log('\n设置凭证：');
+      console.log('  kele secrets --platform wechat-miniprogram --set appId=wx123456789,appSecret=xxx');
+      console.log('  kele secrets --platform douyin --set appId=tt123456');
+      return;
+    }
+
+    if (options.set) {
+      const creds: Record<string, string> = {};
+      const pairs = options.set.split(',');
+      for (const pair of pairs) {
+        const [k, v] = pair.split('=');
+        if (k && v !== undefined) {
+          creds[k.trim()] = v.trim();
+        }
+      }
+      setPlatformCredentials(options.platform, creds);
+      console.log(`✅ 已设置 ${options.platform} 凭证`);
+      return;
+    }
+
+    // Show current credentials (masked)
+    const creds = getPlatformCredentials(options.platform);
+    if (!creds) {
+      console.log(`❌ ${options.platform} 暂无凭证`);
+      console.log(getCredentialPrompt(options.platform));
+      return;
+    }
+
+    console.log(`${options.platform} 凭证：`);
+    for (const [k, v] of Object.entries(creds)) {
+      const display = v.length > 8 ? v.slice(0, 4) + '****' + v.slice(-4) : '****';
+      console.log(`  ${k}: ${display}`);
+    }
+  });
+
 function printUsage(): void {
   console.log('🥤 kele — 你的创意变现助手\n');
   console.log('用法示例：');
@@ -426,6 +482,8 @@ function printUsage(): void {
   console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
   console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
   console.log('  kele config --provider deepseek --key sk-xxx --url https://api.deepseek.com/v1 --model deepseek-chat');
+  console.log('\n配置平台凭证：');
+  console.log('  kele secrets --platform wechat-miniprogram --set appId=wx123456');
   console.log('\n选项：');
   console.log('  -o, --output <dir>   指定项目生成目录');
   console.log('  -y, --yes            自动执行所有任务（跳过确认）');

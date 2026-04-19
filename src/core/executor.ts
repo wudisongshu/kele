@@ -3,6 +3,7 @@ import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput } from './file-writer.js';
 import { copyTemplate, getTemplateType, getTemplateDescription } from './template-loader.js';
+import { getPlatformCredentials } from '../platform-credentials.js';
 
 /**
  * Executor — schedules and runs tasks in dependency order.
@@ -74,13 +75,28 @@ function buildPrompt(task: Task, subProject: SubProject, project: Project): stri
   const templateDesc = getTemplateDescription(templateType);
   const isCodingTask = ['setup', 'development', 'production', 'creation', 'build'].includes(subProject.type);
 
+  // Inject platform credentials for deployment tasks
+  let credentialSection = '';
+  if (['deployment', 'monetization', 'store-submit', 'platform-config'].includes(subProject.type)) {
+    const creds = getPlatformCredentials(project.idea.monetization);
+    if (creds && Object.keys(creds).length > 0) {
+      const masked = Object.entries(creds).map(([k, v]) => {
+        const display = v.length > 8 ? v.slice(0, 4) + '****' + v.slice(-4) : '****';
+        return `${k}: ${display}`;
+      });
+      credentialSection = `\nPlatform credentials available:\n${masked.map((m) => `  - ${m}`).join('\n')}\n`;
+    } else {
+      credentialSection = `\nNOTE: No platform credentials configured yet. Generate deployment scripts with placeholder values.\n`;
+    }
+  }
+
   const baseContext = `You are a senior software engineer working on the project "${project.name}".
 
 Sub-project: ${subProject.name}
 Description: ${subProject.description}
 Target directory: ${subProject.targetDir}
 Platform template: ${templateDesc}
-User's original idea: "${project.idea.rawText}"`;
+User's original idea: "${project.idea.rawText}"${credentialSection}`;
 
   if (isCodingTask) {
     return `${baseContext}
