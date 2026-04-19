@@ -18,6 +18,7 @@ export type MonetizationChannel =
 export type Complexity = 'simple' | 'medium' | 'complex';
 
 export type ProjectStatus =
+  | 'pending'
   | 'initialized'
   | 'planning'
   | 'executing'
