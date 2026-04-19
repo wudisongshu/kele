@@ -1,0 +1,20 @@
+# Cursor Rules for kele
+
+Read AGENTS.md for full project conventions.
+
+## Behavior
+- Use TypeScript strict mode
+- Prefer functional components
+- Test-first development
+- Auto-generate JSDoc for public APIs
+
+## Code Style
+- 2-space indentation
+- Max line length: 100
+- camelCase variables, PascalCase components
+- Trailing commas required
+
+## Security
+- Never commit .env files
+- Use environment variables for secrets
+- Validate all external inputs
