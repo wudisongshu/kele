@@ -31,8 +31,10 @@ out/
 .plans/
 
 # Generated projects (kele creates these for users)
-项目/
-我要*/
+# Never commit user-generated projects into kele's own repo
+kele-projects/
+# Exclude Chinese-named directories (user input often becomes dir names)
+[一-龥]*/
 
 # Test artifacts
 coverage/

@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { createInterface } from 'readline';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { homedir } from 'os';
+import { randomBytes } from 'crypto';
 import { parseIdea } from '../core/idea-engine.js';
 import { incubate } from '../core/incubator.js';
 import { planTasks } from '../core/task-planner.js';
@@ -75,7 +77,7 @@ program
 // --- Main command: kele "idea" ---
 program
   .argument('[idea]', 'Your idea, e.g. "我要做一个塔防游戏并部署赚钱"')
-  .option('-o, --output <dir>', 'Output directory for generated projects', process.cwd())
+  .option('-o, --output <dir>', 'Output directory for generated projects', join(homedir(), 'kele-projects'))
   .option('-y, --yes', 'Skip confirmation and auto-execute all tasks', false)
   .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
   .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number }) => {
@@ -186,8 +188,9 @@ async function handleCreateIntent(
   }
 
   // Step 3: Incubate sub-projects
-  const projectName = ideaText.slice(0, 30).replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '-');
+  const projectName = generateProjectSlug(ideaText, idea.type);
   const rootDir = join(options.output, projectName);
+  mkdirSync(options.output, { recursive: true });
   const incubateResult = incubate(idea, rootDir);
 
   if (!incubateResult.success || !incubateResult.subProjects) {
@@ -803,6 +806,25 @@ function printUsage(): void {
   console.log('  -y, --yes            自动执行所有任务（跳过确认）');
   console.log('  -t, --timeout <s>    AI 超时时间（默认 1800 秒 = 30 分钟）');
   console.log('  -v, --version        显示版本号');
+}
+
+/**
+ * Generate a short English slug for the project directory.
+ * Avoids Chinese characters and long sentences.
+ */
+function generateProjectSlug(ideaText: string, type: string): string {
+  // Extract English words (a-z, at least 2 chars)
+  const englishWords = ideaText.toLowerCase().match(/[a-z]{2,}/g) || [];
+
+  if (englishWords.length > 0) {
+    // Use first 2-3 English words, kebab-cased
+    const slug = englishWords.slice(0, 3).join('-');
+    return slug;
+  }
+
+  // No English words: use type + random hex suffix
+  const suffix = randomBytes(3).toString('hex');
+  return `${type}-${suffix}`;
 }
 
 function printNoProviderHelp(): void {
