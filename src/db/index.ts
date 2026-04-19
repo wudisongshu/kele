@@ -150,6 +150,26 @@ export class KeleDatabase {
     stmt.run(status, result || null, error || null, status === 'completed' || status === 'failed' ? new Date().toISOString() : null, taskId);
   }
 
+  /**
+   * Find all tasks with 'running' status across all projects.
+   * Used for resume functionality.
+   */
+  getRunningTasks(): Array<{ task: Task; projectId: string; projectName: string }> {
+    const rows = this.db.prepare(`
+      SELECT t.*, p.id as project_id, p.name as project_name
+      FROM tasks t
+      JOIN projects p ON t.project_id = p.id
+      WHERE t.status = 'running'
+      ORDER BY t.created_at DESC
+    `).all() as Record<string, unknown>[];
+
+    return rows.map((r) => ({
+      task: this.rowToTask(r),
+      projectId: r.project_id as string,
+      projectName: r.project_name as string,
+    }));
+  }
+
   // --- Helpers ---
 
   private rowToProject(row: Record<string, unknown>): Project {

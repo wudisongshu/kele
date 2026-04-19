@@ -27,6 +27,8 @@ export interface ExecutorOptions {
   onProgress?: (message: string) => void;
   /** Global timeout override in seconds (per-task) */
   timeout?: number;
+  /** AbortSignal to gracefully interrupt execution */
+  signal?: AbortSignal;
 }
 
 /**
@@ -154,7 +156,13 @@ export async function executeTask(
   project: Project,
   options: ExecutorOptions
 ): Promise<ExecuteResult> {
-  const { registry, db, onProgress } = options;
+  const { registry, db, onProgress, signal } = options;
+
+  // Check abort before starting
+  if (signal?.aborted) {
+    onProgress?.(`   ⏹️  Task cancelled: ${task.title}`);
+    return { success: false, error: 'Execution aborted by user' };
+  }
 
   try {
     // Update status to running
@@ -199,6 +207,15 @@ export async function executeTask(
       } else {
         throw err;
       }
+    }
+
+    // Check abort after AI call
+    if (signal?.aborted) {
+      task.status = 'failed';
+      task.error = 'Execution aborted by user';
+      db.saveTask(task, project.id);
+      onProgress?.(`   ⏹️  Task aborted: ${task.title}`);
+      return { success: false, error: 'Execution aborted by user' };
     }
 
     // Update task as completed
@@ -249,8 +266,8 @@ export async function executeTask(
 export async function executeProject(
   project: Project,
   options: ExecutorOptions
-): Promise<{ completed: number; failed: number }> {
-  const { db, onProgress } = options;
+): Promise<{ completed: number; failed: number; aborted: boolean }> {
+  const { db, onProgress, signal } = options;
 
   // Save project state
   db.saveProject(project);
@@ -269,6 +286,12 @@ export async function executeProject(
   let failed = 0;
 
   for (const sp of sortedSPs) {
+    // Check abort before each sub-project
+    if (signal?.aborted) {
+      onProgress?.(`\n⏹️  Execution aborted by user`);
+      return { completed, failed, aborted: true };
+    }
+
     onProgress?.(`\n📦 Sub-project: ${sp.name}`);
 
     const spTasks = project.tasks.filter((t) => t.subProjectId === sp.id && t.status === 'pending');
@@ -278,6 +301,9 @@ export async function executeProject(
 
       if (result.success) {
         completed++;
+      } else if (result.error === 'Execution aborted by user') {
+        onProgress?.(`\n⏹️  Execution aborted by user`);
+        return { completed, failed, aborted: true };
       } else {
         failed++;
         // Continue on failure for resilience, but warn user
@@ -292,5 +318,5 @@ export async function executeProject(
 
   onProgress?.(`\n🏁 Execution complete: ${completed} completed, ${failed} failed`);
 
-  return { completed, failed };
+  return { completed, failed, aborted: false };
 }

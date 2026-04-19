@@ -245,12 +245,34 @@ async function handleCreateIntent(
     updatedAt: idea.createdAt,
   };
 
+  // Setup graceful abort handling
+  const abortController = new AbortController();
+  const sigintHandler = () => {
+    console.log('\n\n⏹️  收到中断信号，正在安全退出...');
+    console.log('   当前任务状态已保存到数据库');
+    console.log('   之后可以用 kele resume 继续执行');
+    abortController.abort();
+  };
+  process.on('SIGINT', sigintHandler);
+  process.on('SIGTERM', sigintHandler);
+
   const result = await executeProject(project, {
     registry,
     db,
     onProgress: (msg) => console.log(msg),
     timeout: options.timeout,
+    signal: abortController.signal,
   });
+
+  process.off('SIGINT', sigintHandler);
+  process.off('SIGTERM', sigintHandler);
+
+  if (result.aborted) {
+    console.log('\n⏹️  执行已中断');
+    console.log(`   项目目录: ${rootDir}`);
+    console.log('   使用 kele resume 从中断处继续');
+    return;
+  }
 
   console.log(`\n✨ 项目完成！`);
   console.log(`   项目目录: ${rootDir}`);
@@ -785,6 +807,31 @@ program
     }
   });
 
+// --- Resume command: kele resume ---
+program
+  .command('resume')
+  .description('Resume an interrupted project from where it left off')
+  .action(() => {
+    const db = new KeleDatabase();
+    const running = db.getRunningTasks();
+
+    if (running.length === 0) {
+      console.log('🥤 没有可恢复的项目');
+      console.log('   所有任务已完成，或没有运行中的任务');
+      console.log('   用 kele "你的想法" 创建一个新项目');
+      return;
+    }
+
+    console.log(`🔄 发现 ${running.length} 个可恢复的任务\n`);
+    for (let i = 0; i < running.length; i++) {
+      const r = running[i];
+      console.log(`  ${i + 1}. ${r.projectName}`);
+      console.log(`     任务: ${r.task.title}`);
+      console.log(`     项目ID: ${r.projectId}`);
+    }
+    console.log('\n   请用 kele resume <项目ID> 恢复指定项目');
+  });
+
 function printUsage(): void {
   console.log('🥤 kele — 你的创意变现助手\n');
   console.log('用法示例：');
@@ -795,6 +842,7 @@ function printUsage(): void {
   console.log('  kele list                    列出所有项目');
   console.log('  kele show <project-id>       查看项目详情');
   console.log('  kele upgrade <pid> <tid> "..."  升级某个任务');
+  console.log('  kele resume                  恢复中断的项目');
   console.log('\n配置 AI：');
   console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
   console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
