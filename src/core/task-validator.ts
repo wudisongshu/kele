@@ -32,6 +32,10 @@ const STUB_PATTERNS = [
   /placeholder\s+implementation/i,
   /not\s+yet\s+implemented/i,
   /coming\s+soon/i,
+  // Arrow function empty body — common stub pattern like () => {}
+  /\([^)]*\)\s*=>\s*\{\s*\}/,
+  // Constructor call with empty callback — e.g. new InputHandler(canvas, () => {})
+  /new\s+\w+\([^)]*,\s*\(\s*\)\s*=>\s*\{\s*\}\s*\)/,
 ];
 
 /**
@@ -117,7 +121,11 @@ function validateFile(content: string, _filename: string): string[] {
 
   for (const pattern of STUB_PATTERNS) {
     if (pattern.test(content)) {
-      issues.push(`Contains TODO/stub: "${content.match(pattern)?.[0]?.slice(0, 40)}"`);
+      const match = content.match(pattern)?.[0]?.slice(0, 40) ?? '';
+      // Arrow-function empty bodies and no-op callbacks are CRITICAL — they break gameplay
+      const isCritical = /=>\s*\{\s*\}/.test(match) || /new\s+\w+\([^)]*,\s*\(\s*\)\s*=>/.test(match);
+      const prefix = isCritical ? 'CRITICAL: ' : '';
+      issues.push(`${prefix}Contains TODO/stub: "${match}"`);
     }
   }
 
