@@ -230,7 +230,7 @@ export function formatReleaseInsightForUser(platform: string): string {
 
   let output = `\n📢 发布洞察：${platform} 平台\n`;
   output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-  output += `⏱️  预估总时间：约 ${totalDays} 个工作日\n\n`;
+  output += `⏱️  预估总时间：约 ${totalDays} 个工作日（仅供参考，实际以平台政策为准）\n\n`;
 
   output += '📋 你需要准备的材料：\n';
   for (const m of guide.requiredMaterials) {
@@ -251,7 +251,7 @@ export function formatReleaseInsightForUser(platform: string): string {
 
   output += '\n📝 发布步骤概览：\n';
   for (const s of guide.steps) {
-    output += `   ${s.title}（约 ${s.estimatedDays} 天）\n`;
+    output += `   ${s.title}（约 ${s.estimatedDays} 天，预估）\n`;
   }
 
   output += `\n💡 ${guide.notes}\n`;

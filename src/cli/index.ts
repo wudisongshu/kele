@@ -177,17 +177,25 @@ async function handleCreateIntent(
       console.log('📊 研究报告');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log(`🎯 研究对象: ${report.subject}`);
-      console.log(`\n📌 产品分析:`);
-      console.log(report.productAnalysis.slice(0, 300) + (report.productAnalysis.length > 300 ? '...' : ''));
-      console.log(`\n💰 变现分析:`);
-      console.log(report.monetizationAnalysis.slice(0, 300) + (report.monetizationAnalysis.length > 300 ? '...' : ''));
-      console.log(`\n💡 核心建议:`);
-      console.log(report.recommendations.slice(0, 400) + (report.recommendations.length > 400 ? '...' : ''));
+      if (report.productAnalysis) {
+        console.log(`\n📌 产品分析:`);
+        console.log(report.productAnalysis.slice(0, 300) + (report.productAnalysis.length > 300 ? '...' : ''));
+      }
+      if (report.monetizationAnalysis) {
+        console.log(`\n💰 变现分析:`);
+        console.log(report.monetizationAnalysis.slice(0, 300) + (report.monetizationAnalysis.length > 300 ? '...' : ''));
+      }
+      if (report.recommendations) {
+        console.log(`\n💡 核心建议:`);
+        console.log(report.recommendations.slice(0, 400) + (report.recommendations.length > 400 ? '...' : ''));
+      }
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
       if (!options.yes && !(await confirmCheckpoint('研究方向是否正确？'))) {
         return;
       }
+    } else {
+      console.log('   ⚠️  研究未返回有效内容，跳过此步骤\n');
     }
   }
 

@@ -34,7 +34,7 @@ export interface ResearchResult {
  * Detect if an idea needs research.
  * Returns true if the idea references competitors, is vague, or lacks clear direction.
  */
-export function needsResearch(rawText: string, keywords: string[]): boolean {
+export function needsResearch(rawText: string, _keywords: string[]): boolean {
   const lower = rawText.toLowerCase();
 
   // References to existing products/apps/games
@@ -63,9 +63,8 @@ export function needsResearch(rawText: string, keywords: string[]): boolean {
     if (lower.includes(word)) return true;
   }
 
-  // Too few keywords means unclear direction
-  if (keywords.length < 3) return true;
-
+  // Too few keywords might mean unclear direction, but only if no clear type/monetization
+  // Having a clear creative type and monetization channel means the direction is clear enough
   return false;
 }
 
@@ -106,18 +105,33 @@ Respond in Chinese. Be concise but insightful.`;
 /**
  * Parse AI research response into structured report.
  */
-function parseResearchResponse(subject: string, rawResponse: string): ResearchReport {
+function parseResearchResponse(subject: string, rawResponse: string): ResearchReport | null {
+  // If response looks like JSON (e.g., from mock fallback), skip parsing
+  const trimmed = rawResponse.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return null;
+  }
+
   // Simple parsing: extract sections by headers
   const sections = rawResponse.split(/## \d+\.\s+/);
+
+  const productAnalysis = extractSection(rawResponse, '产品分析|Product Analysis') || '';
+  const monetizationAnalysis = extractSection(rawResponse, '变现分析|Monetization Analysis') || '';
+  const recommendations = extractSection(rawResponse, '建议|Recommendations') || '';
+
+  // If all key fields are empty, the AI didn't return a proper report
+  if (!productAnalysis && !monetizationAnalysis && !recommendations) {
+    return null;
+  }
 
   return {
     id: randomUUID(),
     subject,
     summary: extractSection(rawResponse, '总结|Summary') || sections[1] || '',
-    productAnalysis: extractSection(rawResponse, '产品分析|Product Analysis') || '',
-    monetizationAnalysis: extractSection(rawResponse, '变现分析|Monetization Analysis') || '',
+    productAnalysis,
+    monetizationAnalysis,
     marketInsights: extractSection(rawResponse, '市场洞察|Market Insights') || '',
-    recommendations: extractSection(rawResponse, '建议|Recommendations') || '',
+    recommendations,
     suggestedPlatforms: extractList(rawResponse, '平台|Platform'),
     suggestedKeywords: extractList(rawResponse, '关键词|Keywords'),
     createdAt: new Date().toISOString(),
@@ -184,6 +198,10 @@ export async function research(
 
     const response = await adapter.execute(prompt);
     const report = parseResearchResponse(subject, response);
+
+    if (!report) {
+      return { success: false, error: 'AI returned empty or invalid research report' };
+    }
 
     return { success: true, report };
   } catch (err) {
