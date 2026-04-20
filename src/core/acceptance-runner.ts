@@ -303,33 +303,8 @@ function evaluatePlayGame(criterion: AcceptanceCriterion, targetDir: string): Cr
 
 // --- Helpers ---
 
-function findHtmlFiles(dir: string): string[] {
-  return findFilesByExt(dir, '.html');
-}
-
-function findJsFiles(dir: string): string[] {
-  return findFilesByExt(dir, '.js');
-}
+import { findHtmlFiles, findJsFiles } from './file-utils.js';
 
 function findAllSourceFiles(dir: string): string[] {
   return [...findHtmlFiles(dir), ...findJsFiles(dir)];
-}
-
-function findFilesByExt(dir: string, ext: string): string[] {
-  const results: string[] = [];
-  try {
-    const { readdirSync } = require('fs');
-    const entries = readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        results.push(...findFilesByExt(fullPath, ext));
-      } else if (entry.isFile() && entry.name.endsWith(ext)) {
-        results.push(fullPath);
-      }
-    }
-  } catch {
-    // Directory doesn't exist or unreadable
-  }
-  return results;
 }

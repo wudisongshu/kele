@@ -7,6 +7,7 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { findSourceFiles } from './file-utils.js';
 import { validateGamePlayability } from './game-validator.js';
 
 export interface ValidationResult {
@@ -171,7 +172,7 @@ function validateGameOutput(targetDir: string, _taskTitle: string): string[] {
       let foundDraw = drawOps.some((op) => html.includes(op));
       if (!foundDraw) {
         // Scan JS files for drawing operations
-        const jsFiles = findJsFiles(targetDir);
+        const jsFiles = findSourceFiles(targetDir);
         for (const jsPath of jsFiles) {
           try {
             const jsContent = readFileSync(jsPath, 'utf-8');
@@ -232,22 +233,6 @@ function findHtmlFile(dir: string): string | undefined {
     }
   }
   return undefined;
-}
-
-function findJsFiles(dir: string): string[] {
-  const files: string[] = [];
-  if (!existsSync(dir)) return files;
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === 'dist') continue;
-    const fullPath = join(dir, entry);
-    const stat = statSync(fullPath);
-    if (stat.isDirectory()) {
-      files.push(...findJsFiles(fullPath));
-    } else if (/\.(js|ts)$/.test(entry)) {
-      files.push(fullPath);
-    }
-  }
-  return files;
 }
 
 function calculateScore(total: number, stubs: number, empty: number, issueCount: number): number {

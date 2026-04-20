@@ -2,6 +2,7 @@ import type { AIAdapter } from '../adapters/base.js';
 import type { Idea, SubProject } from '../types/index.js';
 import { debugLog } from '../debug.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
+import { IncubationResponseSchema } from './schemas.js';
 
 /**
  * AI-Driven Incubator — lets the AI decide what sub-projects are needed.
@@ -356,43 +357,23 @@ async function reviewIncubatorOutput(
 }
 
 function parseIncubationResponse(jsonStr: string, rootDir: string): AIIncubateResult {
-  const parsed = JSON.parse(jsonStr) as {
-    subProjects: Array<{
-      id: string;
-      name: string;
-      description: string;
-      type: string;
-      dependencies: string[];
-      monetizationRelevance?: string;
-      estimatedEffort?: string;
-      criticalPath?: boolean;
-      riskLevel?: string;
-      acceptanceCriteria?: Array<{
-        description: string;
-        type: string;
-        action: string;
-        target?: string;
-        expected: string;
-        critical: boolean;
-      }>;
-    }>;
-    riskAssessment?: {
-      technicalRisks: string[];
-      marketRisks: string[];
-      timeRisks: string[];
-      mitigation: string;
-    };
-    monetizationPath?: string;
-    reasoning?: string;
-    selfReviewNotes?: string;
-  };
-
-  if (!parsed.subProjects || !Array.isArray(parsed.subProjects)) {
-    return { success: false, error: 'AI returned invalid sub-project structure' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    return { success: false, error: 'Invalid JSON in AI response' };
   }
 
+  // Validate with Zod schema
+  const result = IncubationResponseSchema.safeParse(parsed);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+    return { success: false, error: `Schema validation failed: ${issues.join('; ')}` };
+  }
+
+  const data = result.data;
   const now = new Date().toISOString();
-  const subProjects: SubProject[] = parsed.subProjects.map((tpl) => ({
+  const subProjects: SubProject[] = data.subProjects.map((tpl) => ({
     id: tpl.id,
     name: tpl.name,
     description: tpl.description,
@@ -418,10 +399,10 @@ function parseIncubationResponse(jsonStr: string, rootDir: string): AIIncubateRe
   return {
     success: true,
     subProjects,
-    reasoning: parsed.reasoning,
-    riskAssessment: parsed.riskAssessment,
-    monetizationPath: parsed.monetizationPath,
-    selfReviewNotes: parsed.selfReviewNotes,
+    reasoning: data.reasoning,
+    riskAssessment: data.riskAssessment,
+    monetizationPath: data.monetizationPath,
+    selfReviewNotes: data.selfReviewNotes,
   };
 }
 

@@ -1,5 +1,6 @@
-import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { findSourceFiles } from './file-utils.js';
 
 /**
  * Game Validator — checks if a generated game is actually playable.
@@ -38,22 +39,6 @@ const NICE_TO_HAVE = [
   { regex: /game\s*over|gameover|win|lose|victory|失败|胜利|通关/i, name: 'game over/win condition' },
 ];
 
-function findJsFiles(dir: string): string[] {
-  const files: string[] = [];
-  if (!existsSync(dir)) return files;
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === 'dist') continue;
-    const full = join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) {
-      files.push(...findJsFiles(full));
-    } else if (/\.(js|ts|jsx|tsx)$/.test(entry)) {
-      files.push(full);
-    }
-  }
-  return files;
-}
-
 function findHtmlFile(dir: string): string | null {
   const candidates = ['index.html', 'game.html', 'app.html'];
   for (const c of candidates) {
@@ -65,7 +50,7 @@ function findHtmlFile(dir: string): string | null {
 
 export function validateGamePlayability(targetDir: string): GameValidationResult {
   const issues: string[] = [];
-  const jsFiles = findJsFiles(targetDir);
+  const jsFiles = findSourceFiles(targetDir);
   const htmlPath = findHtmlFile(targetDir);
 
   // Combine all JS code into one string for analysis

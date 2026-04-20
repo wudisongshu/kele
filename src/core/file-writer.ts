@@ -1,5 +1,6 @@
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { dirname, join, basename } from 'path';
+import { sanitizeFilePath } from './security.js';
 
 /**
  * FileWriter — parses AI output and writes files to disk.
@@ -123,8 +124,15 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
     if (prefixPattern.test(relativePath)) {
       relativePath = relativePath.replace(prefixPattern, '');
     }
+
+    // Security: reject path traversal
+    const safePath = sanitizeFilePath(relativePath);
+    if (!safePath) {
+      console.warn(`[SECURITY] Rejected unsafe path: "${file.path}"`);
+      continue;
+    }
     
-    const filePath = join(baseDir, relativePath);
+    const filePath = join(baseDir, safePath);
     const dir = dirname(filePath);
 
     if (!existsSync(dir)) {
