@@ -91,6 +91,7 @@ async function callAI(ctx: ExecutionContext, prompt: string): Promise<{ output: 
   ctx.task.aiProvider = route.provider;
 
   let firstTokenReceived = false;
+  const startTime = Date.now();
   const onToken = (_token: string) => {
     if (!firstTokenReceived) {
       firstTokenReceived = true;
@@ -98,7 +99,13 @@ async function callAI(ctx: ExecutionContext, prompt: string): Promise<{ output: 
     }
   };
 
-  return executeWithFallback(registry, prompt, route.provider, route.adapter, onToken, onProgress, signal);
+  const result = await executeWithFallback(registry, prompt, route.provider, route.adapter, onToken, onProgress, signal);
+  const elapsed = Date.now() - startTime;
+  const elapsedSec = Math.round(elapsed / 1000);
+  if (elapsedSec > 10) {
+    onProgress?.(`   ⏱️  生成耗时 ${elapsedSec} 秒`);
+  }
+  return result;
 }
 
 /**

@@ -25,19 +25,7 @@ export class MockAdapter implements AIAdapter {
     // Incubation: generate sub-project structure
     // Detect by unique incubation prompt phrases (NOT present in task execution prompts)
     if (lower.includes('ai incubator') || lower.includes('two-pass') || lower.includes('sub-project structure') || lower.includes('project plan') || lower.includes('孵化')) {
-      return JSON.stringify({
-        subProjects: [
-          { id: 'project-setup', name: 'Project Setup', description: 'Initialize project', type: 'setup', dependencies: [], monetizationRelevance: 'supporting', estimatedEffort: '2-4 hours', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'package.json exists', type: 'functional', action: 'verify-file', target: 'package.json', expected: 'file exists', critical: true }] },
-          { id: 'core-dev', name: 'Core Development', description: 'Build core product', type: 'development', dependencies: ['project-setup'], monetizationRelevance: 'core', estimatedEffort: '2-5 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'index.html renders', type: 'visual', action: 'verify-file', target: 'index.html', expected: 'file exists', critical: true }] },
-          { id: 'testing', name: 'Testing', description: 'Test and validate', type: 'testing', dependencies: ['core-dev'], monetizationRelevance: 'supporting', estimatedEffort: '1-2 days', criticalPath: false, riskLevel: 'low', acceptanceCriteria: [{ description: 'Tests pass', type: 'functional', action: 'verify-file', target: 'tests', expected: 'tests exist', critical: false }] },
-          { id: 'deployment', name: 'Deployment', description: 'Deploy to target platform', type: 'deployment', dependencies: ['core-dev'], monetizationRelevance: 'core', estimatedEffort: '1 day', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Deploy config exists', type: 'functional', action: 'verify-file', target: '.github/workflows/deploy.yml', expected: 'file exists', critical: true }] },
-          { id: 'monetization', name: 'Monetization', description: 'Set up revenue', type: 'monetization', dependencies: ['deployment'], monetizationRelevance: 'core', estimatedEffort: '1-2 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'Ad code exists', type: 'functional', action: 'verify-file', target: 'adsense.html', expected: 'file exists', critical: true }] },
-        ],
-        riskAssessment: { technicalRisks: ['AI code quality'], marketRisks: ['Competition'], timeRisks: ['Scope creep'], mitigation: 'Keep MVP minimal' },
-        monetizationPath: 'Deploy as web app, integrate AdSense for ad revenue',
-        reasoning: 'Standard web product pipeline',
-        selfReviewNotes: 'Kept lean, 5 sub-projects max',
-      });
+      return generateMockIncubation(lower);
     }
 
     // Intent classification — echo the user's idea back so mock mode reflects their input
@@ -500,4 +488,72 @@ resize();init();gameLoop();
 </script>
 </body>
 </html>`;
+}
+
+function generateMockIncubation(lower: string): string {
+  const isGame = lower.includes('game') || lower.includes('游戏') || lower.includes('塔防') || lower.includes('贪吃蛇') || lower.includes('方块') || lower.includes('消消乐');
+  const isMiniprogram = lower.includes('小程序') || lower.includes('miniprogram') || lower.includes('微信');
+  const isTool = lower.includes('工具') || lower.includes('tool') || lower.includes('计算器') || lower.includes('converter');
+
+  if (isGame) {
+    return JSON.stringify({
+      subProjects: [
+        { id: 'game-setup', name: 'Game Setup', description: 'Initialize game project structure', type: 'setup', dependencies: [], monetizationRelevance: 'supporting', estimatedEffort: '1-2 hours', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'index.html exists with canvas', type: 'functional', action: 'verify-file', target: 'index.html', expected: 'file exists', critical: true }] },
+        { id: 'game-core', name: 'Game Core', description: 'Build core gameplay loop', type: 'development', dependencies: ['game-setup'], monetizationRelevance: 'core', estimatedEffort: '2-4 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'Game is playable', type: 'functional', action: 'verify-file', target: 'index.html', expected: 'game runs', critical: true }] },
+        { id: 'game-ui', name: 'Game UI', description: 'Menus, score, settings', type: 'development', dependencies: ['game-core'], monetizationRelevance: 'core', estimatedEffort: '1-2 days', criticalPath: false, riskLevel: 'low', acceptanceCriteria: [{ description: 'UI screens exist', type: 'visual', action: 'verify-file', target: 'index.html', expected: 'UI rendered', critical: false }] },
+        { id: 'deployment', name: 'Deployment', description: 'Deploy game to web', type: 'deployment', dependencies: ['game-core'], monetizationRelevance: 'core', estimatedEffort: '1 day', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Deploy config exists', type: 'functional', action: 'verify-file', target: '.github/workflows/deploy.yml', expected: 'file exists', critical: true }] },
+        { id: 'monetization', name: 'Monetization', description: 'Integrate ads and IAP', type: 'monetization', dependencies: ['deployment'], monetizationRelevance: 'core', estimatedEffort: '1-2 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'Ad code embedded', type: 'functional', action: 'verify-file', target: 'index.html', expected: 'ads present', critical: true }] },
+      ],
+      riskAssessment: { technicalRisks: ['Game performance on mobile'], marketRisks: ['Saturation in casual games'], timeRisks: ['Feature creep'], mitigation: 'Focus on single core mechanic first' },
+      monetizationPath: 'Ad-supported free game with optional IAP for cosmetics and power-ups',
+      reasoning: 'Game projects need tight core-loop-first approach',
+      selfReviewNotes: 'Prioritized gameplay over polish for MVP',
+    });
+  }
+
+  if (isMiniprogram) {
+    return JSON.stringify({
+      subProjects: [
+        { id: 'mp-setup', name: 'Mini Program Setup', description: 'Initialize WeChat mini program', type: 'setup', dependencies: [], monetizationRelevance: 'supporting', estimatedEffort: '2-4 hours', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'app.json exists', type: 'functional', action: 'verify-file', target: 'app.json', expected: 'file exists', critical: true }] },
+        { id: 'mp-core', name: 'Mini Program Core', description: 'Build pages and logic', type: 'development', dependencies: ['mp-setup'], monetizationRelevance: 'core', estimatedEffort: '2-5 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'Main page renders', type: 'visual', action: 'verify-file', target: 'pages/index/index.wxml', expected: 'file exists', critical: true }] },
+        { id: 'mp-deploy', name: 'WeChat Deploy', description: 'Prepare for WeChat submission', type: 'deployment', dependencies: ['mp-core'], monetizationRelevance: 'core', estimatedEffort: '1 day', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Project config valid', type: 'functional', action: 'verify-file', target: 'project.config.json', expected: 'file exists', critical: true }] },
+        { id: 'monetization', name: 'Monetization', description: 'WeChat ad integration', type: 'monetization', dependencies: ['mp-deploy'], monetizationRelevance: 'core', estimatedEffort: '1-2 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'Ad component exists', type: 'functional', action: 'verify-file', target: 'components/ad/ad.wxml', expected: 'file exists', critical: true }] },
+      ],
+      riskAssessment: { technicalRisks: ['WeChat API changes'], marketRisks: ['Mini program review rejection'], timeRisks: ['Review delays'], mitigation: 'Follow WeChat official guidelines strictly' },
+      monetizationPath: 'WeChat banner ads + rewarded video ads',
+      reasoning: 'Mini programs have streamlined deployment via WeChat dev tools',
+      selfReviewNotes: '4 sub-projects focused on WeChat ecosystem',
+    });
+  }
+
+  if (isTool) {
+    return JSON.stringify({
+      subProjects: [
+        { id: 'tool-setup', name: 'Tool Setup', description: 'Initialize tool project', type: 'setup', dependencies: [], monetizationRelevance: 'supporting', estimatedEffort: '1-2 hours', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'package.json exists', type: 'functional', action: 'verify-file', target: 'package.json', expected: 'file exists', critical: true }] },
+        { id: 'tool-core', name: 'Tool Core', description: 'Build main functionality', type: 'development', dependencies: ['tool-setup'], monetizationRelevance: 'core', estimatedEffort: '1-3 days', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Tool functions correctly', type: 'functional', action: 'verify-file', target: 'index.html', expected: 'tool works', critical: true }] },
+        { id: 'tool-ui', name: 'Tool UI', description: 'Polish user interface', type: 'development', dependencies: ['tool-core'], monetizationRelevance: 'supporting', estimatedEffort: '1 day', criticalPath: false, riskLevel: 'low', acceptanceCriteria: [{ description: 'UI is responsive', type: 'visual', action: 'verify-file', target: 'index.html', expected: 'UI rendered', critical: false }] },
+        { id: 'deployment', name: 'Deployment', description: 'Deploy tool to web', type: 'deployment', dependencies: ['tool-core'], monetizationRelevance: 'core', estimatedEffort: '1 day', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Deploy config exists', type: 'functional', action: 'verify-file', target: '.github/workflows/deploy.yml', expected: 'file exists', critical: true }] },
+        { id: 'monetization', name: 'Monetization', description: 'Ad integration or donation', type: 'monetization', dependencies: ['deployment'], monetizationRelevance: 'core', estimatedEffort: '1 day', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Ad or donation code exists', type: 'functional', action: 'verify-file', target: 'index.html', expected: 'monetization present', critical: true }] },
+      ],
+      riskAssessment: { technicalRisks: ['Edge case handling'], marketRisks: ['Free alternatives exist'], timeRisks: ['Feature requests'], mitigation: 'Solve one problem extremely well' },
+      monetizationPath: 'Ad-supported free tool with optional premium features',
+      reasoning: 'Tools have lower dev effort but need exceptional UX',
+      selfReviewNotes: 'Kept tool focused on single use case',
+    });
+  }
+
+  // Default: standard web product
+  return JSON.stringify({
+    subProjects: [
+      { id: 'project-setup', name: 'Project Setup', description: 'Initialize project', type: 'setup', dependencies: [], monetizationRelevance: 'supporting', estimatedEffort: '2-4 hours', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'package.json exists', type: 'functional', action: 'verify-file', target: 'package.json', expected: 'file exists', critical: true }] },
+      { id: 'core-dev', name: 'Core Development', description: 'Build core product', type: 'development', dependencies: ['project-setup'], monetizationRelevance: 'core', estimatedEffort: '2-5 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'index.html renders', type: 'visual', action: 'verify-file', target: 'index.html', expected: 'file exists', critical: true }] },
+      { id: 'testing', name: 'Testing', description: 'Test and validate', type: 'testing', dependencies: ['core-dev'], monetizationRelevance: 'supporting', estimatedEffort: '1-2 days', criticalPath: false, riskLevel: 'low', acceptanceCriteria: [{ description: 'Tests pass', type: 'functional', action: 'verify-file', target: 'tests', expected: 'tests exist', critical: false }] },
+      { id: 'deployment', name: 'Deployment', description: 'Deploy to target platform', type: 'deployment', dependencies: ['core-dev'], monetizationRelevance: 'core', estimatedEffort: '1 day', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Deploy config exists', type: 'functional', action: 'verify-file', target: '.github/workflows/deploy.yml', expected: 'file exists', critical: true }] },
+      { id: 'monetization', name: 'Monetization', description: 'Set up revenue', type: 'monetization', dependencies: ['deployment'], monetizationRelevance: 'core', estimatedEffort: '1-2 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'Ad code exists', type: 'functional', action: 'verify-file', target: 'adsense.html', expected: 'file exists', critical: true }] },
+    ],
+    riskAssessment: { technicalRisks: ['AI code quality'], marketRisks: ['Competition'], timeRisks: ['Scope creep'], mitigation: 'Keep MVP minimal' },
+    monetizationPath: 'Deploy as web app, integrate AdSense for ad revenue',
+    reasoning: 'Standard web product pipeline',
+    selfReviewNotes: 'Kept lean, 5 sub-projects max',
+  });
 }
