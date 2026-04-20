@@ -118,7 +118,7 @@ export function validateIncubatorOutput(
 /**
  * Detect cycles in dependency graph using DFS.
  */
-function detectCycles(subProjects: SubProject[]): string[][] {
+export function detectCycles(subProjects: SubProject[]): string[][] {
   const cycles: string[][] = [];
   const idToIndex = new Map<string, number>();
   subProjects.forEach((sp, idx) => idToIndex.set(sp.id, idx));
@@ -169,7 +169,7 @@ function detectCycles(subProjects: SubProject[]): string[][] {
 /**
  * Rough estimation of total effort in days from effort strings.
  */
-function estimateTotalDays(subProjects: SubProject[]): number {
+export function estimateTotalDays(subProjects: SubProject[]): number {
   let total = 0;
   for (const sp of subProjects) {
     if (!sp.estimatedEffort) continue;

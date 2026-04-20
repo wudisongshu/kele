@@ -42,6 +42,10 @@ const TEST_CASES = [
   { name: 'Image Gallery', idea: '一个响应式图片画廊，支持懒加载和灯箱效果', expectedType: 'content' },
   { name: 'Tetris Game', idea: '一个俄罗斯方块游戏，有hold功能和幽灵方块', expectedType: 'game' },
   { name: 'Budget Tracker', idea: '一个个人记账工具，支持分类统计和月度报表', expectedType: 'tool' },
+  { name: 'Minesweeper', idea: '一个扫雷游戏，支持自定义难度和标记功能', expectedType: 'game' },
+  { name: 'Flashcards', idea: '一个背单词卡片应用，支持艾宾浩斯遗忘曲线复习', expectedType: 'tool' },
+  { name: 'Maze Generator', idea: '一个随机迷宫生成器，可以调整大小和复杂度', expectedType: 'game' },
+  { name: 'White Noise', idea: '一个白噪音播放器，支持雨声海浪森林等多种场景', expectedType: 'music' },
 ];
 
 async function runTest(testCase, index) {
