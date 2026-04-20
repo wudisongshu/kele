@@ -440,10 +440,30 @@ Step 4: 上传代码
 export function getDeployableConfigTemplate(platform: string): string {
   const templates: Record<string, string> = {
     'web': `For H5/Web deployment, generate these actual files (not guides):
-1. .github/workflows/deploy.yml — GitHub Actions workflow for Vercel/Cloudflare Pages deploy
-2. adsense.html or ad-code.js — Google AdSense or 百度联盟广告接入代码 snippet
-3. CNAME — Domain configuration file
-4. SETUP.md — One-page setup guide with the single command to deploy`,
+
+1. .github/workflows/deploy.yml — GitHub Actions workflow for GitHub Pages deploy. MUST use actions/deploy-pages@v4. EXACT structure:
+   - on: push: branches: ["main"] + workflow_dispatch
+   - permissions: contents: read, pages: write, id-token: write
+   - concurrency: group: "pages", cancel-in-progress: false
+   - jobs.deploy.runs-on: ubuntu-latest
+   - steps: actions/checkout@v4, actions/configure-pages@v5, actions/upload-pages-artifact@v3 with path: './', actions/deploy-pages@v4
+   - This is a STATIC HTML5 game — NO build step, NO npm install needed
+
+2. ads.txt — Domain authorization for AdSense. Content: google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+
+3. adsense.html — Standalone Google AdSense snippet that can be copy-pasted into the game's HTML. MUST contain EXACTLY:
+   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"></script>
+   <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="1234567890" data-ad-format="auto" data-full-width-responsive="true"></ins>
+   <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+
+4. CNAME — Custom domain placeholder. Single line: your-domain.com
+
+5. SETUP.md — One-page setup guide with these EXACT sections:
+   ## Step 1: Push to GitHub
+   ## Step 2: Enable GitHub Pages (Settings → Pages → Source: GitHub Actions)
+   ## Step 3: Set Workflow Permissions (Settings → Actions → General → Read and write permissions)
+   ## Step 4: Replace AdSense Placeholder IDs
+   ## Step 5: Add ads.txt to domain root`,
 
     'wechat-miniprogram': `For WeChat Mini Game deployment, generate these actual files:
 1. project.config.json — WeChat developer tool project config (include appId from credentials)
