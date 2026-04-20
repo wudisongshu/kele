@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { readFileSync, existsSync, readdirSync } from 'fs';
+import { join } from 'path';
 import type { Task, Project, SubProject, ExecuteResult } from '../types/index.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
@@ -27,15 +29,40 @@ export interface UpgradeOptions {
 /**
  * Build an upgrade prompt that includes the existing code context.
  */
+function readFilesFromDir(dir: string, maxSize = 50000): string {
+  if (!existsSync(dir)) return '';
+  let result = '';
+  const entries = readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) continue;
+    const path = join(dir, entry.name);
+    try {
+      const content = readFileSync(path, 'utf-8');
+      if (content.length > maxSize) {
+        result += `\n--- ${entry.name} (truncated, ${content.length} chars) ---\n${content.slice(0, maxSize)}\n... [truncated]\n`;
+      } else {
+        result += `\n--- ${entry.name} ---\n${content}\n`;
+      }
+    } catch {
+      // Skip unreadable files
+    }
+  }
+  return result;
+}
+
 function buildUpgradePrompt(
   task: Task,
   subProject: SubProject,
   project: Project,
   upgradeRequest: string
 ): string {
-  const previousCode = task.result
-    ? `## Previous Implementation\n\nHere is the current code/output from the previous version:\n\n${task.result.slice(0, 12000)}`
-    : '## Previous Implementation\n\nNo previous code available — this is a new implementation.';
+  // Read actual files from disk (diff-aware: captures user manual edits too)
+  const diskFiles = readFilesFromDir(subProject.targetDir);
+  const previousCode = diskFiles
+    ? `## Current Implementation (from filesystem)\n\nHere is the ACTUAL current code in ${subProject.targetDir}:\n\n${diskFiles.slice(0, 15000)}`
+    : task.result
+      ? `## Previous Implementation (from database)\n\n${task.result.slice(0, 12000)}`
+      : '## Previous Implementation\n\nNo previous code available — this is a new implementation.';
 
   return `You are a senior software engineer working on the project "${project.name}".
 
