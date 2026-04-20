@@ -94,6 +94,32 @@ describe('FileWriter', () => {
       expect(written).toContain('notes.md');
       expect(readFileSync(join(tmpDir, 'notes.md'), 'utf-8')).toBe('Important instructions here');
     });
+
+    it('should deduplicate sub-project prefix from paths', () => {
+      // Simulate baseDir ending with 'game-dev' and AI returning 'game-dev/index.html'
+      const baseDir = join(tmpDir, 'game-dev');
+      const parsed = {
+        files: [
+          { path: 'game-dev/index.html', content: '<html></html>' },
+          { path: 'game-dev/js/game.js', content: 'const game = 1;' },
+          { path: 'README.md', content: '# Readme' },
+        ],
+        notes: '',
+      };
+
+      const written = writeFiles(baseDir, parsed);
+      expect(written).toContain('index.html');
+      expect(written).toContain('js/game.js');
+      expect(written).toContain('README.md');
+      // Should NOT contain the duplicated prefix
+      expect(written).not.toContain('game-dev/index.html');
+
+      // Files should be written without nested 'game-dev/game-dev/'
+      expect(existsSync(join(baseDir, 'index.html'))).toBe(true);
+      expect(existsSync(join(baseDir, 'js/game.js'))).toBe(true);
+      expect(existsSync(join(baseDir, 'README.md'))).toBe(true);
+      expect(existsSync(join(baseDir, 'game-dev', 'index.html'))).toBe(false);
+    });
   });
 
   describe('applyAIOutput', () => {

@@ -1,5 +1,5 @@
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { dirname, join } from 'path';
+import { dirname, join, basename } from 'path';
 
 /**
  * FileWriter — parses AI output and writes files to disk.
@@ -107,12 +107,24 @@ export function parseAIOutput(output: string): ParsedOutput {
 
 /**
  * Write parsed files to disk under baseDir.
+ * 
+ * Path deduplication: if AI returns paths that include the sub-project name
+ * as a prefix (e.g. "game-dev/index.html" when baseDir already ends with
+ * "game-dev"), strip the duplicate prefix to avoid nested directories.
  */
 export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
   const written: string[] = [];
+  const baseName = basename(baseDir);
 
   for (const file of parsed.files) {
-    const filePath = join(baseDir, file.path);
+    // Strip duplicate sub-project prefix from path
+    let relativePath = file.path;
+    const prefixPattern = new RegExp(`^${baseName}[/\\\\]`);
+    if (prefixPattern.test(relativePath)) {
+      relativePath = relativePath.replace(prefixPattern, '');
+    }
+    
+    const filePath = join(baseDir, relativePath);
     const dir = dirname(filePath);
 
     if (!existsSync(dir)) {
@@ -122,12 +134,12 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
     let content = file.content;
 
     // Auto-fix HTML files for local file opening
-    if (file.path.endsWith('.html')) {
+    if (relativePath.endsWith('.html')) {
       content = fixHtmlForLocal(content);
     }
 
     writeFileSync(filePath, content, 'utf-8');
-    written.push(file.path);
+    written.push(relativePath);
   }
 
   if (parsed.notes && parsed.notes.trim().length > 0) {
