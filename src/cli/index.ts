@@ -92,7 +92,7 @@ program
     `  $ kele retry <project> <task>             # Retry failed task\n` +
     `  $ kele delete <project>                   # Delete a project\n` +
     `  $ kele export <project> [dir]             # Export project files`)
-  .version(version, '-v, --version', 'Display version number');
+  .version(`${version} (Node ${process.version}, ${process.platform})`, '-v, --version', 'Display version number');
 
 // --- Main command: kele "idea" ---
 program
@@ -1014,6 +1014,31 @@ program
     } else {
       console.log(`\n❌ 升级失败: ${result.error}`);
       process.exit(1);
+    }
+  });
+
+// --- Search command: kele search <query> ---
+program
+  .command('search')
+  .argument('<query>', 'Search query for projects')
+  .description('Search projects by name or keywords')
+  .action((query: string) => {
+    const db = new KeleDatabase();
+    const projects = db.listProjects();
+    const lowerQuery = query.toLowerCase();
+    const matches = projects.filter((p) =>
+      p.name.toLowerCase().includes(lowerQuery) ||
+      p.idea?.keywords?.some((k: string) => k.toLowerCase().includes(lowerQuery)) ||
+      p.idea?.rawText?.toLowerCase().includes(lowerQuery)
+    );
+    if (matches.length === 0) {
+      console.log(`🔍 未找到匹配 "${query}" 的项目`);
+      return;
+    }
+    console.log(`🔍 找到 ${matches.length} 个匹配项目:\n`);
+    for (const p of matches) {
+      console.log(`  📁 ${p.name} (${p.id})`);
+      console.log(`     ${p.idea?.rawText?.slice(0, 60) || 'No description'}...`);
     }
   });
 
