@@ -176,6 +176,42 @@ export const PLATFORM_RELEASE_GUIDE: Record<string, PlatformGuide> = {
     ],
     notes: 'Google Play 审核比 App Store 宽松，但同样要求隐私政策和内容分级。支持 A/B 测试和分阶段发布。\n\n✅ 优势：不需要软著，不需要版号，25美元一次性费用即可上架。个人开发者最友好的国际平台之一。',
   },
+
+  'discord-bot': {
+    steps: [
+      { title: '创建 Discord 应用', description: '访问 discord.com/developers，创建 New Application', estimatedDays: 1 },
+      { title: '配置 Bot', description: '在 Bot 标签页生成 Token，设置权限（Read Messages, Send Messages, Embed Links）', estimatedDays: 1 },
+      { title: '邀请 Bot', description: '生成 OAuth2 URL，邀请 Bot 到你的服务器', estimatedDays: 1 },
+      { title: '部署服务器', description: '使用 Vercel Serverless / Railway / VPS 部署 bot', estimatedDays: 1 },
+      { title: '设置环境变量', description: '配置 DISCORD_BOT_TOKEN 等环境变量', estimatedDays: 1 },
+    ],
+    requiredMaterials: [
+      'Discord 账号',
+      'Discord 服务器（或创建测试服务器）',
+    ],
+    userInfoNeeded: [
+      { field: 'discordToken', label: 'Bot Token', reason: 'Discord API 认证', required: true },
+      { field: 'clientId', label: 'Client ID', reason: 'OAuth2 邀请链接', required: true },
+    ],
+    notes: 'Discord Bot 无需审核即可使用，部署最简单。可通过 Discord Bot Marketplace 推广。变现依赖 Premium 功能订阅。',
+  },
+
+  'telegram-bot': {
+    steps: [
+      { title: '创建 Bot', description: '在 Telegram 搜索 @BotFather，发送 /newbot 创建', estimatedDays: 1 },
+      { title: '获取 Token', description: 'BotFather 会返回 Bot Token（格式: 123456:ABC-DEF...）', estimatedDays: 1 },
+      { title: '部署服务器', description: '使用 Webhook + Vercel/Railway 或 polling 模式', estimatedDays: 1 },
+      { title: '设置命令', description: '通过 BotFather 设置 /start /help 等命令菜单', estimatedDays: 1 },
+    ],
+    requiredMaterials: [
+      'Telegram 账号',
+      'Bot Token',
+    ],
+    userInfoNeeded: [
+      { field: 'telegramToken', label: 'Bot Token', reason: 'Telegram Bot API 认证', required: true },
+    ],
+    notes: 'Telegram Bot 部署最简单，无需审核。可通过 Telegram Ads 推广。支持 TON 支付变现。',
+  },
 };
 
 /**
@@ -494,6 +530,16 @@ CRITICAL: For web games, the monetization sub-project should ALSO modify the gam
 1. steamworks_config.json — Steamworks app configuration
 2. build-upload.sh — Script using steamcmd to upload builds
 3. SETUP.md — How to install steamcmd and run the upload`,
+
+    'discord-bot': `For Discord Bot deployment, generate these actual files:
+1. .env.example — Environment variables template (DISCORD_BOT_TOKEN, CLIENT_ID)
+2. deploy.sh — Script to deploy to Railway/Vercel
+3. SETUP.md — How to invite the bot to your server`,
+
+    'telegram-bot': `For Telegram Bot deployment, generate these actual files:
+1. .env.example — Environment variables template (TELEGRAM_BOT_TOKEN)
+2. deploy.sh — Script to deploy webhook or polling mode
+3. SETUP.md — How to register commands with BotFather`,
   };
 
   return templates[platform] || '';

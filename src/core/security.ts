@@ -39,6 +39,30 @@ export function sanitizeFilePath(filePath: string): string | null {
   // Normalize path separators
   const normalized = filePath.replace(/\\/g, '/');
 
+  // Block sensitive system files
+  const sensitivePatterns = [
+    /^\.env/i,
+    /^\.ssh\//,
+    /^\.git\//,
+    /^\.npmrc/i,
+    /^id_rsa/,
+    /^id_ed25519/,
+    /^\.bashrc/,
+    /^\.zshrc/,
+    /^\.profile/,
+    /^\/etc\//,
+    /^\/usr\//,
+    /^\/bin\//,
+    /^\/sbin\//,
+    /^\/var\//,
+    /^\/sys\//,
+    /^\/proc\//,
+    /^\/dev\//,
+  ];
+  if (sensitivePatterns.some(p => p.test(normalized))) {
+    return null;
+  }
+
   // Reject path traversal
   if (normalized.includes('..')) return null;
 
