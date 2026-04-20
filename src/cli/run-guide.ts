@@ -112,9 +112,11 @@ export async function printLocalRunGuide(rootDir: string): Promise<void> {
     }
   } else if (runEntry.type === 'html') {
     console.log(`   cd "${runEntry.dir}"`);
+    console.log('   # 最简单的方式：直接双击打开 index.html');
+    console.log('   open index.html');
+    console.log('   # 或者用本地服务器（某些功能可能需要）：');
     console.log('   python3 -m http.server 8080');
     console.log('   # 然后浏览器打开 http://localhost:8080');
-    console.log('   # 或直接双击打开 index.html（部分浏览器可能限制本地资源）');
   } else if (runEntry.type === 'python') {
     console.log(`   cd "${runEntry.dir}"`);
     console.log(`   python3 ${runEntry.entryFile}`);

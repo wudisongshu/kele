@@ -10,6 +10,11 @@ export interface AIAdapter {
   isAvailable(): boolean;
 
   /**
+   * Test if the API connection actually works.
+   */
+  testConnection(): Promise<{ ok: boolean; error?: string }>;
+
+  /**
    * Execute a prompt and return the response text.
    * @param onToken - Optional callback fired for each token during streaming.
    *                  When provided, the adapter will use streaming mode if supported.

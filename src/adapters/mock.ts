@@ -15,6 +15,10 @@ export class MockAdapter implements AIAdapter {
     return true;
   }
 
+  async testConnection(): Promise<{ ok: boolean; error?: string }> {
+    return { ok: true };
+  }
+
   async execute(prompt: string, _onToken?: (token: string) => void): Promise<string> {
     const lower = prompt.toLowerCase();
 
@@ -66,20 +70,16 @@ export class MockAdapter implements AIAdapter {
 消除游戏、三消、休闲、微信、小程序、广告变现、内购、排行榜`;
     }
 
-    // Game tasks: return a COMPLETE, PLAYABLE game
+    // Game tasks: return a COMPLETE, PLAYABLE single-file game
     if (lower.includes('game') || lower.includes('游戏') || lower.includes('消消乐') || lower.includes('match') || lower.includes('core feature')) {
       return JSON.stringify({
         files: [
           {
             path: 'index.html',
-            content: generateGameHtml(),
-          },
-          {
-            path: 'src/game.js',
-            content: generateGameJs(),
+            content: generateInlineGameHtml(),
           },
         ],
-        notes: 'Complete playable match-3 game generated (mock mode)',
+        notes: 'Complete playable single-file match-3 game (mock mode). Open index.html directly in browser.',
       });
     }
 
@@ -133,7 +133,7 @@ export class MockAdapter implements AIAdapter {
   }
 }
 
-function generateGameHtml(): string {
+function generateInlineGameHtml(): string {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -146,7 +146,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex
 #header{color:#fff;text-align:center;margin-bottom:10px}
 #header h1{font-size:20px}
 #scoreboard{font-size:14px;color:#ffd700}
-#board{background:#16213e;border-radius:10px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,0.4)}
+#board{background:#16213e;border-radius:10px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,0.4);position:relative}
 canvas{display:block;touch-action:none}
 #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:24px;font-weight:bold;text-shadow:0 2px 6px rgba(0,0,0,0.6);pointer-events:none;opacity:0;transition:opacity .3s}
 #msg.show{opacity:1}
@@ -161,13 +161,8 @@ button:active{transform:scale(0.95)}
 <div id="board"><canvas id="c"></canvas><div id="msg"></div></div>
 <div id="ctrl"><button id="btn-restart">🔄 重新开始</button><button id="btn-hint">💡 提示</button></div>
 <div id="hint">点击方块，再点击相邻方块交换</div>
-<script src="./src/game.js"></script>
-</body>
-</html>`;
-}
-
-function generateGameJs(): string {
-  return `const canvas=document.getElementById('c');
+<script>
+const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d');
 const scoreEl=document.getElementById('score');
 const msgEl=document.getElementById('msg');
@@ -198,5 +193,8 @@ canvas.addEventListener('pointerdown',onClick);
 document.getElementById('btn-restart').addEventListener('click',restart);
 document.getElementById('btn-hint').addEventListener('click',showHint);
 window.addEventListener('resize',resize);
-create();resize();`;
+create();resize();
+</script>
+</body>
+</html>`;
 }

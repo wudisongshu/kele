@@ -53,7 +53,10 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${platformSect
 
   if (isCodingTask) {
     const gameConstraint = !isSetup && project.idea.type === 'game'
-      ? '\n4. For game development: the core gameplay loop (rendering + input + game logic) MUST be fully implemented and playable. Do NOT split core mechanics across multiple tasks — one task must produce a runnable game.'
+      ? `\n4. For game development: the core gameplay loop (rendering + input + game logic) MUST be fully implemented and playable. Do NOT split core mechanics across multiple tasks — one task must produce a runnable game.
+5. CRITICAL — SINGLE FILE RULE: You MUST generate ONLY a single index.html file with ALL JavaScript inlined inside <script> tags. Do NOT create separate .js files or use <script src="...">. The user must be able to open index.html directly in a browser and play immediately without any build step, npm install, or server.
+6. The game MUST render using HTML5 Canvas. The canvas MUST fill the available viewport and be responsive to window resizing.
+7. The game MUST have: (a) a visible score/lives display, (b) clear start/restart controls, (c) immediate feedback on player input (visual + audio if possible).`
       : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'

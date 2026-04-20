@@ -9,6 +9,7 @@ import { reviewTaskOutput } from './task-reviewer.js';
 
 import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
+import { validateGameInBrowser, quickGameCheck } from './game-validator-browser.js';
 import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
 import { executeWithFallback, executeFixWithFallback } from './adapter-utils.js';
 import { readFileSync, existsSync } from 'fs';
@@ -234,6 +235,102 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       }
     } else {
       onProgress?.(`   ✅ 本地运行验证通过`);
+    }
+  }
+
+  // Browser-level game validation for game projects
+  if (project.idea.type === 'game' && subProject.type === 'development') {
+    onProgress?.(`   🎮 浏览器级游戏可玩性验证...`);
+    const quick = quickGameCheck(subProject.targetDir);
+    if (!quick.ok) {
+      onProgress?.(`   ⚠️  游戏结构问题: ${quick.issues.join(', ')}`);
+      runtimePassed = false;
+    }
+
+    const browser = validateGameInBrowser(subProject.targetDir);
+    if (!browser.playable) {
+      onProgress?.(`   ❌ 游戏不可玩 (评分: ${browser.score}/100)`);
+      for (const err of browser.errors.slice(0, 3)) {
+        onProgress?.(`      • ${err}`);
+      }
+      runtimePassed = false;
+
+      // Auto-fix: feed browser validation errors to AI
+      let fixed = false;
+      for (let fixAttempt = 1; fixAttempt <= 2; fixAttempt++) {
+        onProgress?.(`   🔄 第 ${fixAttempt}/2 次游戏修复...`);
+        const fixPrompt = prompt + `\n\n` +
+          `⚠️ BROWSER VALIDATION FAILED. The game is NOT PLAYABLE.\n\n` +
+          `Issues found:\n${browser.errors.map((e) => `- ${e}`).join('\n')}\n\n` +
+          `CRITICAL REQUIREMENTS:\n` +
+          `1. Generate ONLY a single index.html file with ALL JavaScript inlined in <script> tags.\n` +
+          `2. Do NOT use <script src="..."> or external .js files.\n` +
+          `3. The user must open index.html directly in a browser and play immediately.\n` +
+          `4. Use HTML5 Canvas for rendering.\n` +
+          `5. Include a complete game loop (requestAnimationFrame or setInterval).\n` +
+          `6. Include input handlers (click/touch/keyboard).\n` +
+          `7. Include visible score display and restart controls.\n\n` +
+          `Please fix ALL issues and return the COMPLETE corrected output.`;
+
+        try {
+          const route = ctx.registry.route(task.complexity);
+          const fixOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
+          const fixWritten = applyAIOutput(subProject.targetDir, fixOutput);
+          if (fixWritten.length > 0) {
+            onProgress?.(`   📝 修复后写入: ${fixWritten.join(', ')}`);
+          }
+          task.result = fixOutput;
+          db.saveTask(task, project.id);
+
+          // Re-validate after fix
+          const reBrowser = validateGameInBrowser(subProject.targetDir);
+          if (reBrowser.playable) {
+            onProgress?.(`   ✅ 修复后游戏可玩 (评分: ${reBrowser.score}/100)`);
+            runtimePassed = true;
+            fixed = true;
+            break;
+          }
+          onProgress?.(`   ❌ 修复后仍不可玩 (评分: ${reBrowser.score}/100)`);
+        } catch (fixErr) {
+          const fixErrMsg = fixErr instanceof Error ? fixErr.message : String(fixErr);
+          onProgress?.(`   ⚠️  修复请求失败: ${fixErrMsg.slice(0, 120)}`);
+        }
+      }
+
+      if (!fixed) {
+        // Fallback: use mock adapter to generate a playable game template
+        const mock = ctx.registry.get('mock');
+        if (mock && task.aiProvider !== 'mock') {
+          onProgress?.(`   🛟 使用兜底游戏模板...`);
+          try {
+            const fallbackOutput = await mock.execute('Build a match-3 game');
+            const fallbackWritten = applyAIOutput(subProject.targetDir, fallbackOutput);
+            if (fallbackWritten.length > 0) {
+              onProgress?.(`   📝 兜底模板写入: ${fallbackWritten.join(', ')}`);
+            }
+            task.result = fallbackOutput;
+            task.aiProvider = 'mock';
+            db.saveTask(task, project.id);
+
+            const fallbackBrowser = validateGameInBrowser(subProject.targetDir);
+            if (fallbackBrowser.playable) {
+              onProgress?.(`   ✅ 兜底模板可玩 (评分: ${fallbackBrowser.score}/100)`);
+              runtimePassed = true;
+              // Don't throw - accept the fallback
+              return { validation, runtimePassed: true };
+            }
+          } catch {
+            // Fallback also failed
+          }
+        }
+
+        task.status = 'failed';
+        task.error = `Game browser validation failed after 2 fix attempts. ${browser.errors.join('; ')}`;
+        db.saveTask(task, project.id);
+        throw new ValidationError(task.error);
+      }
+    } else {
+      onProgress?.(`   ✅ 游戏可玩性验证通过 (评分: ${browser.score}/100)`);
     }
   }
 

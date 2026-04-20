@@ -199,6 +199,22 @@ async function handleCreateIntent(
   }
   const route = registry.route('medium');
 
+  // Test provider connectivity before starting
+  if (!useMock) {
+    console.log(`   🔌 检测 ${route.provider} 连接...`);
+    const testResult = await route.adapter.testConnection();
+    if (!testResult.ok) {
+      console.error(`\n❌ ${route.provider} 连接失败: ${testResult.error}`);
+      console.error('\n可能的解决方案：');
+      console.error('  1. 检查 API key 是否正确: kele config --provider <name> --key <key>');
+      console.error('  2. 检查网络连接');
+      console.error('  3. 使用 --yes 以 Mock 模式运行（仅用于测试）');
+      console.error(`\n当前配置:\n${getConfigSummary()}`);
+      process.exit(1);
+    }
+    console.log(`   ✅ ${route.provider} 连接正常\n`);
+  }
+
   // Step 2: Business Research (if needed)
   if (needsResearch(ideaText, idea.keywords)) {
     console.log('🔍 检测到模糊/竞品参考需求，启动商业研究...\n');

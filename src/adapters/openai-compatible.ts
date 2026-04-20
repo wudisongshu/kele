@@ -27,6 +27,32 @@ export class OpenAICompatibleAdapter implements AIAdapter {
   }
 
   /**
+   * Test if the API connection actually works by sending a minimal request.
+   * Returns { ok: true } on success, { ok: false, error: string } on failure.
+   */
+  async testConnection(): Promise<{ ok: boolean; error?: string }> {
+    if (!this.isAvailable()) {
+      return { ok: false, error: 'API key not configured' };
+    }
+    try {
+      const response = await fetch(`${this.config.baseURL}/models`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          ...(this.config.headers || {}),
+        },
+      });
+      if (response.ok) {
+        return { ok: true };
+      }
+      const text = await response.text().catch(() => '');
+      return { ok: false, error: `HTTP ${response.status}: ${text.slice(0, 200)}` };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /**
    * Execute a prompt with automatic retry and timeout.
    *
    * When onToken is provided, uses streaming mode (stream: true) to avoid
