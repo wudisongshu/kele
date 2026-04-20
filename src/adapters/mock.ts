@@ -76,14 +76,20 @@ export class MockAdapter implements AIAdapter {
 
     // Game tasks: return a COMPLETE, PLAYABLE single-file game
     if (lower.includes('game') || lower.includes('游戏') || lower.includes('消消乐') || lower.includes('match') || lower.includes('core feature')) {
+      // Select game type based on user input
+      let gameType: 'match3' | 'snake' | 'breakout' | 'pong' = 'match3';
+      if (lower.includes('snake') || lower.includes('贪吃蛇')) gameType = 'snake';
+      else if (lower.includes('breakout') || lower.includes('brick') || lower.includes('打砖块')) gameType = 'breakout';
+      else if (lower.includes('pong') || lower.includes('ping')) gameType = 'pong';
+
       return JSON.stringify({
         files: [
           {
             path: 'index.html',
-            content: generateInlineGameHtml(),
+            content: generateGameByType(gameType),
           },
         ],
-        notes: 'Complete playable single-file match-3 game (mock mode). Open index.html directly in browser.',
+        notes: `Complete playable single-file ${gameType} game (mock mode). Open index.html directly in browser.`,
       });
     }
 
@@ -137,7 +143,14 @@ export class MockAdapter implements AIAdapter {
   }
 }
 
-function generateInlineGameHtml(): string {
+function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong'): string {
+  if (gameType === 'snake') return generateSnakeGameHtml();
+  if (gameType === 'breakout') return generateBreakoutGameHtml();
+  if (gameType === 'pong') return generatePongGameHtml();
+  return generateMatch3GameHtml();
+}
+
+function generateMatch3GameHtml(): string {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -198,6 +211,142 @@ document.getElementById('btn-restart').addEventListener('click',restart);
 document.getElementById('btn-hint').addEventListener('click',showHint);
 window.addEventListener('resize',resize);
 create();resize();
+</script>
+</body>
+</html>`;
+}
+
+function generateSnakeGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>贪吃蛇</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif}
+#header{color:#fff;text-align:center;margin-bottom:10px}
+#score{font-size:14px;color:#2ecc71}
+canvas{display:block;background:#16213e;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.4)}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;font-weight:bold;pointer-events:none;opacity:0;transition:opacity .3s}
+#msg.show{opacity:1}
+#ctrl{margin-top:12px;display:flex;gap:10px}
+button{padding:8px 18px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;background:#e94560;color:#fff}
+</style>
+</head>
+<body>
+<div id="header"><h1>🐍 贪吃蛇</h1><div id="score">得分: <span id="s">0</span></div></div>
+<canvas id="c"></canvas>
+<div id="msg">Game Over</div>
+<div id="ctrl"><button id="restart">🔄 重新开始</button></div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('s');
+const msgEl=document.getElementById('msg');
+const GS=20;
+let W,H,snake,food,dir,nextDir,score,loopId,over;
+function resize(){const ms=Math.min(window.innerWidth,window.innerHeight-160);const sz=Math.floor(ms/20)*20;canvas.width=sz;canvas.height=sz;W=canvas.width/GS;H=canvas.height/GS;}
+function init(){snake=[{x:Math.floor(W/2),y:Math.floor(H/2)}];dir={x:1,y:0};nextDir={x:1,y:0};score=0;scoreEl.textContent='0';over=false;msgEl.classList.remove('show');placeFood();}
+function placeFood(){do{food={x:Math.floor(Math.random()*W),y:Math.floor(Math.random()*H)};}while(snake.some(s=>s.x===food.x&&s.y===food.y));}
+function update(){if(over)return;dir=nextDir;const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};if(head.x<0||head.x>=W||head.y<0||head.y>=H||snake.some(s=>s.x===head.x&&s.y===head.y)){over=true;msgEl.textContent='Game Over! 得分: '+score;msgEl.classList.add('show');return;}snake.unshift(head);if(head.x===food.x&&head.y===food.y){score+=10;scoreEl.textContent=score;placeFood();}else{snake.pop();}}
+function draw(){ctx.fillStyle='#16213e';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#2ecc71';for(const s of snake){ctx.fillRect(s.x*GS,s.y*GS,GS-1,GS-1);}ctx.fillStyle='#e74c3c';ctx.fillRect(food.x*GS,food.y*GS,GS-1,GS-1);}
+function gameLoop(){update();draw();loopId=requestAnimationFrame(gameLoop);}
+window.addEventListener('keydown',e=>{if(over)return;if(e.key==='ArrowUp'&&dir.y!==1)nextDir={x:0,y:-1};if(e.key==='ArrowDown'&&dir.y!==-1)nextDir={x:0,y:1};if(e.key==='ArrowLeft'&&dir.x!==1)nextDir={x:-1,y:0};if(e.key==='ArrowRight'&&dir.x!==-1)nextDir={x:1,y:0};});
+canvas.addEventListener('touchstart',e=>{if(over)return;const t=e.touches[0];const rect=canvas.getBoundingClientRect();const x=(t.clientX-rect.left)/GS;const y=(t.clientY-rect.top)/GS;const hx=snake[0].x,hy=snake[0].y;if(Math.abs(x-hx)>Math.abs(y-hy)){nextDir={x:x>hx?1:-1,y:0};if(dir.x===-nextDir.x)nextDir=dir;}else{nextDir={x:0,y:y>hy?1:-1};if(dir.y===-nextDir.y)nextDir=dir;}},{passive:true});
+document.getElementById('restart').addEventListener('click',()=>{cancelAnimationFrame(loopId);init();gameLoop();});
+window.addEventListener('resize',resize);
+resize();init();gameLoop();
+</script>
+</body>
+</html>`;
+}
+
+function generateBreakoutGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>打砖块</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif}
+#header{color:#fff;text-align:center;margin-bottom:10px}
+#score{font-size:14px;color:#f1c40f}
+canvas{display:block;background:#16213e;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.4)}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;font-weight:bold;pointer-events:none;opacity:0;transition:opacity .3s}
+#msg.show{opacity:1}
+#ctrl{margin-top:12px;display:flex;gap:10px}
+button{padding:8px 18px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;background:#e94560;color:#fff}
+</style>
+</head>
+<body>
+<div id="header"><h1>🧱 打砖块</h1><div id="score">得分: <span id="s">0</span></div></div>
+<canvas id="c"></canvas>
+<div id="msg"></div>
+<div id="ctrl"><button id="restart">🔄 重新开始</button></div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('s');
+const msgEl=document.getElementById('msg');
+let W,H,paddle,ball,bricks,score,over,loopId;
+const BRICK_ROWS=5,BRICK_COLS=8;
+function resize(){const ms=Math.min(window.innerWidth,window.innerHeight-160);canvas.width=Math.floor(ms*0.9);canvas.height=Math.floor(ms*0.7);W=canvas.width;H=canvas.height;}
+function init(){paddle={w:80,h:10,x:W/2-40,y:H-30};ball={x:W/2,y:H/2,r:6,dx:3,dy:-3};score=0;scoreEl.textContent='0';over=false;msgEl.classList.remove('show');bricks=[];const bw=W/BRICK_COLS;const bh=20;for(let r=0;r<BRICK_ROWS;r++)for(let c=0;c<BRICK_COLS;c++)bricks.push({x:c*bw,y:r*bh+40,w:bw-4,h:bh-4,alive:true,color:'hsl('+(r*50)+',70%,50%)'});}
+function update(){if(over)return;ball.x+=ball.dx;ball.y+=ball.dy;if(ball.x-ball.r<0||ball.x+ball.r>W)ball.dx=-ball.dx;if(ball.y-ball.r<0)ball.dy=-ball.dy;if(ball.y+ball.r>H){over=true;msgEl.textContent='Game Over! 得分: '+score;msgEl.classList.add('show');return;}if(ball.y+ball.r>paddle.y&&ball.x>paddle.x&&ball.x<paddle.x+paddle.w&&ball.dy>0){ball.dy=-ball.dy;ball.y=paddle.y-ball.r;}for(const b of bricks){if(b.alive&&ball.x>b.x&&ball.x<b.x+b.w&&ball.y>b.y&&ball.y<b.y+b.h){b.alive=false;ball.dy=-ball.dy;score+=10;scoreEl.textContent=score;break;}}if(bricks.every(b=>!b.alive)){over=true;msgEl.textContent='You Win! 得分: '+score;msgEl.classList.add('show');return;}}
+function draw(){ctx.fillStyle='#16213e';ctx.fillRect(0,0,W,H);ctx.fillStyle='#3498db';ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();for(const b of bricks){if(!b.alive)continue;ctx.fillStyle=b.color;ctx.fillRect(b.x,b.y,b.w,b.h);}}
+function gameLoop(){update();draw();loopId=requestAnimationFrame(gameLoop);}
+canvas.addEventListener('pointermove',e=>{const rect=canvas.getBoundingClientRect();paddle.x=(e.clientX-rect.left)-paddle.w/2;if(paddle.x<0)paddle.x=0;if(paddle.x+paddle.w>W)paddle.x=W-paddle.w;});
+canvas.addEventListener('touchmove',e=>{const rect=canvas.getBoundingClientRect();paddle.x=(e.touches[0].clientX-rect.left)-paddle.w/2;if(paddle.x<0)paddle.x=0;if(paddle.x+paddle.w>W)paddle.x=W-paddle.w;},{passive:true});
+document.getElementById('restart').addEventListener('click',()=>{cancelAnimationFrame(loopId);init();gameLoop();});
+window.addEventListener('resize',resize);
+resize();init();gameLoop();
+</script>
+</body>
+</html>`;
+}
+
+function generatePongGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pong</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif}
+#header{color:#fff;text-align:center;margin-bottom:10px}
+#score{font-size:14px;color:#ffd700}
+canvas{display:block;background:#16213e;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.4)}
+#ctrl{margin-top:12px;display:flex;gap:10px}
+button{padding:8px 18px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;background:#e94560;color:#fff}
+</style>
+</head>
+<body>
+<div id="header"><h1>🏓 Pong</h1><div id="score">玩家 <span id="p">0</span> : AI <span id="a">0</span></div></div>
+<canvas id="c"></canvas>
+<div id="ctrl"><button id="restart">🔄 重新开始</button></div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const pScoreEl=document.getElementById('p');
+const aScoreEl=document.getElementById('a');
+let W,H,player,ai,ball,loopId;
+function resize(){const ms=Math.min(window.innerWidth,window.innerHeight-160);canvas.width=Math.floor(ms*0.9);canvas.height=Math.floor(ms*0.6);W=canvas.width;H=canvas.height;}
+function init(){player={x:10,y:H/2-40,w:10,h:80,score:0};ai={x:W-20,y:H/2-40,w:10,h:80,score:0};ball={x:W/2,y:H/2,r:6,dx:4,dy:3};}
+function resetBall(){ball.x=W/2;ball.y=H/2;ball.dx=(Math.random()>0.5?1:-1)*4;ball.dy=(Math.random()*2-1)*3;}
+function update(){ball.x+=ball.dx;ball.y+=ball.dy;if(ball.y-ball.r<0||ball.y+ball.r>H)ball.dy=-ball.dy;if(ball.x-ball.r<0){ai.score++;aScoreEl.textContent=ai.score;resetBall();return;}if(ball.x+ball.r>W){player.score++;pScoreEl.textContent=player.score;resetBall();return;}if(ball.x-ball.r<player.x+player.w&&ball.y>player.y&&ball.y<player.y+player.h&&ball.dx<0)ball.dx=-ball.dx;if(ball.x+ball.r>ai.x&&ball.y>ai.y&&ball.y<ai.y+ai.h&&ball.dx>0)ball.dx=-ball.dx;ai.y+=((ball.y-ai.y-ai.h/2)*0.08);if(ai.y<0)ai.y=0;if(ai.y+ai.h>H)ai.y=H-ai.h;}
+function draw(){ctx.fillStyle='#16213e';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(player.x,player.y,player.w,player.h);ctx.fillRect(ai.x,ai.y,ai.w,ai.h);ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();}
+function gameLoop(){update();draw();loopId=requestAnimationFrame(gameLoop);}
+canvas.addEventListener('pointermove',e=>{const rect=canvas.getBoundingClientRect();player.y=(e.clientY-rect.top)-player.h/2;if(player.y<0)player.y=0;if(player.y+player.h>H)player.y=H-player.h;});
+canvas.addEventListener('touchmove',e=>{const rect=canvas.getBoundingClientRect();player.y=(e.touches[0].clientY-rect.top)-player.h/2;if(player.y<0)player.y=0;if(player.y+player.h>H)player.y=H-player.h;},{passive:true});
+document.getElementById('restart').addEventListener('click',()=>{cancelAnimationFrame(loopId);init();gameLoop();});
+window.addEventListener('resize',resize);
+resize();init();gameLoop();
 </script>
 </body>
 </html>`;
