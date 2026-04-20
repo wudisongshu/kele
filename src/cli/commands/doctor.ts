@@ -18,6 +18,13 @@ export function runDoctor(): void {
     issues.push(`Node.js ${nodeVersion} is too old. kele requires Node.js 18+`);
   }
 
+  // Check 1b: Available memory
+  const memMB = Math.round(process.memoryUsage().heapTotal / 1024 / 1024);
+  checks.push(`Memory: ${memMB}MB heap`);
+  if (memMB < 256) {
+    issues.push('Available memory is very low. AI generation may fail.');
+  }
+
   // Check 2: Config file
   const configPath = join(homedir(), '.kele', 'config.json');
   if (existsSync(configPath)) {

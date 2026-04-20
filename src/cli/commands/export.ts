@@ -38,6 +38,15 @@ export function runExport(projectId: string, targetDir?: string): void {
     `Created: ${project.createdAt}\n`;
   writeFileSync(join(destDir, 'PROJECT-INFO.md'), readme, 'utf-8');
 
+  // Write structured metadata JSON
+  const metadata = {
+    name: project.name,
+    idea: project.idea,
+    createdAt: project.createdAt,
+    exportedAt: new Date().toISOString(),
+  };
+  writeFileSync(join(destDir, 'kele-export.json'), JSON.stringify(metadata, null, 2), 'utf-8');
+
   console.log(`✅ 项目已导出: ${destDir}`);
   console.log(`   源目录: ${sourceDir}`);
 }

@@ -104,7 +104,8 @@ program
   .option('--mock', 'Force mock AI mode for fast testing (no API calls)', false)
   .option('--json', 'Output structured JSON instead of human-readable text (for CI/CD)', false)
   .option('--dry-run', 'Show what would be done without executing AI calls', false)
-  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean }) => {
+  .option('--quiet', 'Suppress non-error output', false)
+  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean }) => {
     if (options.debug) {
       const { setDebug } = await import('../debug.js');
       setDebug(true);

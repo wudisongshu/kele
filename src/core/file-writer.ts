@@ -135,6 +135,14 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (
     written.push('notes.md');
   }
 
+  // Auto-generate .gitignore if missing
+  const gitignorePath = join(baseDir, '.gitignore');
+  if (!existsSync(gitignorePath) && written.length > 0) {
+    const gitignoreContent = 'node_modules/\ndist/\nbuild/\n.env\n*.log\n.DS_Store\n.kele/\n';
+    writeFileSync(gitignorePath, gitignoreContent, 'utf-8');
+    written.push('.gitignore');
+  }
+
   return written;
 }
 
