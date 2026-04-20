@@ -13,6 +13,9 @@ import { executeProject } from '../core/project-executor.js';
 import { upgradeTask } from '../core/upgrade-engine.js';
 import { parseIntent } from '../core/intent-engine.js';
 import { createRegistryFromConfig } from '../adapters/index.js';
+import { createProgressLogger } from '../core/logger.js';
+import { runDoctor } from './commands/doctor.js';
+import { runClean } from './commands/clean.js';
 import type { AIProvider } from '../types/index.js';
 import { KeleDatabase } from '../db/index.js';
 import { needsResearch, research } from '../core/research-engine.js';
@@ -84,7 +87,8 @@ program
   .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
   .option('--debug', 'Show all prompts sent to AI for debugging', false)
   .option('--mock', 'Force mock AI mode for fast testing (no API calls)', false)
-  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean }) => {
+  .option('--json', 'Output structured JSON instead of human-readable text (for CI/CD)', false)
+  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean }) => {
     if (options.debug) {
       const { setDebug } = await import('../debug.js');
       setDebug(true);
@@ -138,12 +142,14 @@ program
 
 async function handleCreateIntent(
   ideaText: string,
-  options: { output: string; yes: boolean; timeout?: number },
+  options: { output: string; yes: boolean; timeout?: number; json?: boolean },
   db: KeleDatabase,
   useMock: boolean = false,
 ) {
-  console.log('🥤 kele 收到了你的想法（创建项目）：');
-  console.log(`   "${ideaText}"\n`);
+  const logger = createProgressLogger(options.json || false);
+
+  logger.log('🥤 kele 收到了你的想法（创建项目）：');
+  logger.log(`   "${ideaText}"\n`);
 
   // Step 1: Parse idea
   const parseResult = parseIdea(ideaText);
@@ -1049,6 +1055,22 @@ program
       console.log(`\n❌ 重试完成，但有 ${result.failed} 个任务失败。`);
       process.exit(1);
     }
+  });
+
+// --- Doctor command: kele doctor ---
+program
+  .command('doctor')
+  .description('Diagnose environment and configuration issues')
+  .action(() => {
+    runDoctor();
+  });
+
+// --- Clean command: kele clean ---
+program
+  .command('clean')
+  .description('List failed/abandoned projects for cleanup')
+  .action(() => {
+    runClean();
   });
 
 // --- Secrets command: kele secrets ---
