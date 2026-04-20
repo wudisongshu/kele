@@ -369,7 +369,7 @@ async function reviewIncubatorOutput(
   }
 }
 
-function parseIncubationResponse(jsonStr: string, rootDir: string): AIIncubateResult {
+export function parseIncubationResponse(jsonStr: string, rootDir: string): AIIncubateResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonStr);
@@ -419,7 +419,7 @@ function parseIncubationResponse(jsonStr: string, rootDir: string): AIIncubateRe
   };
 }
 
-function normalizeRelevance(value?: string): 'core' | 'supporting' | 'optional' | undefined {
+export function normalizeRelevance(value?: string): 'core' | 'supporting' | 'optional' | undefined {
   if (!value) return undefined;
   const lower = value.toLowerCase();
   if (lower === 'core') return 'core';
@@ -428,7 +428,7 @@ function normalizeRelevance(value?: string): 'core' | 'supporting' | 'optional' 
   return undefined;
 }
 
-function normalizeRiskLevel(value?: string): 'low' | 'medium' | 'high' | undefined {
+export function normalizeRiskLevel(value?: string): 'low' | 'medium' | 'high' | undefined {
   if (!value) return undefined;
   const lower = value.toLowerCase();
   if (lower === 'low') return 'low';
@@ -437,7 +437,7 @@ function normalizeRiskLevel(value?: string): 'low' | 'medium' | 'high' | undefin
   return undefined;
 }
 
-function normalizeAcceptanceType(value?: string): 'functional' | 'visual' | 'performance' | 'compatibility' | 'security' {
+export function normalizeAcceptanceType(value?: string): 'functional' | 'visual' | 'performance' | 'compatibility' | 'security' {
   if (!value) return 'functional';
   const lower = value.toLowerCase();
   if (lower === 'visual') return 'visual';

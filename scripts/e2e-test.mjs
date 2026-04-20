@@ -26,6 +26,10 @@ const TEST_CASES = [
 
   { name: 'Pomodoro Timer', idea: '一个番茄钟专注工具，带有任务统计和白噪音', expectedType: 'tool' },
   { name: 'Memory Card Game', idea: '一个翻牌记忆配对游戏，有计时和步数统计', expectedType: 'game' },
+  { name: 'Snake Game', idea: '一个经典贪吃蛇游戏，支持加速和得分排行榜', expectedType: 'game' },
+  { name: 'Currency Converter', idea: '一个实时汇率换算工具，支持100多种货币', expectedType: 'tool' },
+  { name: 'Habit Tracker', idea: '一个习惯追踪应用，可以记录每日打卡和生成周报', expectedType: 'tool' },
+  { name: 'Quiz Platform', idea: '一个在线答题竞赛平台，支持多种题型和实时排名', expectedType: 'content' },
 ];
 
 async function runTest(testCase, index) {
