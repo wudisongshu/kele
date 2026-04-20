@@ -18,6 +18,23 @@ export class MockAdapter implements AIAdapter {
   async execute(prompt: string, _onToken?: (token: string) => void): Promise<string> {
     const lower = prompt.toLowerCase();
 
+    // Incubation: generate sub-project structure
+    if (lower.includes('incubator') || lower.includes('sub-project')) {
+      return JSON.stringify({
+        subProjects: [
+          { id: 'project-setup', name: 'Project Setup', description: 'Initialize project', type: 'setup', dependencies: [], monetizationRelevance: 'supporting', estimatedEffort: '2-4 hours', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'package.json exists', type: 'functional', action: 'verify-file', target: 'package.json', expected: 'file exists', critical: true }] },
+          { id: 'core-dev', name: 'Core Development', description: 'Build core product', type: 'development', dependencies: ['project-setup'], monetizationRelevance: 'core', estimatedEffort: '2-5 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'index.html renders', type: 'visual', action: 'verify-file', target: 'index.html', expected: 'file exists', critical: true }] },
+          { id: 'testing', name: 'Testing', description: 'Test and validate', type: 'testing', dependencies: ['core-dev'], monetizationRelevance: 'supporting', estimatedEffort: '1-2 days', criticalPath: false, riskLevel: 'low', acceptanceCriteria: [{ description: 'Tests pass', type: 'functional', action: 'verify-file', target: 'tests', expected: 'tests exist', critical: false }] },
+          { id: 'deployment', name: 'Deployment', description: 'Deploy to target platform', type: 'deployment', dependencies: ['core-dev'], monetizationRelevance: 'core', estimatedEffort: '1 day', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'Deploy config exists', type: 'functional', action: 'verify-file', target: '.github/workflows/deploy.yml', expected: 'file exists', critical: true }] },
+          { id: 'monetization', name: 'Monetization', description: 'Set up revenue', type: 'monetization', dependencies: ['deployment'], monetizationRelevance: 'core', estimatedEffort: '1-2 days', criticalPath: true, riskLevel: 'medium', acceptanceCriteria: [{ description: 'Ad code exists', type: 'functional', action: 'verify-file', target: 'adsense.html', expected: 'file exists', critical: true }] },
+        ],
+        riskAssessment: { technicalRisks: ['AI code quality'], marketRisks: ['Competition'], timeRisks: ['Scope creep'], mitigation: 'Keep MVP minimal' },
+        monetizationPath: 'Deploy as web app, integrate AdSense for ad revenue',
+        reasoning: 'Standard web product pipeline',
+        selfReviewNotes: 'Kept lean, 5 sub-projects max',
+      });
+    }
+
     // Intent classification
     if (lower.includes('intent classification') || lower.includes('intent:')) {
       return JSON.stringify({
