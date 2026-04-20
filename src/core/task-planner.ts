@@ -41,6 +41,27 @@ function getDevTaskTemplates(ideaType: string, ideaRawText: string): TaskTemplat
     ];
   }
 
+  if (ideaType === 'bot') {
+    return [
+      {
+        title: 'Implement bot core logic',
+        description:
+          `Implement the FULL bot based on the user's idea: "${ideaRawText}".\n\n` +
+          'You MUST implement ALL core bot functionality: ' +
+          'command handling, message parsing, response generation, and error handling. ' +
+          'The bot MUST be fully functional when this task completes.',
+        baseComplexity: 'medium',
+      },
+      {
+        title: 'Add bot commands and interactions',
+        description:
+          'Implement all slash commands, button interactions, and user flows. ' +
+          'Each command MUST have complete logic with no stubs.',
+        baseComplexity: 'medium',
+      },
+    ];
+  }
+
   // Default for non-game projects
   return [
     {

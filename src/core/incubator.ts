@@ -51,6 +51,14 @@ function getCoreDevProject(type: CreativeType): SubProjectTemplate {
         type: 'development',
         dependencies: ['project-setup'],
       };
+    case 'bot':
+      return {
+        id: 'bot-dev',
+        name: 'Bot Development',
+        description: 'Develop bot commands, handlers, and integrations',
+        type: 'development',
+        dependencies: ['project-setup'],
+      };
     default:
       return {
         id: 'core-dev',
@@ -79,6 +87,14 @@ function getTestingProject(type: CreativeType): SubProjectTemplate {
         description: 'Test functionality, edge cases, and usability',
         type: 'testing',
         dependencies: ['tool-dev'],
+      };
+    case 'bot':
+      return {
+        id: 'bot-test',
+        name: 'Bot Testing',
+        description: 'Test bot commands, error handling, and rate limits',
+        type: 'testing',
+        dependencies: ['bot-dev'],
       };
     default:
       return {

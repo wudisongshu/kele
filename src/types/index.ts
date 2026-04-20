@@ -4,7 +4,7 @@
  * Core data models for the Idea-to-Monetization workflow engine.
  */
 
-export type CreativeType = 'game' | 'music' | 'content' | 'tool' | 'unknown';
+export type CreativeType = 'game' | 'music' | 'content' | 'tool' | 'bot' | 'unknown';
 
 export type MonetizationChannel =
   | 'wechat-miniprogram'
