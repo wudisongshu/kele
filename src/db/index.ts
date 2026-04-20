@@ -88,6 +88,13 @@ export class KeleDatabase {
     return rows.map((r) => this.rowToProject(r));
   }
 
+  deleteProject(projectId: string): void {
+    // Delete in dependency order (SQLite has CASCADE but let's be explicit)
+    this.db.prepare('DELETE FROM tasks WHERE project_id = ?').run(projectId);
+    this.db.prepare('DELETE FROM sub_projects WHERE project_id = ?').run(projectId);
+    this.db.prepare('DELETE FROM projects WHERE id = ?').run(projectId);
+  }
+
   // --- Sub Projects ---
 
   saveSubProject(sp: SubProject, projectId: string): void {

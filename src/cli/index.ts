@@ -837,6 +837,32 @@ program
     }
   });
 
+// --- Delete command: kele delete <project-id> ---
+program
+  .command('delete')
+  .argument('<project-id>', 'Project ID to delete')
+  .description('Delete a project and all its data')
+  .action((projectId: string) => {
+    const db = new KeleDatabase();
+    const project = db.getProject(projectId);
+
+    if (!project) {
+      console.error(`❌ 项目不存在: ${projectId}`);
+      console.log('   用 kele list 查看所有项目');
+      process.exit(1);
+    }
+
+    console.log(`⚠️  即将删除项目: ${project.name}`);
+    console.log(`   ID: ${project.id}`);
+    console.log(`   目录: ${project.rootDir}`);
+    console.log();
+
+    db.deleteProject(projectId);
+    console.log(`✅ 项目已删除: ${project.name}`);
+    console.log(`   💡 提示: 项目文件仍保留在 ${project.rootDir}`);
+    console.log(`      如需彻底清理，请手动删除该目录。`);
+  });
+
 // --- Show command: kele show <project-id> ---
 program
   .command('show')
@@ -946,6 +972,81 @@ program
       console.log(`   项目目录: ${subProject.targetDir}`);
     } else {
       console.log(`\n❌ 升级失败: ${result.error}`);
+      process.exit(1);
+    }
+  });
+
+// --- Retry command: kele retry <project-id> <task-id> ---
+program
+  .command('retry')
+  .argument('<project-id>', 'Project ID')
+  .argument('<task-id>', 'Task ID to retry')
+  .description('Retry a failed task without re-running the entire project')
+  .option('--mock', 'Force mock AI mode for fast testing', false)
+  .action(async (projectId: string, taskId: string, options: { mock: boolean }) => {
+    const db = new KeleDatabase();
+    const project = db.getProject(projectId);
+
+    if (!project) {
+      console.error(`❌ 项目不存在: ${projectId}`);
+      process.exit(1);
+    }
+
+    const tasks = db.getTasks(projectId);
+    const task = tasks.find((t) => t.id === taskId);
+
+    if (!task) {
+      console.error(`❌ 任务不存在: ${taskId}`);
+      console.log('   用 kele show <project-id> 查看所有任务');
+      process.exit(1);
+    }
+
+    if (task.status !== 'failed') {
+      console.log(`⚠️  任务状态为 ${task.status}，不是失败状态。只有失败的任务才能 retry。`);
+      process.exit(1);
+    }
+
+    const subProjects = db.getSubProjects(projectId);
+    const subProject = subProjects.find((sp) => sp.id === task.subProjectId);
+
+    if (!subProject) {
+      console.error(`❌ 子项目不存在`);
+      process.exit(1);
+    }
+
+    console.log(`🔄 重试任务: ${task.title}`);
+    console.log(`   项目: ${project.name}`);
+    console.log(`   子项目: ${subProject.name}`);
+    console.log();
+
+    // Reset task status and re-execute
+    task.status = 'pending';
+    db.saveTask(task, projectId);
+
+    const fullProject: Project = {
+      ...project,
+      subProjects,
+      tasks,
+    };
+
+    const registry = createRegistryFromConfig();
+    if (options.mock) {
+      const mockAdapter = registry.get('mock')!;
+      registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
+    }
+
+    const result = await executeProject(fullProject, {
+      registry,
+      db,
+      onProgress: (msg) => console.log(msg),
+    });
+
+    if (result.failed === 0 && !result.aborted) {
+      console.log(`\n✅ 重试完成！${result.completed} 个任务成功完成。`);
+    } else if (result.aborted) {
+      console.log(`\n⏹️  重试被中断。已完成 ${result.completed} 个任务。`);
+    } else {
+      console.log(`\n❌ 重试完成，但有 ${result.failed} 个任务失败。`);
       process.exit(1);
     }
   });
