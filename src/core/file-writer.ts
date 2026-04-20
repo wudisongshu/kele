@@ -154,6 +154,11 @@ function fixHtmlForLocal(html: string): string {
   fixed = fixed.replace(/src="\/assets\//g, 'src="./assets/');
   fixed = fixed.replace(/href="\/assets\//g, 'href="./assets/');
 
+  // Add base href if missing (helps relative paths work when opening file directly)
+  if (!fixed.includes('<base')) {
+    fixed = fixed.replace(/<head([^>]*)>/i, '<head$1>\n  <base href=".">');
+  }
+
   // Move scripts from <head> to end of <body>
   const headMatch = fixed.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
   if (headMatch) {

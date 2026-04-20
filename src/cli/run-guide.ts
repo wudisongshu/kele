@@ -4,7 +4,7 @@ import { join } from 'path';
 
 export interface RunEntry {
   dir: string;
-  type: 'npm' | 'html' | 'python' | 'go' | 'none';
+  type: 'npm' | 'html' | 'python' | 'go' | 'miniprogram' | 'none';
   entryFile?: string;
 }
 
@@ -27,7 +27,7 @@ function dirPriority(name: string): number {
  * Scans rootDir and immediate subdirectories for package.json, index.html, main.py, main.go.
  */
 export function findRunEntry(rootDir: string): RunEntry {
-  const candidates: Array<{ dir: string; type: 'npm' | 'html' | 'python' | 'go'; entryFile?: string; priority: number }> = [];
+  const candidates: Array<{ dir: string; type: 'npm' | 'html' | 'python' | 'go' | 'miniprogram'; entryFile?: string; priority: number }> = [];
 
   // Check rootDir
   if (existsSync(join(rootDir, 'package.json'))) {
@@ -65,6 +65,9 @@ export function findRunEntry(rootDir: string): RunEntry {
       }
       if (existsSync(join(subDir, 'main.go'))) {
         candidates.push({ dir: subDir, type: 'go', entryFile: 'main.go', priority: priority + 10 });
+      }
+      if (existsSync(join(subDir, 'app.json'))) {
+        candidates.push({ dir: subDir, type: 'miniprogram', entryFile: 'app.json', priority: priority + 10 });
       }
     }
   } catch {
@@ -123,6 +126,10 @@ export async function printLocalRunGuide(rootDir: string): Promise<void> {
   } else if (runEntry.type === 'go') {
     console.log(`   cd "${runEntry.dir}"`);
     console.log(`   go run ${runEntry.entryFile}`);
+  } else if (runEntry.type === 'miniprogram') {
+    console.log(`   cd "${runEntry.dir}"`);
+    console.log('   # 用微信开发者工具打开此目录');
+    console.log('   # 或者: npx @wechat-miniprogram/miniprogram-cli preview');
   } else {
     console.log(`   cd "${rootDir}"`);
     console.log('   请查看项目内的 README 文件获取运行方式');
