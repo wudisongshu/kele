@@ -52,35 +52,20 @@ export class MockAdapter implements AIAdapter {
       });
     }
 
-    // Research / analysis mode
+    // Research / analysis mode — genre-aware canned responses
     if (lower.includes('research') || lower.includes('分析') || lower.includes('报告') || lower.includes('分析师')) {
-      return `## 1. 产品分析
-这是一款消除类休闲游戏，核心玩法是三消匹配，目标受众是18-35岁休闲玩家。
-
-## 2. 变现分析
-主要通过广告变现（插屏广告+激励视频）和道具内购。留存率高，适合流量变现。
-
-## 3. 市场洞察
-关键成功因素：简单易上手、关卡难度曲线合理、每日任务和排行榜增加粘性。
-
-## 4. 建议
-- 核心玩法：经典三消+特殊道具
-- USP：加入社交排行榜和好友助力
-- 推荐平台：微信小程序（用户基数大，传播快）
-- 复杂度：中等
-- MVP功能：50关、3种道具、排行榜
-
-## 5. 关键词
-消除游戏、三消、休闲、微信、小程序、广告变现、内购、排行榜`;
+      return generateResearchReport(lower);
     }
 
     // Game tasks: return a COMPLETE, PLAYABLE single-file game
     if (lower.includes('game') || lower.includes('游戏') || lower.includes('消消乐') || lower.includes('match') || lower.includes('core feature')) {
       // Select game type based on user input
-      let gameType: 'match3' | 'snake' | 'breakout' | 'pong' = 'match3';
+      let gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' = 'match3';
       if (lower.includes('snake') || lower.includes('贪吃蛇')) gameType = 'snake';
       else if (lower.includes('breakout') || lower.includes('brick') || lower.includes('打砖块')) gameType = 'breakout';
       else if (lower.includes('pong') || lower.includes('ping')) gameType = 'pong';
+      else if (lower.includes('tetris') || lower.includes('俄罗斯方块') || lower.includes('方块')) gameType = 'tetris';
+      else if (lower.includes('flappy') || lower.includes('像素鸟') || lower.includes('飞')) gameType = 'flappy';
 
       return JSON.stringify({
         files: [
@@ -143,10 +128,74 @@ export class MockAdapter implements AIAdapter {
   }
 }
 
-function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong'): string {
+function generateResearchReport(lower: string): string {
+  if (lower.includes('snake') || lower.includes('贪吃蛇')) {
+    return `## 1. 产品分析
+经典贪吃蛇游戏，核心玩法是控制蛇移动吃食物变长。目标受众是全年龄段休闲玩家， nostalgia 驱动。
+
+## 2. 变现分析
+主要通过插屏广告和复活激励视频。局内广告频率适中，用户体验影响小。
+
+## 3. 市场洞察
+贪吃蛇是经典玩法，市场上已有成功案例（如 Slither.io）。关键成功因素：流畅控制、多种模式、在线排行榜。
+
+## 4. 建议
+- 核心玩法：经典模式 + 无尽模式 + 限时挑战
+- USP：流畅的触摸控制和在线排行榜
+- 推荐平台：Web / H5（无需安装，即点即玩）
+- 复杂度：低
+- MVP功能：经典模式、触摸控制、本地排行榜
+
+## 5. 关键词
+贪吃蛇、经典、休闲、H5、广告变现、排行榜`;
+  }
+  if (lower.includes('tower') || lower.includes('塔防') || lower.includes('defense')) {
+    return `## 1. 产品分析
+塔防策略游戏，玩家建造防御塔阻止敌人到达终点。目标受众是15-30岁策略游戏爱好者。
+
+## 2. 变现分析
+主要通过道具内购（高级防御塔、技能升级）和激励视频（双倍金币、免费复活）。ARPU 潜力较高。
+
+## 3. 市场洞察
+塔防游戏生命周期长，玩家粘性强。关键成功因素：塔种类多样、敌人类型丰富、难度曲线平滑、地图编辑器。
+
+## 4. 建议
+- 核心玩法：多类型防御塔 + 波次敌人 + 升级系统
+- USP：Roguelike 元素（每局随机塔组合）
+- 推荐平台：微信小程序 / Steam
+- 复杂度：中高
+- MVP功能：3种防御塔、10关、升级系统
+
+## 5. 关键词
+塔防、策略、Roguelike、升级、内购、广告变现`;
+  }
+  // Default: match-3 style report
+  return `## 1. 产品分析
+这是一款消除类休闲游戏，核心玩法是三消匹配，目标受众是18-35岁休闲玩家。
+
+## 2. 变现分析
+主要通过广告变现（插屏广告+激励视频）和道具内购。留存率高，适合流量变现。
+
+## 3. 市场洞察
+关键成功因素：简单易上手、关卡难度曲线合理、每日任务和排行榜增加粘性。
+
+## 4. 建议
+- 核心玩法：经典三消+特殊道具
+- USP：加入社交排行榜和好友助力
+- 推荐平台：微信小程序（用户基数大，传播快）
+- 复杂度：中等
+- MVP功能：50关、3种道具、排行榜
+
+## 5. 关键词
+消除游戏、三消、休闲、微信、小程序、广告变现、内购、排行榜`;
+}
+
+function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy'): string {
   if (gameType === 'snake') return generateSnakeGameHtml();
   if (gameType === 'breakout') return generateBreakoutGameHtml();
   if (gameType === 'pong') return generatePongGameHtml();
+  if (gameType === 'tetris') return generateTetrisGameHtml();
+  if (gameType === 'flappy') return generateFlappyGameHtml();
   return generateMatch3GameHtml();
 }
 
@@ -344,6 +393,107 @@ function draw(){ctx.fillStyle='#16213e';ctx.fillRect(0,0,W,H);ctx.fillStyle='#ff
 function gameLoop(){update();draw();loopId=requestAnimationFrame(gameLoop);}
 canvas.addEventListener('pointermove',e=>{const rect=canvas.getBoundingClientRect();player.y=(e.clientY-rect.top)-player.h/2;if(player.y<0)player.y=0;if(player.y+player.h>H)player.y=H-player.h;});
 canvas.addEventListener('touchmove',e=>{const rect=canvas.getBoundingClientRect();player.y=(e.touches[0].clientY-rect.top)-player.h/2;if(player.y<0)player.y=0;if(player.y+player.h>H)player.y=H-player.h;},{passive:true});
+document.getElementById('restart').addEventListener('click',()=>{cancelAnimationFrame(loopId);init();gameLoop();});
+window.addEventListener('resize',resize);
+resize();init();gameLoop();
+</script>
+</body>
+</html>`;
+}
+
+function generateTetrisGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>俄罗斯方块</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif}
+#header{color:#fff;text-align:center;margin-bottom:10px}
+#score{font-size:14px;color:#9b59b6}
+canvas{display:block;background:#16213e;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.4)}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;font-weight:bold;pointer-events:none;opacity:0;transition:opacity .3s}
+#msg.show{opacity:1}
+#ctrl{margin-top:12px;display:flex;gap:10px}
+button{padding:8px 18px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;background:#e94560;color:#fff}
+</style>
+</head>
+<body>
+<div id="header"><h1>🎮 俄罗斯方块</h1><div id="score">得分: <span id="s">0</span> | 行数: <span id="l">0</span></div></div>
+<canvas id="c"></canvas>
+<div id="msg">Game Over</div>
+<div id="ctrl"><button id="restart">🔄 重新开始</button></div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('s');
+const linesEl=document.getElementById('l');
+const msgEl=document.getElementById('msg');
+const COLS=10,ROWS=20,CS=24;
+let board,score,lines,over,dropInterval,dropCounter,lastTime,piece;
+const SHAPES=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
+const COLORS=['#00f0f0','#f0f000','#a000f0','#0000f0','#f0a000','#00f000','#f00000'];
+function resize(){const mh=window.innerHeight-160;const mw=window.innerWidth;const s=Math.min(Math.floor(mh/ROWS),Math.floor(mw/COLS));const sz=Math.max(16,s);canvas.width=COLS*sz;canvas.height=ROWS*sz;}
+function newPiece(){const i=Math.floor(Math.random()*SHAPES.length);return{shape:SHAPES[i],color:COLORS[i],x:Math.floor(COLS/2)-1,y:0};}
+function init(){board=Array.from({length:ROWS},()=>Array(COLS).fill(0));score=0;lines=0;scoreEl.textContent='0';linesEl.textContent='0';over=false;msgEl.classList.remove('show');dropInterval=800;dropCounter=0;lastTime=0;piece=newPiece();}
+function drawBlock(x,y,color){const s=canvas.width/COLS;ctx.fillStyle=color;ctx.fillRect(x*s,y*s,s-1,s-1);}
+function draw(){ctx.fillStyle='#16213e';ctx.fillRect(0,0,canvas.width,canvas.height);for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(board[r][c])drawBlock(c,r,board[r][c]);for(let r=0;r<piece.shape.length;r++)for(let c=0;c<piece.shape[r].length;c++)if(piece.shape[r][c])drawBlock(piece.x+c,piece.y+r,piece.color);}
+function collide(p){for(let r=0;r<p.shape.length;r++)for(let c=0;c<p.shape[r].length;c++)if(p.shape[r][c]){const nx=p.x+c,ny=p.y+r;if(nx<0||nx>=COLS||ny>=ROWS||(ny>=0&&board[ny][nx]))return true;}return false;}
+function merge(){for(let r=0;r<piece.shape.length;r++)for(let c=0;c<piece.shape[r].length;c++)if(piece.shape[r][c])board[piece.y+r][piece.x+c]=piece.color;}
+function clearLines(){let cleared=0;for(let r=ROWS-1;r>=0;r--){if(board[r].every(v=>v)){board.splice(r,1);board.unshift(Array(COLS).fill(0));cleared++;r++;}}if(cleared){lines+=cleared;linesEl.textContent=lines;score+=[0,100,300,500,800][cleared];scoreEl.textContent=score;if(dropInterval>150)dropInterval-=30;}}
+function rotate(s){const N=s.length;const M=s[0].length;const r=Array.from({length:M},()=>Array(N).fill(0));for(let i=0;i<N;i++)for(let j=0;j<M;j++)r[j][N-1-i]=s[i][j];return r;}
+function update(time=0){if(over)return;const dt=time-lastTime;lastTime=time;dropCounter+=dt;if(dropCounter>dropInterval){piece.y++;if(collide(piece)){piece.y--;merge();clearLines();piece=newPiece();if(collide(piece)){over=true;msgEl.textContent='Game Over! 得分: '+score;msgEl.classList.add('show');return;}}dropCounter=0;}draw();requestAnimationFrame(update);}
+window.addEventListener('keydown',e=>{if(over)return;if(e.key==='ArrowLeft'){piece.x--;if(collide(piece))piece.x++;}if(e.key==='ArrowRight'){piece.x++;if(collide(piece))piece.x--;}if(e.key==='ArrowDown'){piece.y++;if(collide(piece))piece.y--;else{score+=1;scoreEl.textContent=score;}}if(e.key==='ArrowUp'){const rs=rotate(piece.shape);const old=piece.shape;piece.shape=rs;if(collide(piece)){piece.shape=old;}}if(e.key===' '){while(!collide(piece)){piece.y++;score+=2;}piece.y--;scoreEl.textContent=score;}});
+document.getElementById('restart').addEventListener('click',()=>{cancelAnimationFrame(requestAnimationFrame(()=>{}));init();update();});
+window.addEventListener('resize',resize);
+resize();init();update();
+</script>
+</body>
+</html>`;
+}
+
+function generateFlappyGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flappy Bird</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif}
+#header{color:#fff;text-align:center;margin-bottom:10px}
+#score{font-size:14px;color:#f1c40f}
+canvas{display:block;background:#70c5ce;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.4)}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#333;font-size:24px;font-weight:bold;pointer-events:none;opacity:0;transition:opacity .3s}
+#msg.show{opacity:1}
+#ctrl{margin-top:12px;display:flex;gap:10px}
+button{padding:8px 18px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;background:#e94560;color:#fff}
+</style>
+</head>
+<body>
+<div id="header"><h1>🐦 Flappy Bird</h1><div id="score">得分: <span id="s">0</span></div></div>
+<canvas id="c"></canvas>
+<div id="msg">点击或按空格跳跃</div>
+<div id="ctrl"><button id="restart">🔄 重新开始</button></div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('s');
+const msgEl=document.getElementById('msg');
+let W,H,bird,pipes,score,over,speed,loopId,started;
+const GAP=140;
+function resize(){const mh=window.innerHeight-160;const mw=window.innerWidth;const ar=9/16;let cw,ch;if(mw/mh>ar){ch=mh;cw=ch*ar;}else{cw=mw;ch=cw/ar;}canvas.width=Math.floor(cw);canvas.height=Math.floor(ch);W=canvas.width;H=canvas.height;}
+function init(){bird={x:W*0.2,y:H/2,r:12,vy:0,ay:0.4};pipes=[];score=0;scoreEl.textContent='0';over=false;started=false;msgEl.textContent='点击或按空格跳跃';msgEl.classList.add('show');speed=W*0.003;}
+function spawnPipe(){const topH=Math.random()*(H-GAP-80)+40;pipes.push({x:W,topH,bottomY:topH+GAP,passed:false});}
+function update(){if(!started)return;if(over)return;bird.vy+=bird.ay;bird.y+=bird.vy;if(bird.y+bird.r>H||bird.y-bird.r<0){over=true;msgEl.textContent='Game Over! 得分: '+score;msgEl.classList.add('show');return;}for(let i=pipes.length-1;i>=0;i--){const p=pipes[i];p.x-=speed;if(p.x+p.w<0){pipes.splice(i,1);continue;}const px=p.x,pw=W*0.15;if(bird.x+bird.r>px&&bird.x-bird.r<px+pw&&(bird.y-bird.r<p.topH||bird.y+bird.r>p.bottomY)){over=true;msgEl.textContent='Game Over! 得分: '+score;msgEl.classList.add('show');return;}if(!p.passed&&p.x+pw<bird.x){p.passed=true;score++;scoreEl.textContent=score;}}if(pipes.length===0||pipes[pipes.length-1].x<W*0.6)spawnPipe();}
+function draw(){ctx.fillStyle='#70c5ce';ctx.fillRect(0,0,W,H);ctx.fillStyle='#73bf2e';for(const p of pipes){ctx.fillRect(p.x,0,W*0.15,p.topH);ctx.fillRect(p.x,p.bottomY,W*0.15,H-p.bottomY);}ctx.fillStyle='#f1c40f';ctx.beginPath();ctx.arc(bird.x,bird.y,bird.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(bird.x+4,bird.y-3,bird.r*0.3,0,Math.PI*2);ctx.fill();ctx.fillStyle='#333';ctx.beginPath();ctx.arc(bird.x+6,bird.y-3,2,0,Math.PI*2);ctx.fill();}
+function gameLoop(){update();draw();loopId=requestAnimationFrame(gameLoop);}
+function jump(){if(over)return;if(!started){started=true;msgEl.classList.remove('show');}bird.vy=-6;}
+canvas.addEventListener('pointerdown',jump);
+window.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();jump();}});
 document.getElementById('restart').addEventListener('click',()=>{cancelAnimationFrame(loopId);init();gameLoop();});
 window.addEventListener('resize',resize);
 resize();init();gameLoop();
