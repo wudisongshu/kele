@@ -1,4 +1,4 @@
-import type { Project } from '../types/index.js';
+import type { Project, SubProject } from '../types/index.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { sortSubProjects, executeTask } from './executor.js';
@@ -14,8 +14,80 @@ export interface ProjectExecutorOptions {
 }
 
 /**
+ * Group sub-projects by dependency level.
+ * Level 0 = no dependencies, Level 1 = depends on level 0, etc.
+ */
+function groupByDependencyLevel(sortedSPs: SubProject[]): SubProject[][] {
+  const levels = new Map<string, number>();
+
+  for (const sp of sortedSPs) {
+    if (sp.dependencies.length === 0) {
+      levels.set(sp.id, 0);
+    } else {
+      const maxDepLevel = Math.max(
+        ...sp.dependencies.map((depId) => levels.get(depId) ?? 0)
+      );
+      levels.set(sp.id, maxDepLevel + 1);
+    }
+  }
+
+  const maxLevel = Math.max(...levels.values(), 0);
+  const batches: SubProject[][] = [];
+  for (let i = 0; i <= maxLevel; i++) {
+    const batch = sortedSPs.filter((sp) => levels.get(sp.id) === i);
+    if (batch.length > 0) batches.push(batch);
+  }
+  return batches;
+}
+
+/**
+ * Execute a single sub-project's pending tasks.
+ */
+async function executeSubProject(
+  sp: SubProject,
+  project: Project,
+  options: ProjectExecutorOptions
+): Promise<{ success: boolean; tasksCompleted: number; tasksFailed: number; aborted: boolean }> {
+  const { db, onProgress, signal } = options;
+
+  onProgress?.(`\n📦 Sub-project: ${sp.name}`);
+
+  const spTasks = project.tasks.filter((t) => t.subProjectId === sp.id && t.status === 'pending');
+  let tasksCompleted = 0;
+  let tasksFailed = 0;
+
+  for (const task of spTasks) {
+    if (signal?.aborted) {
+      return { success: false, tasksCompleted, tasksFailed, aborted: true };
+    }
+
+    const result = await executeTask(task, sp, project, options);
+
+    if (result.success) {
+      tasksCompleted++;
+    } else if (result.error === 'Execution aborted by user') {
+      return { success: false, tasksCompleted, tasksFailed, aborted: true };
+    } else {
+      tasksFailed++;
+      onProgress?.(`   ❌ 任务失败，停止当前子项目后续任务`);
+      sp.status = 'failed';
+      db.saveSubProject(sp, project.id);
+      break;
+    }
+  }
+
+  if (sp.status !== 'failed') {
+    sp.status = 'completed';
+    db.saveSubProject(sp, project.id);
+  }
+
+  return { success: tasksFailed === 0, tasksCompleted, tasksFailed, aborted: false };
+}
+
+/**
  * Execute all pending tasks in a project, topologically sorted by dependencies.
- * Includes global health review after each sub-project.
+ * Independent sub-projects at the same dependency level run concurrently.
+ * Includes global health review after each batch.
  */
 export async function executeProject(
   project: Project,
@@ -35,47 +107,48 @@ export async function executeProject(
   onProgress?.(`🚀 Starting execution: ${project.name}`);
 
   const sortedSPs = sortSubProjects(project.subProjects);
+  const batches = groupByDependencyLevel(sortedSPs);
   let completed = 0;
   let failed = 0;
 
-  for (const sp of sortedSPs) {
+  for (const batch of batches) {
     if (signal?.aborted) {
       onProgress?.(`\n⏹️  Execution aborted by user`);
       return { completed, failed, aborted: true };
     }
 
-    onProgress?.(`\n📦 Sub-project: ${sp.name}`);
+    // Execute sub-projects in this batch concurrently
+    const batchSize = batch.length;
+    if (batchSize > 1) {
+      onProgress?.(`\n📦 并行执行 ${batchSize} 个子项目...`);
+    }
 
-    const spTasks = project.tasks.filter((t) => t.subProjectId === sp.id && t.status === 'pending');
+    const results = await Promise.all(
+      batch.map((sp) => executeSubProject(sp, project, options))
+    );
 
-    for (const task of spTasks) {
-      const result = await executeTask(task, sp, project, options);
+    for (const result of results) {
+      completed += result.tasksCompleted;
+      failed += result.tasksFailed;
 
-      if (result.success) {
-        completed++;
-      } else if (result.error === 'Execution aborted by user') {
+      if (result.aborted) {
         onProgress?.(`\n⏹️  Execution aborted by user`);
         return { completed, failed, aborted: true };
-      } else {
-        failed++;
-        onProgress?.(`   ❌ 任务失败，停止当前子项目后续任务`);
-        sp.status = 'failed';
-        db.saveSubProject(sp, project.id);
-        const isCritical = ['development', 'production', 'creation'].includes(sp.type);
-        if (isCritical) {
-          onProgress?.(`\n❌ 核心子项目「${sp.name}」失败，项目无法继续。停止执行。`);
-          return { completed, failed, aborted: false };
+      }
+
+      if (!result.success) {
+        const failedSp = batch.find((sp) => sp.status === 'failed');
+        if (failedSp) {
+          const isCritical = ['development', 'production', 'creation'].includes(failedSp.type);
+          if (isCritical) {
+            onProgress?.(`\n❌ 核心子项目「${failedSp.name}」失败，项目无法继续。停止执行。`);
+            return { completed, failed, aborted: false };
+          }
         }
-        break;
       }
     }
 
-    if (sp.status !== 'failed') {
-      sp.status = 'completed';
-      db.saveSubProject(sp, project.id);
-    }
-
-    // Global progress supervision — review health after each sub-project
+    // Global progress supervision — review health after each batch
     const shouldReview =
       project.idea.complexity === 'complex' ||
       failed > 0 ||
