@@ -4,10 +4,44 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>kele Game</title>
-  <link rel="stylesheet" href="src/style.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    canvas {
+      background: #16213e;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      display: block;
+    }
+  </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
-  <script src="src/game.js"></script>
+  <script>
+    // This inline script will be replaced by AI-generated game code during Core Development.
+    // The AI receives the user's idea and generates complete game logic here.
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+      canvas.width = size;
+      canvas.height = size;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Game entry point - AI will implement the full game loop
+    // Requirements from user idea will be implemented here
+  </script>
 </body>
 </html>

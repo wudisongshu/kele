@@ -3,7 +3,7 @@ import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput, parseAIOutput } from './file-writer.js';
 import { validateTaskOutput } from './task-validator.js';
-import { copyTemplate } from './template-loader.js';
+import { copyTemplate, getTemplateType } from './template-loader.js';
 import { debugLog } from '../debug.js';
 import { reviewTaskOutput } from './task-reviewer.js';
 
@@ -536,11 +536,12 @@ export async function executeTask(
     task.aiProvider = route.provider;
     onProgress?.(`   🤖 Using ${route.provider}`);
 
-    // For setup tasks, copy generic web scaffold template
+    // For setup tasks, copy the appropriate template based on monetization channel
     if (subProject.type === 'setup') {
-      const copied = copyTemplate('web-scaffold', subProject.targetDir);
+      const templateType = getTemplateType(project.idea.monetization);
+      const copied = copyTemplate(templateType, subProject.targetDir);
       if (copied.length > 0) {
-        onProgress?.(`   📁 Template copied: ${copied.join(', ')}`);
+        onProgress?.(`   📁 Template copied (${templateType}): ${copied.join(', ')}`);
       }
     }
 

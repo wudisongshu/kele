@@ -1,27 +1,18 @@
 // WeChat Mini Game entry
-wx.onShow(() => {
-  console.log('Game shown');
-});
+// This file will be replaced by AI-generated game code during Core Development.
+// The AI receives the user's idea and generates complete game logic here.
 
-// Initialize canvas
+// WeChat Canvas API
 const canvas = wx.createCanvas();
 const ctx = canvas.getContext('2d');
 
-// Game state
-const game = {
-  running: false,
-  score: 0,
-  start() {
-    this.running = true;
-    this.score = 0;
-    this.loop();
-  },
-  loop() {
-    if (!this.running) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // TODO: implement game rendering
-    requestAnimationFrame(() => this.loop());
-  },
-};
+// Basic responsive setup
+function resize() {
+  const sysInfo = wx.getSystemInfoSync();
+  canvas.width = sysInfo.windowWidth;
+  canvas.height = sysInfo.windowHeight;
+}
+resize();
 
-game.start();
+// Game entry point - AI will implement the full game loop
+// Requirements from user idea will be implemented here

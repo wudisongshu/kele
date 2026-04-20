@@ -201,12 +201,14 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
           title: 'Integrate monetization',
           description:
             'Generate and integrate monetization code for the target platform. ' +
-            'For H5/Web: embed Google AdSense or 百度联盟广告代码 into the HTML. ' +
-            'For WeChat: integrate 微信广告 SDK (激励视频、插屏广告). ' +
-            'For Douyin: integrate 穿山甲广告 SDK. ' +
-            'For Google Play: integrate AdMob SDK. ' +
-            'Generate the actual code files (not just guides) that can be copy-pasted into the project. ' +
-            'Also output a MONETIZE.md with revenue estimates and account setup instructions.',
+            'CRITICAL: The ad code MUST be embedded directly into the existing game/product files, not just placed in a separate file. ' +
+            'For H5/Web games: modify the game\'s index.html to include ad containers (banner at bottom, interstitial between levels). Use the actual AdSense script tags. ' +
+            'For WeChat Mini Games: add 微信广告 SDK initialization and ad unit calls to the game code (激励视频、插屏广告、Banner广告). ' +
+            'For Douyin Mini Games: add 穿山甲广告 SDK to the game code. ' +
+            'For Google Play: add AdMob SDK to the Android project. ' +
+            'For App Store: add AdMob SDK to the iOS project. ' +
+            'Also generate deployment config files (CI/CD workflows, platform configs) and a MONETIZE.md with revenue estimates and account setup instructions. ' +
+            'If ad credentials are not configured, use placeholder IDs and clearly mark them as TODO items for the user to replace.',
           baseComplexity: 'medium',
         },
       ];

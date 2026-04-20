@@ -447,14 +447,14 @@ export function getDeployableConfigTemplate(platform: string): string {
    - concurrency: group: "pages", cancel-in-progress: false
    - jobs.deploy.runs-on: ubuntu-latest
    - steps: actions/checkout@v4, actions/configure-pages@v5, actions/upload-pages-artifact@v3 with path: './', actions/deploy-pages@v4
-   - This is a STATIC HTML5 game — NO build step, NO npm install needed
+   - IMPORTANT: If the project has a build step (npm run build), add that step before upload. If it's static HTML only, skip build.
 
 2. ads.txt — Domain authorization for AdSense. Content: google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
 
-3. adsense.html — Standalone Google AdSense snippet that can be copy-pasted into the game's HTML. MUST contain EXACTLY:
-   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"></script>
-   <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="1234567890" data-ad-format="auto" data-full-width-responsive="true"></ins>
-   <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+3. MONETIZATION.md — Complete monetization setup guide including:
+   - How to get a real AdSense publisher ID
+   - How to replace the placeholder in ads.txt
+   - How to verify ads.txt is accessible at domain root
 
 4. CNAME — Custom domain placeholder. Single line: your-domain.com
 
@@ -463,7 +463,9 @@ export function getDeployableConfigTemplate(platform: string): string {
    ## Step 2: Enable GitHub Pages (Settings → Pages → Source: GitHub Actions)
    ## Step 3: Set Workflow Permissions (Settings → Actions → General → Read and write permissions)
    ## Step 4: Replace AdSense Placeholder IDs
-   ## Step 5: Add ads.txt to domain root`,
+   ## Step 5: Add ads.txt to domain root
+
+CRITICAL: For web games, the monetization sub-project should ALSO modify the game's index.html to embed ad containers directly into the game UI (e.g., banner ad at bottom, interstitial between levels). Do NOT just create a separate ads file.`,
 
     'wechat-miniprogram': `For WeChat Mini Game deployment, generate these actual files:
 1. project.config.json — WeChat developer tool project config (include appId from credentials)

@@ -4,6 +4,8 @@ import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput } from './file-writer.js';
 import { executeWithFallback } from './adapter-utils.js';
+import { validateTaskOutput } from './task-validator.js';
+import { validateGameInBrowser } from './game-validator-browser.js';
 import { debugLog } from '../debug.js';
 
 /**
@@ -125,6 +127,23 @@ export async function upgradeTask(
     const writtenFiles = applyAIOutput(subProject.targetDir, output);
     if (writtenFiles.length > 0) {
       onProgress?.(`   📝 Updated: ${writtenFiles.join(', ')}`);
+    }
+
+    // Validate upgraded code
+    onProgress?.(`   🔍 Validating upgraded code...`);
+    const validation = validateTaskOutput(subProject.targetDir, newTask.title);
+    if (!validation.valid) {
+      onProgress?.(`   ⚠️  Code quality issues: ${validation.issues.slice(0, 3).join('; ')}`);
+    }
+
+    // For games, run browser validation
+    if (project.idea.type === 'game') {
+      const browser = validateGameInBrowser(subProject.targetDir);
+      if (browser.playable) {
+        onProgress?.(`   ✅ Game playable (Score: ${browser.score}/100)`);
+      } else {
+        onProgress?.(`   ⚠️  Game validation: ${browser.score}/100 — ${browser.errors.join('; ')}`);
+      }
     }
 
     // Mark original as superseded and new as completed

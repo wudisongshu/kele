@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 export interface BrowserValidationResult {
@@ -14,6 +14,36 @@ export interface BrowserValidationResult {
     jsErrors: string[];
     consoleLogs: string[];
   };
+}
+
+export type GameProjectType = 'html-canvas' | 'html-dom' | 'framework' | 'miniprogram' | 'unknown';
+
+/**
+ * Detect the type of game project based on file structure.
+ */
+export function detectGameProjectType(targetDir: string): GameProjectType {
+  const files = readdirSync(targetDir);
+
+  // Check for mini-program manifests
+  if (files.includes('game.json')) {
+    return 'miniprogram';
+  }
+
+  // Check for framework projects
+  if (files.includes('package.json')) {
+    return 'framework';
+  }
+
+  // Check for HTML projects
+  if (files.includes('index.html')) {
+    const html = readFileSync(join(targetDir, 'index.html'), 'utf-8');
+    if (html.includes('<canvas')) {
+      return 'html-canvas';
+    }
+    return 'html-dom';
+  }
+
+  return 'unknown';
 }
 
 /**
@@ -41,6 +71,146 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
     },
   };
 
+  const projectType = detectGameProjectType(targetDir);
+
+  // For framework and mini-program projects, we do static validation only
+  // (JSDOM can't run React/Vue builds or mini-program environments)
+  if (projectType === 'framework') {
+    return validateFrameworkGame(targetDir, result);
+  }
+  if (projectType === 'miniprogram') {
+    return validateMiniProgramGame(targetDir, result);
+  }
+
+  // For HTML games (canvas or DOM), run JSDOM validation
+  return validateHtmlGame(targetDir, result);
+}
+
+function validateFrameworkGame(targetDir: string, result: BrowserValidationResult): BrowserValidationResult {
+  const pkgPath = join(targetDir, 'package.json');
+  if (!existsSync(pkgPath)) {
+    result.errors.push('Framework project missing package.json');
+    return result;
+  }
+
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    const scripts = pkg.scripts || {};
+
+    // Check for build script
+    if (scripts.build || scripts['build:prod']) {
+      result.score += 30;
+    } else {
+      result.errors.push('No build script in package.json');
+    }
+
+    // Check for dev script
+    if (scripts.dev || scripts.start) {
+      result.score += 20;
+    }
+
+    // Check for source files
+    const srcDir = join(targetDir, 'src');
+    if (existsSync(srcDir)) {
+      const srcFiles = readdirSync(srcDir, { recursive: true }) as string[];
+      const jsFiles = srcFiles.filter((f) => f.endsWith('.js') || f.endsWith('.ts') || f.endsWith('.jsx') || f.endsWith('.tsx'));
+      if (jsFiles.length > 0) {
+        result.score += 20;
+      }
+    }
+
+    // Check for index.html
+    if (existsSync(join(targetDir, 'index.html'))) {
+      result.score += 10;
+    }
+
+    // Check for game-related dependencies
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    const gameLibs = ['phaser', 'three', 'pixi.js', 'babylonjs', 'react', 'vue'];
+    const hasGameLib = gameLibs.some((lib) => deps[lib]);
+    if (hasGameLib) {
+      result.score += 20;
+    }
+
+    result.playable = result.score >= 70;
+    if (!result.playable) {
+      result.errors.push(`Framework project validation: ${result.score}/100 — missing build scripts, source files, or game dependencies`);
+    }
+  } catch (err) {
+    result.errors.push(`Failed to parse package.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  return result;
+}
+
+function validateMiniProgramGame(targetDir: string, result: BrowserValidationResult): BrowserValidationResult {
+  const gameJsonPath = join(targetDir, 'game.json');
+  if (!existsSync(gameJsonPath)) {
+    result.errors.push('Mini-program project missing game.json');
+    return result;
+  }
+
+  try {
+    JSON.parse(readFileSync(gameJsonPath, 'utf-8'));
+    result.score += 20; // Has manifest
+
+    // Check for entry file
+    const entryFiles = ['index.js', 'game.js', 'main.js'];
+    const hasEntry = entryFiles.some((f) => existsSync(join(targetDir, f)));
+    if (hasEntry) {
+      result.score += 30;
+    } else {
+      result.errors.push('No entry file found (index.js, game.js, main.js)');
+    }
+
+    // Check for canvas creation in entry file
+    for (const f of entryFiles) {
+      const fpath = join(targetDir, f);
+      if (existsSync(fpath)) {
+        const content = readFileSync(fpath, 'utf-8');
+        if (content.includes('createCanvas') || content.includes('getContext')) {
+          result.score += 20;
+          break;
+        }
+      }
+    }
+
+    // Check for game loop
+    for (const f of entryFiles) {
+      const fpath = join(targetDir, f);
+      if (existsSync(fpath)) {
+        const content = readFileSync(fpath, 'utf-8');
+        if (content.includes('requestAnimationFrame') || content.includes('setInterval') || content.includes('loop')) {
+          result.score += 20;
+          break;
+        }
+      }
+    }
+
+    // Check for input handling
+    for (const f of entryFiles) {
+      const fpath = join(targetDir, f);
+      if (existsSync(fpath)) {
+        const content = readFileSync(fpath, 'utf-8');
+        if (content.includes('onTouch') || content.includes('onClick') || content.includes('event')) {
+          result.score += 10;
+          break;
+        }
+      }
+    }
+
+    result.playable = result.score >= 70;
+    if (!result.playable) {
+      result.errors.push(`Mini-program validation: ${result.score}/100 — check game.json, entry file, canvas, and game loop`);
+    }
+  } catch (err) {
+    result.errors.push(`Failed to parse game.json: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  return result;
+}
+
+function validateHtmlGame(targetDir: string, result: BrowserValidationResult): BrowserValidationResult {
   const htmlPath = join(targetDir, 'index.html');
   if (!existsSync(htmlPath)) {
     result.errors.push('No index.html found');
@@ -51,7 +221,10 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
 
   // Check for canvas element before running JS
   if (!html.includes('<canvas')) {
-    result.errors.push('No <canvas> element in HTML');
+    // For DOM games, check for game container
+    if (!html.includes('id="game"') && !html.includes('class="game"')) {
+      result.errors.push('No <canvas> or game container element in HTML');
+    }
   } else {
     result.details.hasCanvas = true;
   }
@@ -136,13 +309,10 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
       url: 'file://' + targetDir + '/',
       pretendToBeVisual: true,
       beforeParse(window: any) {
-        // Inject canvas mock BEFORE scripts run so getContext('2d') returns our mock
-        // instead of null (which causes "Cannot read properties of null" errors)
         const proto = window.HTMLCanvasElement.prototype;
         const orig = proto.getContext;
         proto.getContext = function(contextId: string) {
           if (contextId === '2d') {
-            // Return mock with canvas reference bound
             return { ...mockCtx, canvas: this };
           }
           return orig.call(this, contextId);
@@ -151,9 +321,8 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
     });
 
     const window = dom.window as unknown as Window & typeof globalThis;
-    const document = window.document;
 
-    // Capture console errors and logs (ignore canvas-related warnings)
+    // Capture console errors and logs
     window.addEventListener('error', (e: ErrorEvent) => {
       const msg = e.message || '';
       if (msg.includes('HTMLCanvasElement') || msg.includes('getContext') || msg.includes('clearRect') || msg.includes('drawImage')) {
@@ -170,9 +339,6 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
         result.details.hasCanvas = true;
       }
     }
-
-    // Wait a tick for scripts to run (JSDOM runs scripts synchronously during construction)
-    // The canvas mock in beforeParse prevents runtime errors from canvas operations
 
     dom.window.close();
   } catch (err) {
@@ -215,8 +381,33 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
  */
 export function quickGameCheck(targetDir: string): { ok: boolean; issues: string[] } {
   const issues: string[] = [];
-  const htmlPath = join(targetDir, 'index.html');
+  const projectType = detectGameProjectType(targetDir);
 
+  if (projectType === 'miniprogram') {
+    if (!existsSync(join(targetDir, 'game.json'))) {
+      issues.push('Missing game.json for mini-program');
+    }
+    const entryFiles = ['index.js', 'game.js', 'main.js'];
+    const hasEntry = entryFiles.some((f) => existsSync(join(targetDir, f)));
+    if (!hasEntry) {
+      issues.push('No entry file for mini-program');
+    }
+    return { ok: issues.length === 0, issues };
+  }
+
+  if (projectType === 'framework') {
+    if (!existsSync(join(targetDir, 'package.json'))) {
+      issues.push('Missing package.json for framework project');
+    }
+    const htmlPath = join(targetDir, 'index.html');
+    if (!existsSync(htmlPath)) {
+      issues.push('Missing index.html for framework project');
+    }
+    return { ok: issues.length === 0, issues };
+  }
+
+  // HTML game
+  const htmlPath = join(targetDir, 'index.html');
   if (!existsSync(htmlPath)) {
     issues.push('Missing index.html');
     return { ok: false, issues };

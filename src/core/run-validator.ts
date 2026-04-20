@@ -70,10 +70,31 @@ function detectRunConfig(targetDir: string): RunConfig | null {
     return { command: 'cargo', args: ['check'], cwd: targetDir };
   }
 
-  // Static HTML — no runtime needed, just verify the HTML file exists and is valid
+  // Static HTML — validate HTML structure and basic syntax
   const htmlPath = join(targetDir, 'index.html');
   if (existsSync(htmlPath)) {
-    return { command: 'echo', args: ['HTML project - static validation only'], cwd: targetDir };
+    const html = readFileSync(htmlPath, 'utf-8');
+    // Basic structural checks
+    const hasDoctype = html.toLowerCase().includes('<!doctype html>');
+    const hasHtmlTag = html.toLowerCase().includes('<html');
+    const hasBody = html.toLowerCase().includes('<body');
+    const hasScript = html.toLowerCase().includes('<script');
+
+    if (!hasDoctype || !hasHtmlTag || !hasBody) {
+      return {
+        command: 'echo',
+        args: ['[kele] HTML validation FAILED: missing doctype, html tag, or body tag'],
+        cwd: targetDir,
+        env: { KELE_HTML_VALID: 'false', KELE_HTML_ERROR: `doctype=${hasDoctype}, html=${hasHtmlTag}, body=${hasBody}, script=${hasScript}` },
+      };
+    }
+
+    return {
+      command: 'echo',
+      args: [`[kele] HTML validation PASSED: doctype=${hasDoctype}, html=${hasHtmlTag}, body=${hasBody}, script=${hasScript}`],
+      cwd: targetDir,
+      env: { KELE_HTML_VALID: 'true' },
+    };
   }
 
   return null;
