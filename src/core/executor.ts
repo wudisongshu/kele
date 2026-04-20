@@ -14,6 +14,7 @@ import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
 import { executeWithFallback, executeFixWithFallback } from './adapter-utils.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { trackTaskComplete, trackTaskFail } from './telemetry.js';
 
 /**
  * Executor — schedules and runs tasks in dependency order.
@@ -517,6 +518,7 @@ export async function executeTask(
   options: ExecutorOptions
 ): Promise<ExecuteResult> {
   const { registry, db, onProgress, signal } = options;
+  const taskStartTime = Date.now();
 
   // Check abort before starting
   if (signal?.aborted) {
@@ -582,6 +584,8 @@ export async function executeTask(
       await runAIQualityReview(ctx, prompt, validation.valid, runtimePassed);
     }
 
+    const duration = Date.now() - taskStartTime;
+    trackTaskComplete(project.id, task.id, task.aiProvider || 'unknown', duration);
     onProgress?.(`   ✅ Completed`);
     return { success: true, output };
   } catch (err) {
@@ -591,9 +595,11 @@ export async function executeTask(
     }
 
     const error = err instanceof Error ? err.message : String(err);
+    const duration = Date.now() - taskStartTime;
     task.status = 'failed';
     task.error = error;
     db.saveTask(task, project.id);
+    trackTaskFail(project.id, task.id, task.aiProvider || 'unknown', error, duration);
     onProgress?.(`   ❌ Failed: ${error.slice(0, 200)}`);
     return { success: false, error };
   }

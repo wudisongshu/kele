@@ -16,6 +16,8 @@ import { createRegistryFromConfig } from '../adapters/index.js';
 import { createProgressLogger } from '../core/logger.js';
 import { runDoctor } from './commands/doctor.js';
 import { runClean } from './commands/clean.js';
+import { runExport } from './commands/export.js';
+import { runInit } from './commands/init.js';
 import type { AIProvider } from '../types/index.js';
 import { KeleDatabase } from '../db/index.js';
 import { needsResearch, research } from '../core/research-engine.js';
@@ -1071,6 +1073,25 @@ program
   .description('List failed/abandoned projects for cleanup')
   .action(() => {
     runClean();
+  });
+
+// --- Export command: kele export <project-id> [target-dir] ---
+program
+  .command('export')
+  .argument('<project-id>', 'Project ID to export')
+  .argument('[target-dir]', 'Target directory (default: ./<project-name>-export)')
+  .description('Export a project to a directory')
+  .action((projectId: string, targetDir?: string) => {
+    runExport(projectId, targetDir);
+  });
+
+// --- Init command: kele init [dir] ---
+program
+  .command('init')
+  .argument('[dir]', 'Directory to initialize (default: current directory)')
+  .description('Initialize kele in an existing project directory')
+  .action((dir?: string) => {
+    runInit(dir);
   });
 
 // --- Secrets command: kele secrets ---
