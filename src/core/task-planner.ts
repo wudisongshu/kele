@@ -18,26 +18,24 @@ interface TaskTemplate {
  * Get development task templates based on project type.
  * Games are split into smaller, verifiable tasks to prevent AI from generating skeletons.
  */
-function getDevTaskTemplates(ideaType: string): TaskTemplate[] {
+function getDevTaskTemplates(ideaType: string, ideaRawText: string): TaskTemplate[] {
   if (ideaType === 'game') {
     return [
       {
         title: 'Implement complete playable game',
         description:
-          'Implement the FULL game in one task: game board/grid rendering, click/touch input, ' +
-          'tile swap logic, match detection (3+ in a row), elimination, gravity/falling, ' +
-          'new tile generation, scoring system, and game loop. ' +
+          `Implement the FULL game based on the user's idea: "${ideaRawText}".\n\n` +
+          'You MUST implement ALL core game mechanics described by the user: ' +
+          'rendering, player input handling, game logic, scoring/progression, and win/lose conditions. ' +
           'The game MUST be fully playable and enjoyable when this task completes. ' +
           'NO stub logic, NO TODO comments, NO placeholder functions.\n\n' +
-          'ACCEPTANCE CRITERIA (kele will verify by playing):\n' +
-          '1. Opening index.html shows an 8x8 grid of colored tiles with distinct colors/images\n' +
-          '2. Clicking a tile selects it; clicking an adjacent tile swaps them\n' +
-          '3. Swapping to create 3+ matching tiles triggers elimination\n' +
-          '4. Eliminated tiles disappear and tiles above fall down to fill gaps\n' +
-          '5. New tiles spawn from the top; the board always stays full\n' +
-          '6. Score counter increases when matches are made\n' +
-          '7. Invalid swaps (no match) automatically swap back\n' +
-          '8. The game board is responsive and fills the visible area',
+          'ACCEPTANCE CRITERIA (kele will verify the game is playable):\n' +
+          '1. The game renders correctly when opened in a browser\n' +
+          '2. Player input (click, touch, keyboard, etc.) is handled and produces visible results\n' +
+          '3. Core game mechanics work as described by the user\n' +
+          '4. Score/progress/lives are displayed and update correctly\n' +
+          '5. Game over and restart work correctly\n' +
+          '6. The game is responsive and works on different screen sizes',
         baseComplexity: 'complex',
       },
     ];
@@ -108,7 +106,7 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
     }
 
     case 'development':
-      return getDevTaskTemplates(ideaType || 'unknown');
+      return getDevTaskTemplates(ideaType || 'unknown', subProjectDesc);
 
     case 'production':
       return [
@@ -236,7 +234,9 @@ export function planTasks(subProject: SubProject, idea: Idea): PlanResult {
       id: randomUUID(),
       subProjectId: subProject.id,
       title: tpl.title,
-      description: tpl.description,
+      description: idea.type === 'game'
+        ? `${tpl.description}\n\nUSER'S ORIGINAL IDEA (this is what they want): "${idea.rawText}"`
+        : tpl.description,
       complexity: adjustComplexity(tpl.baseComplexity, idea.complexity),
       status: 'pending',
       version: 1,

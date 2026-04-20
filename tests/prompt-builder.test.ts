@@ -75,7 +75,7 @@ describe('buildTaskPrompt', () => {
   it('adds game constraint for game development tasks', () => {
     const project = makeProject({ type: 'game' });
     const prompt = buildTaskPrompt(makeTask('Game Logic'), makeSubProject('development'), project);
-    expect(prompt).toContain('game development');
+    expect(prompt).toContain('GAME DEVELOPMENT');
     expect(prompt).toContain('core gameplay loop');
   });
 

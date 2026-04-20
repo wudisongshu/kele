@@ -2,6 +2,7 @@ import type { AIAdapter } from '../adapters/base.js';
 import type { Project } from '../types/index.js';
 import { existsSync, readdirSync } from 'fs';
 import { debugLog } from '../debug.js';
+import { safeJsonParse } from './json-utils.js';
 
 export interface ProjectHealthResult {
   healthy: boolean;
@@ -61,16 +62,24 @@ export async function reviewProjectHealth(
     debugLog('Project Health Review Prompt', prompt);
     const response = await adapter.execute(prompt);
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : response;
-
-    const parsed = JSON.parse(jsonStr) as {
+    const parsedResult = safeJsonParse<{
       healthy?: boolean;
       progress?: string;
       concerns?: string[];
       recommendations?: string[];
       scopeAdjustment?: string;
-    };
+    }>(response);
+
+    if (!parsedResult.data) {
+      return {
+        healthy: true,
+        progress: 'on-track',
+        concerns: [parsedResult.error || 'Failed to parse health review response'],
+        recommendations: ['Continue with current plan'],
+      };
+    }
+
+    const parsed = parsedResult.data;
 
     return {
       healthy: parsed.healthy ?? true,

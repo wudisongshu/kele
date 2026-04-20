@@ -73,17 +73,87 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
   const consoleLogs: string[] = [];
 
   try {
+    // Create a mock 2D canvas context that satisfies common game canvas operations
+    const mockCtx = {
+      clearRect: () => {},
+      fillRect: () => {},
+      strokeRect: () => {},
+      fillText: () => {},
+      strokeText: () => {},
+      measureText: () => ({ width: 0 }),
+      beginPath: () => {},
+      closePath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      stroke: () => {},
+      fill: () => {},
+      arc: () => {},
+      arcTo: () => {},
+      bezierCurveTo: () => {},
+      quadraticCurveTo: () => {},
+      rect: () => {},
+      ellipse: () => {},
+      save: () => {},
+      restore: () => {},
+      translate: () => {},
+      rotate: () => {},
+      scale: () => {},
+      setTransform: () => {},
+      transform: () => {},
+      createLinearGradient: () => ({ addColorStop: () => {} }),
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      createPattern: () => ({}),
+      drawImage: () => {},
+      getImageData: () => ({ data: new Uint8ClampedArray(0) }),
+      putImageData: () => {},
+      createImageData: () => ({ data: new Uint8ClampedArray(0) }),
+      clip: () => {},
+      setLineDash: () => {},
+      getLineDash: () => [],
+      isPointInPath: () => false,
+      isPointInStroke: () => false,
+      globalAlpha: 1,
+      globalCompositeOperation: 'source-over',
+      fillStyle: '#000',
+      strokeStyle: '#000',
+      lineWidth: 1,
+      lineCap: 'butt',
+      lineJoin: 'miter',
+      miterLimit: 10,
+      font: '10px sans-serif',
+      textAlign: 'start',
+      textBaseline: 'alphabetic',
+      direction: 'ltr',
+      shadowColor: '#000',
+      shadowBlur: 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+    };
+
     const dom = new JSDOM(html, {
       runScripts: 'dangerously',
       resources: 'usable',
       url: 'file://' + targetDir + '/',
       pretendToBeVisual: true,
+      beforeParse(window: any) {
+        // Inject canvas mock BEFORE scripts run so getContext('2d') returns our mock
+        // instead of null (which causes "Cannot read properties of null" errors)
+        const proto = window.HTMLCanvasElement.prototype;
+        const orig = proto.getContext;
+        proto.getContext = function(contextId: string) {
+          if (contextId === '2d') {
+            // Return mock with canvas reference bound
+            return { ...mockCtx, canvas: this };
+          }
+          return orig.call(this, contextId);
+        };
+      },
     });
 
     const window = dom.window as unknown as Window & typeof globalThis;
     const document = window.document;
 
-    // Capture console errors and logs (ignore JSDOM canvas limitations)
+    // Capture console errors and logs (ignore canvas-related warnings)
     window.addEventListener('error', (e: ErrorEvent) => {
       const msg = e.message || '';
       if (msg.includes('HTMLCanvasElement') || msg.includes('getContext') || msg.includes('clearRect') || msg.includes('drawImage')) {
@@ -101,12 +171,8 @@ export function validateGameInBrowser(targetDir: string): BrowserValidationResul
       }
     }
 
-    // Give scripts time to initialize (simulate a few frames)
-    // JSDOM doesn't have real animation frames, so we check if the script
-    // at least tried to draw something by inspecting the context
-
-    // Wait a tick for scripts to run
-    // (JSDOM runs scripts synchronously during construction, so by now they should have executed)
+    // Wait a tick for scripts to run (JSDOM runs scripts synchronously during construction)
+    // The canvas mock in beforeParse prevents runtime errors from canvas operations
 
     dom.window.close();
   } catch (err) {

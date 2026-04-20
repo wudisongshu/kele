@@ -1,6 +1,7 @@
 import type { AIAdapter } from '../adapters/base.js';
 import type { Idea, SubProject } from '../types/index.js';
 import { debugLog } from '../debug.js';
+import { safeJsonParse } from './json-utils.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
 import { IncubationResponseSchema } from './schemas.js';
 import { withTimeout } from './async-utils.js';
@@ -289,9 +290,11 @@ async function tryIncubate(
     debugLog('AI Incubator Prompt', prompt);
     const response = await adapter.execute(prompt);
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : response;
-    return parseIncubationResponse(jsonStr, rootDir);
+    const parsedResult = safeJsonParse(response);
+    if (!parsedResult.data) {
+      return { success: false, error: parsedResult.error || 'No JSON found in AI response' };
+    }
+    return parseIncubationResponse(JSON.stringify(parsedResult.data), rootDir);
   } catch (err) {
     return {
       success: false,
@@ -321,9 +324,11 @@ async function tryFixIncubator(
     debugLog('AI Incubator Fix Prompt', fixPrompt);
     const response = await adapter.execute(fixPrompt);
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : response;
-    return parseIncubationResponse(jsonStr, rootDir);
+    const parsedResult = safeJsonParse(response);
+    if (!parsedResult.data) {
+      return { success: false, error: parsedResult.error || 'No JSON found in AI fix response' };
+    }
+    return parseIncubationResponse(JSON.stringify(parsedResult.data), rootDir);
   } catch (err) {
     return {
       success: false,
@@ -343,15 +348,18 @@ async function reviewIncubatorOutput(
     debugLog('AI Incubator Review Prompt', reviewPrompt);
     const response = await adapter.execute(reviewPrompt);
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : response;
-
-    const parsed = JSON.parse(jsonStr) as {
+    const parsedResult = safeJsonParse<{
       approved: boolean;
       severity?: string;
       issues: string[];
       suggestions: string[];
-    };
+    }>(response);
+
+    if (!parsedResult.data) {
+      return { approved: true, severity: 'minor', issues: [], suggestions: [] };
+    }
+
+    const parsed = parsedResult.data;
 
     return {
       approved: parsed.approved ?? true,

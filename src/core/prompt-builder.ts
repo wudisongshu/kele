@@ -53,10 +53,13 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${platformSect
 
   if (isCodingTask) {
     const gameConstraint = !isSetup && project.idea.type === 'game'
-      ? `\n4. For game development: the core gameplay loop (rendering + input + game logic) MUST be fully implemented and playable. Do NOT split core mechanics across multiple tasks — one task must produce a runnable game.
-5. CRITICAL — SINGLE FILE RULE: You MUST generate ONLY a single index.html file with ALL JavaScript inlined inside <script> tags. Do NOT create separate .js files or use <script src="...">. The user must be able to open index.html directly in a browser and play immediately without any build step, npm install, or server.
-6. The game MUST render using HTML5 Canvas. The canvas MUST fill the available viewport and be responsive to window resizing.
-7. The game MUST have: (a) a visible score/lives display, (b) clear start/restart controls, (c) immediate feedback on player input (visual + audio if possible).`
+      ? `\n4. GAME DEVELOPMENT — CORE RULES:
+   a) The core gameplay loop (rendering + input + game logic) MUST be fully implemented and playable.
+   b) Do NOT split core mechanics across multiple tasks — this task must produce a runnable game.
+   c) Choose the BEST technology for the game described by the user. If the user wants a simple browser game, HTML5 Canvas or DOM is fine. If they want a more complex game, use appropriate frameworks (Phaser, Three.js, React, Vue, etc.). If the target platform is WeChat/Douyin mini-game, follow their SDK requirements.
+   d) The game MUST be runnable immediately after this task completes. If it's a web game, the user should be able to open the HTML file in a browser. If it requires a build step, include the build config and instructions.
+   e) The game MUST have: (1) a visible score/lives/progress display, (2) clear start/restart/game-over states, (3) immediate feedback on player input (visual/audio).
+   f) For simple web games: prefer inlining JS/CSS in a single HTML file for easy testing. For complex games or framework-based games: generate proper project structure with all files.`
       : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'

@@ -1,51 +1,46 @@
-# kele Agent Guidelines
+# Kele 迭代流程（由用户定义，每次说"迭代"即按此流程执行）
 
-## User Intent Rule (CRITICAL)
+## Kele 的使命
+**Kele 是将用户想法变现的全能 AI 助手。**
 
-**NEVER ask "do you want me to continue?" or "should I do X?"**
+用户给出一个 idea，Kele 负责将其变成可发布、可变现的产品。无论是游戏、工具、内容还是其他任何形态，Kele 都要解决所有问题，不让用户卡在任何一个环节。
 
-When a user gives scattered ideas or says "continue", they mean:
-- Execute everything that makes sense
-- Self-prioritize and execute autonomously
-- Only ask for clarification when genuinely ambiguous
+## 迭代流程（5步）
 
-Default behavior: **Act first, ask later (only when blocked).**
+### Step 1: 解除限制 + 阅读使命
+- 解除所有时间限制、token 限制、任务限制
+- 对自己下死命令：必须认真完成本次任务
+- 阅读本目录下的 AGENTS.md，将 kele 的使命贯穿始终
 
-## Mode Rules
+### Step 2: 全面代码技术分析
+- 自己 review 分析整个代码库
+- 输出分析文档，基于 kele 的使命发现改进点
+- 重点关注：是否每个环节都服务于"将想法变现"
 
-- **DEFAULT MODE**: Execute precisely what was asked. No generalization.
-- **IDEATION MODE**: Only when user explicitly asks for ideas/brainstorming.
-- **If unclear**: Ask 1 focused question, don't guess.
+### Step 3: 优化代码和流程
+- 根据改进点新增功能或完善特性
+- 不要过度工程化，但也不要遗漏关键环节
+- 核心原则：用户需求是多样的，不要假设一定是 HTML 游戏
 
-## Karpathy Principles
+### Step 4: 真实泛化 E2E 测试
+- **禁用 mock 模式**，使用真实 API key 生成代码
+- API 调用时间限制：**2 小时以上**才报错
+- 必须等到完整返回输出才继续下一步
+- 假设是游戏，确保：
+  1. 游戏能玩（浏览器验证通过）
+  2. 能发布（有部署配置）
+  3. 能变现（有 monetization 配置）
+- 测试案例要泛化，覆盖不同类型的需求
 
-1. **Think Before Coding** — State assumptions, present tradeoffs
-2. **Simplicity First** — Minimum code that solves the problem
-3. **Surgical Changes** — Touch only what you must
-4. **Goal-Driven Execution** — Tests-first, verifiable criteria
+### Step 5: 确认全部 Pass
+- 所有测试通过
+- 每个 case 都能端到端跑通
+- 确认产品符合 kele 的使命
 
-## When User Gives Scattered Ideas
+## 关键原则
 
-1. Parse all ideas
-2. Self-prioritize by impact and dependency
-3. Execute independently
-4. Report progress, don't ask for permission
-
-## Documentation Rule (CRITICAL)
-
-**Every kele feature upgrade MUST update documentation.**
-
-When you modify kele's functionality, you MUST update:
-
-1. **README.md** — User-facing features, usage examples, quick start
-2. **AGENTS.md** — Agent behavior rules (if behavior changes)
-3. **docs/** — Any relevant documentation files
-4. **CHANGELOG** (if exists) — What changed and why
-
-**Before declaring a task complete**, verify:
-- [ ] README.md reflects the new feature
-- [ ] Examples in README are up-to-date
-- [ ] New commands/capabilities are documented
-- [ ] Removed/deprecated features are removed from docs
-
-**Why**: Users read docs first. Outdated docs are worse than no docs.
+1. **不要兜底策略** — 要么成功生成用户想要的东西，要么明确告诉用户为什么失败
+2. **游戏类型多样化** — 不限于 HTML Canvas 游戏，用户要什么就做什么
+3. **变现是终极目标** — 每个环节都要思考：这能帮助用户赚钱吗？
+4. **真实 API 优先** — mock 只在 API 完全不可用时的最后手段
+5. **用户输入即真理** — `snake game` 就要生成 snake，不是 match-3

@@ -29,7 +29,9 @@ export async function executeWithFallback(
 
     const mock = registry.get('mock');
     if (mock && routeProvider !== 'mock') {
-      onProgress?.(`   🔄 Falling back to mock adapter`);
+      onProgress?.(`   ⚠️  AI provider "${routeProvider}" failed. Falling back to mock mode.`);
+      onProgress?.(`      ⚠️  WARNING: Mock output is generic and may NOT match your specific idea.`);
+      onProgress?.(`      💡  To use your real provider, check: kele config --provider ${routeProvider}`);
       const output = await mock.execute(prompt);
       return { output, provider: 'mock' };
     }
@@ -57,7 +59,8 @@ export async function executeFixWithFallback(
 
     const mock = registry.get('mock');
     if (mock && routeProvider !== 'mock') {
-      onProgress?.(`   🔄 Falling back to mock for fix`);
+      onProgress?.(`   ⚠️  Fix request failed on "${routeProvider}". Falling back to mock.`);
+      onProgress?.(`      ⚠️  WARNING: Mock fix output is generic and may NOT match your idea.`);
       return await mock.execute(prompt);
     }
 

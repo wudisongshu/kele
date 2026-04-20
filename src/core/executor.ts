@@ -298,34 +298,12 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       }
 
       if (!fixed) {
-        // Fallback: use mock adapter to generate a playable game template
-        const mock = ctx.registry.get('mock');
-        if (mock && task.aiProvider !== 'mock') {
-          onProgress?.(`   🛟 使用兜底游戏模板...`);
-          try {
-            const fallbackOutput = await mock.execute('Build a match-3 game');
-            const fallbackWritten = applyAIOutput(subProject.targetDir, fallbackOutput);
-            if (fallbackWritten.length > 0) {
-              onProgress?.(`   📝 兜底模板写入: ${fallbackWritten.join(', ')}`);
-            }
-            task.result = fallbackOutput;
-            task.aiProvider = 'mock';
-            db.saveTask(task, project.id);
-
-            const fallbackBrowser = validateGameInBrowser(subProject.targetDir);
-            if (fallbackBrowser.playable) {
-              onProgress?.(`   ✅ 兜底模板可玩 (评分: ${fallbackBrowser.score}/100)`);
-              runtimePassed = true;
-              // Don't throw - accept the fallback
-              return { validation, runtimePassed: true };
-            }
-          } catch {
-            // Fallback also failed
-          }
-        }
-
+        // No mock fallback — user's idea must be honored. Report failure clearly.
         task.status = 'failed';
-        task.error = `Game browser validation failed after 2 fix attempts. ${browser.errors.join('; ')}`;
+        task.error = `Game generation failed after 2 fix attempts. Issues: ${browser.errors.join('; ')}. ` +
+          `The AI was unable to produce a playable game matching your idea "${project.idea.rawText}". ` +
+          `This may be due to API limitations, timeout, or the idea being too complex. ` +
+          `Suggestions: (1) try a simpler version of your idea, (2) use --mock for a quick test, or (3) check your API provider status.`;
         db.saveTask(task, project.id);
         throw new ValidationError(task.error);
       }

@@ -3,6 +3,7 @@ import type { Task, SubProject, Project } from '../types/index.js';
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { debugLog } from '../debug.js';
+import { safeJsonParse } from './json-utils.js';
 
 export interface TaskReviewResult {
   verdict: 'PASS' | 'PARTIAL' | 'FAIL';
@@ -58,17 +59,27 @@ export async function reviewTaskOutput(
     debugLog(`Task Review Prompt [${subProject.name} / ${task.title}]`, prompt);
     const response = await adapter.execute(prompt);
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : response;
-
-    const parsed = JSON.parse(jsonStr) as {
+    const parsedResult = safeJsonParse<{
       verdict?: string;
       score?: number;
       completeness?: string;
       meetsRequirements?: boolean;
       issues?: string[];
       fixInstructions?: string;
-    };
+    }>(response);
+
+    if (!parsedResult.data) {
+      return {
+        verdict: 'PARTIAL',
+        score: 5,
+        completeness: 'partial',
+        meetsRequirements: false,
+        issues: [parsedResult.error || 'Failed to parse review response'],
+        fixInstructions: '',
+      };
+    }
+
+    const parsed = parsedResult.data;
 
     return {
       verdict: normalizeVerdict(parsed.verdict),

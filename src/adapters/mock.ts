@@ -23,7 +23,8 @@ export class MockAdapter implements AIAdapter {
     const lower = prompt.toLowerCase();
 
     // Incubation: generate sub-project structure
-    if (lower.includes('incubator') || lower.includes('sub-project')) {
+    // Detect by unique incubation prompt phrases (NOT present in task execution prompts)
+    if (lower.includes('ai incubator') || lower.includes('two-pass') || lower.includes('sub-project structure') || lower.includes('project plan') || lower.includes('孵化')) {
       return JSON.stringify({
         subProjects: [
           { id: 'project-setup', name: 'Project Setup', description: 'Initialize project', type: 'setup', dependencies: [], monetizationRelevance: 'supporting', estimatedEffort: '2-4 hours', criticalPath: true, riskLevel: 'low', acceptanceCriteria: [{ description: 'package.json exists', type: 'functional', action: 'verify-file', target: 'package.json', expected: 'file exists', critical: true }] },
@@ -39,12 +40,15 @@ export class MockAdapter implements AIAdapter {
       });
     }
 
-    // Intent classification
+    // Intent classification — echo the user's idea back so mock mode reflects their input
     if (lower.includes('intent classification') || lower.includes('intent:')) {
+      // Extract the user input from the prompt (it's always in "User input: \"...\"" format)
+      const userInputMatch = prompt.match(/User input: "([^"]+)"/);
+      const userInput = userInputMatch ? userInputMatch[1] : 'Create a web project';
       return JSON.stringify({
         intent: 'CREATE',
         projectName: null,
-        details: 'Create a match-3 game for Douyin platform',
+        details: userInput,
       });
     }
 

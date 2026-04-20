@@ -54,6 +54,7 @@ Return JSON:
  * Parse user input into a structured intent using AI.
  */
 import { debugLog } from '../debug.js';
+import { safeJsonParse } from './json-utils.js';
 
 export async function parseIntent(userInput: string, adapter: AIAdapter): Promise<UserIntent> {
   try {
@@ -61,15 +62,19 @@ export async function parseIntent(userInput: string, adapter: AIAdapter): Promis
     debugLog('Intent Engine Prompt', prompt);
     const response = await adapter.execute(prompt);
 
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : response;
-
-    const parsed = JSON.parse(jsonStr) as {
+    // Extract JSON from response using robust parser
+    const parsedResult = safeJsonParse<{
       intent: string;
       projectName?: string | null;
       details?: string;
-    };
+    }>(response);
+
+    if (!parsedResult.data) {
+      debugLog('Intent Engine Parse Error', parsedResult.error || 'Unknown error');
+      return heuristicParse(userInput);
+    }
+
+    const parsed = parsedResult.data;
 
     const details = parsed.details || userInput;
 

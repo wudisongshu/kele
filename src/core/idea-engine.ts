@@ -7,10 +7,20 @@ import type { CreativeType, MonetizationChannel, Complexity, Idea, ParseResult }
  */
 
 const TYPE_KEYWORDS: Record<CreativeType, string[]> = {
-  game: ['游戏', '塔防', '跑酷', 'rpg', 'slg', '休闲', '益智', '卡牌', '射击', '策略', '冒险', '解谜', '格斗', '竞速', '模拟', '经营', '养成', '消除', '合成', '放置', '挂机', '对战', 'moba', 'fps'],
-  music: ['音乐', '歌曲', '歌', '作曲', '编曲', '专辑', '歌手', '乐队', '旋律', 'beat', '混音', '音效', '配乐', '单曲', 'ep'],
-  content: ['文章', '博客', '视频', '播客', '公众号', '内容', '写作', '小说', '专栏', '教程', '指南', 'vlog', '短视频', '直播', 'up主'],
-  tool: ['工具', '助手', '计算器', '记账', '翻译', '词典', '日历', '提醒', '待办', '笔记', '浏览器', '编辑器', '播放器', '下载器', '转换器'],
+  game: [
+    // English game terms
+    'game', 'snake', 'tetris', 'puzzle', 'match-3', 'match 3', 'match3',
+    'breakout', 'arkanoid', 'platformer', 'shooter', 'racing', 'arcade',
+    'roguelike', 'roguelite', 'dungeon', 'tower defense', 'td',
+    'card game', 'board game', 'word game', 'quiz', 'trivia',
+    'endless runner', 'runner', 'jump', 'flappy', 'doodle',
+    '2048', 'sudoku', 'chess', 'minesweeper', 'solitaire',
+    // Chinese game terms
+    '游戏', '塔防', '跑酷', 'rpg', 'slg', '休闲', '益智', '卡牌', '射击', '策略', '冒险', '解谜', '格斗', '竞速', '模拟', '经营', '养成', '消除', '合成', '放置', '挂机', '对战', 'moba', 'fps',
+  ],
+  music: ['音乐', '歌曲', '歌', '作曲', '编曲', '专辑', '歌手', '乐队', '旋律', 'beat', '混音', '音效', '配乐', '单曲', 'ep', 'music', 'song', 'album'],
+  content: ['文章', '博客', '视频', '播客', '公众号', '内容', '写作', '小说', '专栏', '教程', '指南', 'vlog', '短视频', '直播', 'up主', 'blog', 'article', 'video', 'content'],
+  tool: ['工具', '助手', '计算器', '记账', '翻译', '词典', '日历', '提醒', '待办', '笔记', '浏览器', '编辑器', '播放器', '下载器', '转换器', 'tool', 'app', 'calculator', 'translator', 'tracker'],
   unknown: [],
 };
 

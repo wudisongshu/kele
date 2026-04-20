@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { dirname, join, basename } from 'path';
 import { sanitizeFilePath } from './security.js';
+import { extractJson as extractJsonFromUtils } from './json-utils.js';
 
 /**
  * FileWriter — parses AI output and writes files to disk.
@@ -23,54 +24,19 @@ export interface ParsedOutput {
 
 /**
  * Extract JSON from text, handling markdown code blocks.
- *
- * Strategy:
- * 1. Try direct JSON parse first (fast path for well-formed output)
- * 2. Try extracting from ```json code blocks
- * 3. Try extracting from the first { to the matching } (last resort)
+ * Uses shared json-utils for consistency, with validation.
  */
 function extractJson(text: string): string | null {
-  const trimmed = text.trim();
+  const candidate = extractJsonFromUtils(text);
+  if (!candidate) return null;
 
-  // Fast path: entire output is valid JSON
-  if (trimmed.startsWith('{')) {
-    try {
-      JSON.parse(trimmed);
-      return trimmed;
-    } catch {
-      // Not valid JSON as-is, continue to extraction
-    }
+  // Validate it's actually parseable JSON
+  try {
+    JSON.parse(candidate);
+    return candidate;
+  } catch {
+    return null;
   }
-
-  // Try markdown code blocks — find the one that parses as valid JSON
-  // Use global match to find ALL code blocks, then try each
-  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
-  let match: RegExpExecArray | null;
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    const candidate = match[1].trim();
-    if (candidate.startsWith('{') || candidate.startsWith('[')) {
-      try {
-        JSON.parse(candidate);
-        return candidate;
-      } catch {
-        // This code block isn't valid JSON, try next
-      }
-    }
-  }
-
-  // Last resort: find the outermost JSON object
-  // Match from first '{' to the last '}'
-  const jsonMatch = trimmed.match(/(\{[\s\S]*\})/);
-  if (jsonMatch) {
-    try {
-      JSON.parse(jsonMatch[1]);
-      return jsonMatch[1];
-    } catch {
-      // Not valid JSON
-    }
-  }
-
-  return null;
 }
 
 /**
