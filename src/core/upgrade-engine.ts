@@ -3,6 +3,7 @@ import type { Task, Project, SubProject, ExecuteResult } from '../types/index.js
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput } from './file-writer.js';
+import { executeWithFallback } from './adapter-utils.js';
 import { debugLog } from '../debug.js';
 
 /**
@@ -113,22 +114,11 @@ export async function upgradeTask(
 
     const prompt = buildUpgradePrompt(originalTask, subProject, project, upgradeRequest);
     debugLog(`Upgrade Prompt [${subProject.name} / ${originalTask.title}]`, prompt);
-    let output: string;
 
-    try {
-      output = await route.adapter.execute(prompt);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      onProgress?.(`   ⚠️  ${route.provider} error: ${errorMsg.slice(0, 120)}`);
-
-      const mock = registry.get('mock');
-      if (mock && route.provider !== 'mock') {
-        onProgress?.(`   🔄 Falling back to mock adapter`);
-        newTask.aiProvider = 'mock';
-        output = await mock.execute(prompt);
-      } else {
-        throw err;
-      }
+    const aiResult = await executeWithFallback(registry, prompt, route.provider, route.adapter, undefined, onProgress);
+    const output = aiResult.output;
+    if (aiResult.provider === 'mock') {
+      newTask.aiProvider = 'mock';
     }
 
     // Write updated files

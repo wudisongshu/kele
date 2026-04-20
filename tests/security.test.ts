@@ -21,6 +21,12 @@ describe('Security', () => {
       expect(escapePromptInput('')).toBe('');
       expect(escapePromptInput(null as unknown as string)).toBe('');
     });
+
+    it('should escape quotes and backticks to prevent prompt injection', () => {
+      expect(escapePromptInput('say "hello"')).toBe('say \\"hello\\"');
+      expect(escapePromptInput('run `rm -rf`')).toBe('run \\`rm -rf\\`');
+      expect(escapePromptInput('path\\to\\file')).toBe('path\\\\to\\\\file');
+    });
   });
 
   describe('sanitizeFilePath', () => {

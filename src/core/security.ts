@@ -16,6 +16,11 @@ export function escapePromptInput(input: string, maxLength = 500): string {
   let cleaned = input
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
     .trim();
+  // Escape quotes and backticks to prevent prompt injection
+  cleaned = cleaned
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/`/g, '\\`');
   // Limit length
   if (cleaned.length > maxLength) {
     cleaned = cleaned.slice(0, maxLength) + '...';

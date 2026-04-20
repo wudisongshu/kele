@@ -181,29 +181,3 @@ export async function runProject(targetDir: string): Promise<RunResult> {
   return result;
 }
 
-/**
- * Build a fix prompt from a failed run result.
- */
-export function buildFixPrompt(taskDescription: string, originalPrompt: string, runResult: RunResult): string {
-  return `The code you generated has a RUNTIME ERROR. Please fix it.
-
-ORIGINAL TASK:
-${taskDescription}
-
-COMMAND RUN: ${runResult.command}
-EXIT CODE: ${runResult.exitCode}
-
-STDOUT:
-${runResult.stdout || '(empty)'}
-
-STDERR:
-${runResult.stderr || '(empty)'}
-
-INSTRUCTIONS:
-1. Analyze the error above carefully.
-2. Return the COMPLETE corrected code as a JSON object with "files" array.
-3. Do NOT just explain the fix — return the actual fixed code.
-4. Make sure the code compiles and runs without the above error.
-
-${originalPrompt.includes('Return your response as a JSON object') ? 'Return as JSON in the same format as before.' : 'Return as JSON: { "files": [{"path": "...", "content": "..."}], "notes": "..." }'}`;
-}

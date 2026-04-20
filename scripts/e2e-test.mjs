@@ -16,6 +16,11 @@ const TEST_CASES = [
   { name: 'Music Portfolio', idea: '一个展示个人音乐作品的网站', expectedType: 'music' },
   { name: 'Todo App', idea: '一个可以分类管理的待办事项工具', expectedType: 'tool' },
   { name: 'Tech Blog', idea: '一个分享技术文章的博客平台', expectedType: 'content' },
+  { name: 'AI Chatbot', idea: '一个智能客服聊天机器人，可以回答用户的产品问题', expectedType: 'unknown' },
+  { name: 'Weather Dashboard', idea: '一个显示全球天气数据的仪表盘，支持城市搜索', expectedType: 'unknown' },
+  { name: 'E-commerce Store', idea: '一个售卖手工艺品的小型电商网站，支持购物车和结算', expectedType: 'unknown' },
+  { name: 'Personal Portfolio', idea: '一个设计师的个人作品集网站，展示项目和联系方式', expectedType: 'unknown' },
+  { name: 'Flappy Bird Clone', idea: '一个像素风格的飞行小鸟游戏，点击屏幕控制高度避开管道', expectedType: 'game' },
 ];
 
 async function runTest(testCase, index) {
@@ -23,7 +28,7 @@ async function runTest(testCase, index) {
   const registry = createRegistryFromConfig();
   const adapter = registry.get('mock');
 
-  console.log(`\n━━━ Test ${index + 1}/5: ${testCase.name} ━━━`);
+  console.log(`\n━━━ Test ${index + 1}/${TEST_CASES.length}: ${testCase.name} ━━━`);
   console.log(`   Idea: "${testCase.idea}"`);
 
   try {
@@ -98,15 +103,15 @@ async function runTest(testCase, index) {
 }
 
 async function main() {
-  console.log('🧪 E2E Test Suite — 5 idea types');
+  console.log('🧪 E2E Test Suite — 10 idea types');
   console.log('Provider: kimi-code (real API)');
 
   const results = [];
   for (let i = 0; i < TEST_CASES.length; i++) {
     const result = await runTest(TEST_CASES[i], i);
     results.push(result);
-    // Small delay between tests to avoid rate limiting
-    if (i < TEST_CASES.length - 1) await new Promise(r => setTimeout(r, 2000));
+    // Small delay between tests
+    if (i < TEST_CASES.length - 1) await new Promise(r => setTimeout(r, 500));
   }
 
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
