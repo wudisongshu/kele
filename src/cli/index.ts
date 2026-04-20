@@ -12,6 +12,8 @@ import { planTasks } from '../core/task-planner.js';
 import { executeProject } from '../core/project-executor.js';
 import { upgradeTask } from '../core/upgrade-engine.js';
 import { parseIntent } from '../core/intent-engine.js';
+import { validateTaskOutput } from '../core/task-validator.js';
+import { validateGameInBrowser } from '../core/game-validator-browser.js';
 import { createRegistryFromConfig } from '../adapters/index.js';
 import { createProgressLogger } from '../core/logger.js';
 import { runDoctor } from './commands/doctor.js';
@@ -1071,6 +1073,66 @@ program
     } else {
       console.log(`\n❌ 重试完成，但有 ${result.failed} 个任务失败。`);
       process.exit(1);
+    }
+  });
+
+// --- Validate command: kele validate <project-id> ---
+program
+  .command('validate')
+  .argument('<project-id>', 'Project ID to validate')
+  .description('Validate project quality and output a score report')
+  .action(async (projectId: string) => {
+    const db = new KeleDatabase();
+    const project = db.getProject(projectId);
+
+    if (!project) {
+      console.error(`❌ 项目不存在: ${projectId}`);
+      process.exit(1);
+    }
+
+    const subProjects = db.getSubProjects(projectId);
+    console.log(`🔍 验证项目: ${project.name}\n`);
+
+    let totalScore = 0;
+    let spCount = 0;
+
+    for (const sp of subProjects) {
+      spCount++;
+      console.log(`  📁 ${sp.name}`);
+      const staticResult = validateTaskOutput(sp.targetDir, sp.name);
+      const staticScore = staticResult.valid ? 100 : Math.max(0, 100 - staticResult.issues.length * 10);
+      console.log(`     静态检查: ${staticResult.valid ? '✅' : '⚠️'} (${staticScore}/100)`);
+      if (staticResult.issues.length > 0) {
+        for (const issue of staticResult.issues.slice(0, 3)) {
+          console.log(`       - ${issue}`);
+        }
+      }
+
+      let browserScore = staticScore;
+      if (project.idea.type === 'game') {
+        const browserResult = validateGameInBrowser(sp.targetDir);
+        browserScore = browserResult.score;
+        console.log(`     游戏验证: ${browserResult.playable ? '✅' : '⚠️'} (${browserScore}/100)`);
+        if (browserResult.errors.length > 0) {
+          for (const err of browserResult.errors.slice(0, 3)) {
+            console.log(`       - ${err}`);
+          }
+        }
+      }
+
+      totalScore += browserScore;
+    }
+
+    const avgScore = spCount > 0 ? Math.round(totalScore / spCount) : 0;
+    console.log(`\n📊 项目总分: ${avgScore}/100`);
+    if (avgScore >= 90) {
+      console.log('   🏆 优秀 — 项目质量很高');
+    } else if (avgScore >= 70) {
+      console.log('   ✅ 良好 — 项目可以正常运行');
+    } else if (avgScore >= 50) {
+      console.log('   ⚠️  一般 — 建议用 kele upgrade 改进');
+    } else {
+      console.log('   ❌ 较差 — 建议用 kele retry 重试');
     }
   });
 
