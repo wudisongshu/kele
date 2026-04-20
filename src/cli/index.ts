@@ -771,6 +771,7 @@ program
   .option('--remove <name>', 'Remove a provider')
   .option('--auto-yes', 'Enable auto-confirm (skip all checkpoints)')
   .option('--no-auto-yes', 'Disable auto-confirm')
+  .option('--list', 'List all configured providers')
   .action((options: {
     provider?: string;
     key?: string;
@@ -780,7 +781,14 @@ program
     default?: string;
     remove?: string;
     autoYes?: boolean;
+    list?: boolean;
   }) => {
+    if (options.list) {
+      console.log('🥤 已配置的 Providers\n');
+      console.log(getConfigSummary());
+      return;
+    }
+
     if (options.autoYes === true) {
       setAutoYes(true);
       console.log('✅ 已开启免确认模式（所有 checkpoint 自动通过）');
