@@ -34,6 +34,10 @@ const TEST_CASES = [
   { name: 'Typing Speed Test', idea: '一个打字速度测试网站，显示 WPM 和准确率', expectedType: 'tool' },
   { name: 'Virtual Piano', idea: '一个网页虚拟钢琴，可以用键盘弹奏', expectedType: 'music' },
   { name: '2048 Game', idea: '一个2048数字合并游戏，支持撤销和最高分记录', expectedType: 'game' },
+  { name: 'Password Generator', idea: '一个强密码生成器，支持自定义长度和字符集', expectedType: 'tool' },
+  { name: 'Color Palette Tool', idea: '一个配色方案生成工具，可以提取图片主色调', expectedType: 'tool' },
+  { name: 'Breakout Game', idea: '一个打砖块游戏，有多球模式和道具系统', expectedType: 'game' },
+  { name: 'Soundboard', idea: '一个网页音效板，可以播放各种搞笑音效', expectedType: 'music' },
 ];
 
 async function runTest(testCase, index) {

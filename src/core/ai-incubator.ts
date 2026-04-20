@@ -3,6 +3,7 @@ import type { Idea, SubProject } from '../types/index.js';
 import { debugLog } from '../debug.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
 import { IncubationResponseSchema } from './schemas.js';
+import { withTimeout } from './async-utils.js';
 
 /**
  * AI-Driven Incubator — lets the AI decide what sub-projects are needed.
@@ -176,19 +177,14 @@ export async function incubateWithAI(
     revisions: 0,
   };
 
-  // Helper for timeout-wrapped AI calls
-  const withTimeout = <T>(promise: Promise<T>, label: string): Promise<T> => {
-    let timer: ReturnType<typeof setTimeout>;
-    const timeoutPromise = new Promise<T>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
-    });
-    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
-  };
+  // Wrapper for timeout-wrapped AI calls
+  const withTimeoutWrap = <T>(promise: Promise<T>, label: string): Promise<T> =>
+    withTimeout(promise, label, timeoutMs);
 
   // --- Attempt 1: Generate initial plan ---
   let result: AIIncubateResult;
   try {
-    result = await withTimeout(tryIncubate(idea, rootDir, adapter), 'Incubation');
+    result = await withTimeoutWrap(tryIncubate(idea, rootDir, adapter), 'Incubation');
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     return { success: false, error, validation: validationMeta };
@@ -206,7 +202,7 @@ export async function incubateWithAI(
   if (!localValidation.valid) {
     // Structural errors — AI needs to fix them
     try {
-      const fixed = await withTimeout(
+      const fixed = await withTimeoutWrap(
         tryFixIncubator(idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? ''),
         'Incubation fix'
       );
@@ -239,13 +235,13 @@ export async function incubateWithAI(
 
   if (needsAiReview) {
     try {
-      const review = await withTimeout(reviewIncubatorOutput(adapter, result.subProjects!, idea), 'Incubation review');
+      const review = await withTimeoutWrap(reviewIncubatorOutput(adapter, result.subProjects!, idea), 'Incubation review');
       validationMeta.aiApproved = review.approved;
       validationMeta.aiIssues = review.issues;
 
       if (!review.approved && review.suggestions.length > 0) {
         // Try to fix based on AI review
-        const fixed = await withTimeout(
+        const fixed = await withTimeoutWrap(
           tryFixIncubator(idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? ''),
           'Incubation review fix'
         );
