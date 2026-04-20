@@ -167,6 +167,11 @@ function fixHtmlForLocal(html: string): string {
     fixed = fixed.replace(/<head([^>]*)>/i, '<head$1>\n  <base href=".">');
   }
 
+  // Ensure charset meta tag exists
+  if (!fixed.includes('charset')) {
+    fixed = fixed.replace(/<head([^>]*)>/i, '<head$1>\n  <meta charset="UTF-8">');
+  }
+
   // Move scripts from <head> to end of <body>
   const headMatch = fixed.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
   if (headMatch) {

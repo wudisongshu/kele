@@ -106,6 +106,11 @@ program
   .option('--dry-run', 'Show what would be done without executing AI calls', false)
   .option('--quiet', 'Suppress non-error output', false)
   .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean }) => {
+    if (options.quiet) {
+      const originalLog = console.log;
+      console.log = () => {};
+      process.on('exit', () => { console.log = originalLog; });
+    }
     if (options.debug) {
       const { setDebug } = await import('../debug.js');
       setDebug(true);

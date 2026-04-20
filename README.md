@@ -103,6 +103,34 @@ kele "配置 DeepSeek"
 kele "这个游戏怎么赚钱"
 ```
 
+### 6. 高级命令
+
+```bash
+# 验证项目质量（静态检查 + 游戏可玩性评分）
+kele validate <project-id>
+
+# 搜索项目
+kele search <关键词>
+
+# 导出项目文件
+kele export <project-id> [目标目录]
+
+# 诊断环境配置
+kele doctor
+
+# 查看项目统计
+kele stats
+
+# 查看执行日志
+kele logs
+
+# 预览将要执行的操作（不实际运行）
+kele "做一个塔防游戏" --dry-run
+
+# Mock 模式快速测试（无需 API Key）
+kele "做一个塔防游戏" --mock --yes
+```
+
 ### 6. Debug 模式 — 查看 kele 发给 AI 的完整 prompt
 
 想优化 kele 的 prompt 质量？开启 debug 模式即可查看所有发送给 AI 的完整 prompt。

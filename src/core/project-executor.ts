@@ -16,6 +16,9 @@ export interface ProjectExecutorOptions {
 /**
  * Group sub-projects by dependency level.
  * Level 0 = no dependencies, Level 1 = depends on level 0, etc.
+ * Each level runs concurrently via Promise.all().
+ * NOTE: Current implementation runs ALL sub-projects in a level concurrently.
+ * For very large projects (>10 sub-projects), consider limiting concurrency.
  */
 function groupByDependencyLevel(sortedSPs: SubProject[]): SubProject[][] {
   const levels = new Map<string, number>();

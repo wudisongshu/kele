@@ -109,6 +109,10 @@ export class MockAdapter implements AIAdapter {
     }
 
     // Default: return a complete, runnable HTML page (never empty)
+    const isTool = lower.includes('tool') || lower.includes('工具') || lower.includes('calculator') || lower.includes('计算器');
+    const title = isTool ? 'Kele Tool' : 'Kele Project';
+    const heading = isTool ? '🔧 Kele Tool' : '🥤 Kele Project';
+    const desc = isTool ? 'A simple tool placeholder. Configure a real AI provider for full code generation.' : 'Configure a real AI provider for full code generation.';
     return JSON.stringify({
       files: [
         {
@@ -118,7 +122,7 @@ export class MockAdapter implements AIAdapter {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kele Project</title>
+  <title>${title}</title>
   <style>
     body { font-family: system-ui; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
     h1 { color: #333; }
@@ -126,8 +130,8 @@ export class MockAdapter implements AIAdapter {
   </style>
 </head>
 <body>
-  <h1>🥤 Kele Project</h1>
-  <p>Configure a real AI provider for full code generation.</p>
+  <h1>${heading}</h1>
+  <p>${desc}</p>
 </body>
 </html>`,
         },
