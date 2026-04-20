@@ -2,6 +2,21 @@ import { createInterface } from 'readline';
 import { randomBytes } from 'crypto';
 import { getAutoYes } from '../config/index.js';
 
+const NO_COLOR = process.env.NO_COLOR || process.env.FORCE_COLOR === '0';
+
+function color(code: string, text: string): string {
+  return NO_COLOR ? text : `\x1b[${code}m${text}\x1b[0m`;
+}
+
+export const c = {
+  red: (t: string) => color('31', t),
+  green: (t: string) => color('32', t),
+  yellow: (t: string) => color('33', t),
+  blue: (t: string) => color('34', t),
+  cyan: (t: string) => color('36', t),
+  bold: (t: string) => color('1', t),
+};
+
 /**
  * Ask the user for confirmation at a checkpoint.
  * Respects the auto-yes configuration.

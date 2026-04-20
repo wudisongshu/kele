@@ -9,7 +9,12 @@
 export function withTimeout<T>(promise: Promise<T>, label: string, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<T>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    timer = setTimeout(() => {
+      const hint = ms < 300000
+        ? ' (提示: 用 --timeout 增加超时时间，或用 --mock 模式测试)'
+        : '';
+      reject(new Error(`${label} timed out after ${ms}ms${hint}`));
+    }, ms);
   });
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
 }
