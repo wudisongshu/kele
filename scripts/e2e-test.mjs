@@ -38,6 +38,10 @@ const TEST_CASES = [
   { name: 'Color Palette Tool', idea: '一个配色方案生成工具，可以提取图片主色调', expectedType: 'tool' },
   { name: 'Breakout Game', idea: '一个打砖块游戏，有多球模式和道具系统', expectedType: 'game' },
   { name: 'Soundboard', idea: '一个网页音效板，可以播放各种搞笑音效', expectedType: 'music' },
+  { name: 'Unit Converter', idea: '一个单位换算工具，支持长度重量温度货币', expectedType: 'tool' },
+  { name: 'Image Gallery', idea: '一个响应式图片画廊，支持懒加载和灯箱效果', expectedType: 'content' },
+  { name: 'Tetris Game', idea: '一个俄罗斯方块游戏，有hold功能和幽灵方块', expectedType: 'game' },
+  { name: 'Budget Tracker', idea: '一个个人记账工具，支持分类统计和月度报表', expectedType: 'tool' },
 ];
 
 async function runTest(testCase, index) {

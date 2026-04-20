@@ -2,11 +2,9 @@
 
 import { Command } from 'commander';
 import { readFileSync, mkdirSync } from 'fs';
-import { createInterface } from 'readline';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
-import { randomBytes } from 'crypto';
 import { parseIdea } from '../core/idea-engine.js';
 import { incubate } from '../core/incubator.js';
 import { incubateWithAI } from '../core/ai-incubator.js';
@@ -24,7 +22,6 @@ import {
   setDefaultProvider,
   getConfigSummary,
   hasAnyProvider,
-  getAutoYes,
   setAutoYes,
 } from '../config/index.js';
 import {
@@ -40,6 +37,7 @@ import {
   getDeployCommandGuide,
 } from '../platform-knowledge.js';
 import { printLocalRunGuide } from './run-guide.js';
+import { confirmCheckpoint, generateProjectSlug, printNoProviderHelp } from './utils.js';
 import { routeMonetization, formatRouteRecommendations } from '../core/monetization-router.js';
 import type { Project, Idea } from '../types/index.js';
 
@@ -713,44 +711,6 @@ async function handleChatIntent(message: string) {
  * If autoYes is enabled globally, always returns true.
  * Otherwise prompts the user in-terminal.
  */
-async function confirmCheckpoint(question: string): Promise<boolean> {
-  if (getAutoYes()) {
-    return true;
-  }
-
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-
-  // Handle Ctrl+C during prompt — close readline and exit cleanly
-  rl.on('SIGINT', () => {
-    rl.close();
-    console.log('\n   ⏹️  已取消');
-    process.exit(0);
-  });
-
-  const answer = await new Promise<string>((resolve) => {
-    rl.question(`⏸️  ${question} [Y/n/e(edit)] `, resolve);
-  });
-  rl.close();
-
-  const normalized = answer.trim().toLowerCase();
-  if (normalized === 'e' || normalized === 'edit') {
-    console.log('   💡 请重新描述你的想法，然后再次运行 kele');
-    return false;
-  }
-  if (normalized === 'n' || normalized === 'no') {
-    console.log('   ⏹️  已取消');
-    return false;
-  }
-  // Default: yes (empty, y, yes, or anything else)
-  return true;
-}
-
-/**
- * Scan sub-project directories for runnable files.
- * Returns the best entry point and its directory.
- *
- * Priority: game/app > html > python/go > npm (setup)
- */
 // --- Config command: kele config ---
 program
   .command('config')
@@ -1052,30 +1012,4 @@ function printUsage(): void {
  * Generate a short English slug for the project directory.
  * Avoids Chinese characters and long sentences.
  */
-function generateProjectSlug(ideaText: string, type: string): string {
-  // Extract English words (a-z, at least 2 chars)
-  const englishWords = ideaText.toLowerCase().match(/[a-z]{2,}/g) || [];
-
-  if (englishWords.length > 0) {
-    // Use first 2-3 English words, kebab-cased
-    const slug = englishWords.slice(0, 3).join('-');
-    return slug;
-  }
-
-  // No English words: use type + random hex suffix
-  const suffix = randomBytes(3).toString('hex');
-  return `${type}-${suffix}`;
-}
-
-function printNoProviderHelp(): void {
-  console.log('⚠️  未配置 AI API Key');
-  console.log('kele 需要调用 AI 来完成任务。请配置至少一个 provider：\n');
-  console.log('  kele config --provider kimi --key <your-key> --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
-  console.log('  kele config --provider kimi-code --key <your-key> --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
-  console.log('  kele config --provider deepseek --key <your-key> --url https://api.deepseek.com/v1 --model deepseek-chat');
-  console.log('  kele config --provider qwen --key <your-key> --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo');
-  console.log('\n或者使用 --yes 以 Mock 模式运行（仅用于测试）：');
-  console.log('  kele "你的 idea" --yes');
-}
-
 program.parse();
