@@ -103,7 +103,8 @@ program
   .option('--debug', 'Show all prompts sent to AI for debugging', false)
   .option('--mock', 'Force mock AI mode for fast testing (no API calls)', false)
   .option('--json', 'Output structured JSON instead of human-readable text (for CI/CD)', false)
-  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean }) => {
+  .option('--dry-run', 'Show what would be done without executing AI calls', false)
+  .action(async (ideaText: string | undefined, options: { output: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean }) => {
     if (options.debug) {
       const { setDebug } = await import('../debug.js');
       setDebug(true);
@@ -129,6 +130,15 @@ program
     }
     const route = registry.route('medium');
     const intent = await parseIntent(ideaText, route.adapter);
+
+    if (options.dryRun) {
+      console.log('🔍 [DRY RUN] 将执行以下操作（未实际运行）：');
+      console.log(`   意图: ${intent.type}`);
+      if (intent.type === 'CREATE') console.log(`   项目: ${intent.idea || ideaText}`);
+      if (intent.type === 'UPGRADE') console.log(`   升级: ${intent.projectQuery} -> ${intent.request}`);
+      console.log('   使用 --dry-run 预览，移除该参数以实际执行');
+      return;
+    }
 
     switch (intent.type) {
       case 'CREATE':
