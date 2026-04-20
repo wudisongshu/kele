@@ -30,6 +30,10 @@ const TEST_CASES = [
   { name: 'Currency Converter', idea: '一个实时汇率换算工具，支持100多种货币', expectedType: 'tool' },
   { name: 'Habit Tracker', idea: '一个习惯追踪应用，可以记录每日打卡和生成周报', expectedType: 'tool' },
   { name: 'Quiz Platform', idea: '一个在线答题竞赛平台，支持多种题型和实时排名', expectedType: 'content' },
+  { name: 'Drawing Board', idea: '一个在线画板工具，支持多种画笔和图层', expectedType: 'tool' },
+  { name: 'Typing Speed Test', idea: '一个打字速度测试网站，显示 WPM 和准确率', expectedType: 'tool' },
+  { name: 'Virtual Piano', idea: '一个网页虚拟钢琴，可以用键盘弹奏', expectedType: 'music' },
+  { name: '2048 Game', idea: '一个2048数字合并游戏，支持撤销和最高分记录', expectedType: 'game' },
 ];
 
 async function runTest(testCase, index) {
