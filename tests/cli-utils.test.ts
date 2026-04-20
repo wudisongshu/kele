@@ -33,6 +33,6 @@ describe('printNoProviderHelp', () => {
     console.log = originalLog;
     expect(logs.some(l => l.includes('kimi'))).toBe(true);
     expect(logs.some(l => l.includes('deepseek'))).toBe(true);
-    expect(logs.some(l => l.includes('Mock'))).toBe(true);
+    expect(logs.some(l => l.includes('mock'))).toBe(true);
   });
 });

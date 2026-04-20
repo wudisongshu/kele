@@ -61,6 +61,9 @@ export function printNoProviderHelp(): void {
   console.log('  kele config --provider kimi-code --key <your-key> --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
   console.log('  kele config --provider deepseek --key <your-key> --url https://api.deepseek.com/v1 --model deepseek-chat');
   console.log('  kele config --provider qwen --key <your-key> --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo');
-  console.log('\n或者使用 --yes 以 Mock 模式运行（仅用于测试）：');
-  console.log('  kele "你的 idea" --yes');
+  console.log('\n💡 快捷方式（通过环境变量）：');
+  console.log('  KIMI_API_KEY=xxx kele "你的 idea"');
+  console.log('\n🧪 或者使用 --mock 模式快速测试（无需 API Key）：');
+  console.log('  kele "你的 idea" --mock --yes');
+  console.log('\n🔍 诊断环境：kele doctor');
 }
