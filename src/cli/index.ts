@@ -930,8 +930,9 @@ program
   .argument('<task-id>', 'Task ID to upgrade')
   .argument('<request>', 'Upgrade request, e.g. "change art to pixel style"')
   .description('Upgrade an existing task with new requirements')
+  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
   .option('--debug', 'Show all prompts sent to AI for debugging', false)
-  .action(async (projectId: string, taskId: string, request: string, options: { debug: boolean }) => {
+  .action(async (projectId: string, taskId: string, request: string, options: { timeout?: number; debug: boolean }) => {
     if (options.debug) {
       const { setDebug } = await import('../debug.js');
       setDebug(true);
@@ -984,6 +985,7 @@ program
       registry,
       db,
       onProgress: (msg) => console.log(msg),
+      timeout: options.timeout,
     });
 
     if (result.success) {
@@ -1001,8 +1003,9 @@ program
   .argument('<project-id>', 'Project ID')
   .argument('<task-id>', 'Task ID to retry')
   .description('Retry a failed task without re-running the entire project')
+  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
   .option('--mock', 'Force mock AI mode for fast testing', false)
-  .action(async (projectId: string, taskId: string, options: { mock: boolean }) => {
+  .action(async (projectId: string, taskId: string, options: { timeout?: number; mock: boolean }) => {
     const db = new KeleDatabase();
     const project = db.getProject(projectId);
 
@@ -1058,6 +1061,7 @@ program
       registry,
       db,
       onProgress: (msg) => console.log(msg),
+      timeout: options.timeout,
     });
 
     if (result.failed === 0 && !result.aborted) {

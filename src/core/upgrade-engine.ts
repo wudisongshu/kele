@@ -24,6 +24,7 @@ export interface UpgradeOptions {
   registry: ProviderRegistry;
   db: KeleDatabase;
   onProgress?: (message: string) => void;
+  timeout?: number;
 }
 
 /**
