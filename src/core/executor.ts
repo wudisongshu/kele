@@ -6,7 +6,7 @@ import { validateTaskOutput } from './task-validator.js';
 import { copyTemplate } from './template-loader.js';
 import { debugLog } from '../debug.js';
 import { reviewTaskOutput } from './task-reviewer.js';
-import { reviewProjectHealth } from './project-reviewer.js';
+
 import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
 import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
@@ -523,112 +523,4 @@ export async function executeTask(
   }
 }
 
-/**
- * Execute all pending tasks in a project.
- */
-export async function executeProject(
-  project: Project,
-  options: ExecutorOptions
-): Promise<{ completed: number; failed: number; aborted: boolean }> {
-  const { db, onProgress, signal } = options;
 
-  // Save project state
-  db.saveProject(project);
-  for (const sp of project.subProjects) {
-    db.saveSubProject(sp, project.id);
-  }
-  for (const task of project.tasks) {
-    db.saveTask(task, project.id);
-  }
-
-  onProgress?.(`🚀 Starting execution: ${project.name}`);
-
-  // Sort sub-projects topologically
-  const sortedSPs = sortSubProjects(project.subProjects);
-  let completed = 0;
-  let failed = 0;
-
-  for (const sp of sortedSPs) {
-    // Check abort before each sub-project
-    if (signal?.aborted) {
-      onProgress?.(`\n⏹️  Execution aborted by user`);
-      return { completed, failed, aborted: true };
-    }
-
-    onProgress?.(`\n📦 Sub-project: ${sp.name}`);
-
-    const spTasks = project.tasks.filter((t) => t.subProjectId === sp.id && t.status === 'pending');
-
-    for (const task of spTasks) {
-      const result = await executeTask(task, sp, project, options);
-
-      if (result.success) {
-        completed++;
-      } else if (result.error === 'Execution aborted by user') {
-        onProgress?.(`\n⏹️  Execution aborted by user`);
-        return { completed, failed, aborted: true };
-      } else {
-        failed++;
-        onProgress?.(`   ❌ 任务失败，停止当前子项目后续任务`);
-        sp.status = 'failed';
-        db.saveSubProject(sp, project.id);
-        const isCritical = ['development', 'production', 'creation'].includes(sp.type);
-        if (isCritical) {
-          onProgress?.(`\n❌ 核心子项目「${sp.name}」失败，项目无法继续。停止执行。`);
-          return { completed, failed, aborted: false };
-        }
-        break;
-      }
-    }
-
-    // If sub-project completed successfully
-    if (sp.status !== 'failed') {
-      sp.status = 'completed';
-      db.saveSubProject(sp, project.id);
-    }
-
-    // Phase 4: Global progress supervision
-    const shouldReview =
-      project.idea.complexity === 'complex' ||
-      failed > 0 ||
-      project.subProjects.filter((s) => s.status === 'completed').length >= 2;
-
-    if (shouldReview && options.registry) {
-      try {
-        const route = options.registry.route('medium');
-        onProgress?.(`\n   🔍 项目总监正在评估整体进度...`);
-        const health = await reviewProjectHealth(project, route.adapter);
-
-        if (health.healthy) {
-          onProgress?.(`   ✅ 项目健康度良好 (${health.progress})`);
-        } else {
-          onProgress?.(`   ⚠️ 项目健康度异常 (${health.progress})`);
-        }
-
-        if (health.concerns.length > 0) {
-          onProgress?.(`   关注项:`);
-          for (const concern of health.concerns.slice(0, 3)) {
-            onProgress?.(`      • ${concern}`);
-          }
-        }
-
-        if (health.recommendations.length > 0) {
-          onProgress?.(`   建议:`);
-          for (const rec of health.recommendations.slice(0, 3)) {
-            onProgress?.(`      → ${rec}`);
-          }
-        }
-
-        if (health.scopeAdjustment) {
-          onProgress?.(`   范围调整: ${health.scopeAdjustment}`);
-        }
-      } catch {
-        // Health review is advisory — don't block execution on failure
-      }
-    }
-  }
-
-  onProgress?.(`\n🏁 Execution complete: ${completed} completed, ${failed} failed`);
-
-  return { completed, failed, aborted: false };
-}

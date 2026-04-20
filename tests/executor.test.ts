@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { sortSubProjects, executeTask, executeProject } from '../src/core/executor.js';
+import { sortSubProjects, executeTask } from '../src/core/executor.js';
+import { executeProject } from '../src/core/project-executor.js';
 import { ProviderRegistry, MockAdapter } from '../src/adapters/index.js';
 import { KeleDatabase } from '../src/db/index.js';
 import type { Project, SubProject, Task, Idea } from '../src/types/index.js';

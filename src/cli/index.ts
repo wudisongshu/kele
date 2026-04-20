@@ -12,7 +12,7 @@ import { parseIdea } from '../core/idea-engine.js';
 import { incubate } from '../core/incubator.js';
 import { incubateWithAI } from '../core/ai-incubator.js';
 import { planTasks } from '../core/task-planner.js';
-import { executeProject } from '../core/executor.js';
+import { executeProject } from '../core/project-executor.js';
 import { upgradeTask } from '../core/upgrade-engine.js';
 import { parseIntent } from '../core/intent-engine.js';
 import { createRegistryFromConfig } from '../adapters/index.js';

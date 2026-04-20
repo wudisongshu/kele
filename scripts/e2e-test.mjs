@@ -21,6 +21,11 @@ const TEST_CASES = [
   { name: 'E-commerce Store', idea: '一个售卖手工艺品的小型电商网站，支持购物车和结算', expectedType: 'unknown' },
   { name: 'Personal Portfolio', idea: '一个设计师的个人作品集网站，展示项目和联系方式', expectedType: 'unknown' },
   { name: 'Flappy Bird Clone', idea: '一个像素风格的飞行小鸟游戏，点击屏幕控制高度避开管道', expectedType: 'game' },
+  { name: 'Markdown Editor', idea: '一个支持实时预览的 Markdown 编辑器，可以导出 HTML 和 PDF', expectedType: 'tool' },
+  { name: 'Recipe Finder', idea: '一个根据冰箱里剩余食材推荐菜谱的应用', expectedType: 'unknown' },
+
+  { name: 'Pomodoro Timer', idea: '一个番茄钟专注工具，带有任务统计和白噪音', expectedType: 'tool' },
+  { name: 'Memory Card Game', idea: '一个翻牌记忆配对游戏，有计时和步数统计', expectedType: 'game' },
 ];
 
 async function runTest(testCase, index) {
@@ -103,7 +108,7 @@ async function runTest(testCase, index) {
 }
 
 async function main() {
-  console.log('🧪 E2E Test Suite — 10 idea types');
+  console.log(`🧪 E2E Test Suite — ${TEST_CASES.length} idea types`);
   console.log('Provider: kimi-code (real API)');
 
   const results = [];
