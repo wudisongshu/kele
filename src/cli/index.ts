@@ -18,6 +18,8 @@ import { runDoctor } from './commands/doctor.js';
 import { runClean } from './commands/clean.js';
 import { runExport } from './commands/export.js';
 import { runInit } from './commands/init.js';
+import { runLogs } from './commands/logs.js';
+import { runStats } from './commands/stats.js';
 import type { AIProvider } from '../types/index.js';
 import { KeleDatabase } from '../db/index.js';
 import { needsResearch, research } from '../core/research-engine.js';
@@ -1092,6 +1094,23 @@ program
   .description('Initialize kele in an existing project directory')
   .action((dir?: string) => {
     runInit(dir);
+  });
+
+// --- Logs command: kele logs ---
+program
+  .command('logs')
+  .option('-n, --lines <number>', 'Number of lines to show', '20')
+  .description('View recent log entries')
+  .action((options: { lines: string }) => {
+    runLogs(parseInt(options.lines, 10));
+  });
+
+// --- Stats command: kele stats ---
+program
+  .command('stats')
+  .description('Show usage statistics')
+  .action(() => {
+    runStats();
   });
 
 // --- Secrets command: kele secrets ---
