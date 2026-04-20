@@ -80,7 +80,16 @@ const program = new Command();
 
 program
   .name('kele')
-  .description('kele — Idea-to-Monetization AI workflow engine')
+  .description(`kele v${version} — Idea-to-Monetization AI workflow engine\n\n` +
+    `Examples:\n` +
+    `  $ kele "做一个塔防游戏"                    # Create a new game\n` +
+    `  $ kele "做一个塔防游戏" --mock --yes       # Fast mock mode\n` +
+    `  $ kele list                               # List all projects\n` +
+    `  $ kele doctor                             # Check setup\n` +
+    `  $ kele upgrade <project> <task> "改像素风"  # Upgrade a task\n` +
+    `  $ kele retry <project> <task>             # Retry failed task\n` +
+    `  $ kele delete <project>                   # Delete a project\n` +
+    `  $ kele export <project> [dir]             # Export project files`)
   .version(version, '-v, --version', 'Display version number');
 
 // --- Main command: kele "idea" ---
