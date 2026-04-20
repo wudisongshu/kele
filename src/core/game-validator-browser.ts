@@ -321,6 +321,7 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
     });
 
     const window = dom.window as unknown as Window & typeof globalThis;
+    const doc = window.document;
 
     // Capture console errors and logs
     window.addEventListener('error', (e: ErrorEvent) => {
@@ -332,9 +333,9 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
     });
 
     // Check if canvas element exists
-    const canvas = document.getElementById('c') as HTMLCanvasElement | null;
+    const canvas = doc.getElementById('c') as HTMLCanvasElement | null;
     if (!canvas) {
-      const allCanvas = document.querySelectorAll('canvas');
+      const allCanvas = doc.querySelectorAll('canvas');
       if (allCanvas.length > 0) {
         result.details.hasCanvas = true;
       }
