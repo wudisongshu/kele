@@ -79,7 +79,7 @@ export function parseAIOutput(output: string): ParsedOutput {
  * as a prefix (e.g. "game-dev/index.html" when baseDir already ends with
  * "game-dev"), strip the duplicate prefix to avoid nested directories.
  */
-export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
+export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (msg: string) => void): string[] {
   const written: string[] = [];
   const baseName = basename(baseDir);
 
@@ -120,6 +120,9 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
     }
 
     writeFileSync(filePath, content, 'utf-8');
+    const sizeKb = (content.length / 1024).toFixed(1);
+    const lines = content.split('\n').length;
+    onProgress?.(`      📄 ${relativePath} — ${sizeKb}KB, ${lines} lines`);
     written.push(relativePath);
   }
 
@@ -177,7 +180,7 @@ function fixHtmlForLocal(html: string): string {
  * High-level function: parse AI output and write all files.
  * Returns list of written file paths (relative to baseDir).
  */
-export function applyAIOutput(baseDir: string, output: string): string[] {
+export function applyAIOutput(baseDir: string, output: string, onProgress?: (msg: string) => void): string[] {
   const parsed = parseAIOutput(output);
-  return writeFiles(baseDir, parsed);
+  return writeFiles(baseDir, parsed, onProgress);
 }

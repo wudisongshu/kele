@@ -113,7 +113,7 @@ async function processOutput(
   const { subProject, onProgress } = ctx;
   const targetDir = subProject.targetDir;
 
-  let writtenFiles = applyAIOutput(targetDir, output);
+  let writtenFiles = applyAIOutput(targetDir, output, onProgress);
 
   if (writtenFiles.length > 0 && !(writtenFiles.length === 1 && writtenFiles[0] === 'notes.md')) {
     onProgress?.(`   📝 Written: ${writtenFiles.join(', ')}`);
