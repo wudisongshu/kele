@@ -44,14 +44,15 @@ export function trackProjectStart(projectId: string, projectName: string, ideaTy
   });
 }
 
-export function trackProjectComplete(projectId: string, projectName: string, completed: number, failed: number, durationMs: number): void {
+export function trackProjectComplete(projectId: string, projectName: string, completed: number, failed: number, durationMs: number, avgScore?: number): void {
   trackEvent({
     timestamp: new Date().toISOString(),
     event: failed === 0 ? 'project_complete' : 'project_fail',
     projectId,
     projectName,
     durationMs,
-    meta: { completed, failed },
+    score: avgScore,
+    meta: { completed, failed, avgScore },
   });
 }
 

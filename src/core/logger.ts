@@ -41,6 +41,7 @@ export function logEvent(level: 'info' | 'warn' | 'error', message: string, meta
  */
 export function createProgressLogger(jsonMode: boolean = false): {
   log: (msg: string, meta?: Record<string, unknown>) => void;
+  warn: (msg: string, meta?: Record<string, unknown>) => void;
   error: (msg: string, meta?: Record<string, unknown>) => void;
   jsonOutput: unknown[];
 } {
@@ -52,6 +53,11 @@ export function createProgressLogger(jsonMode: boolean = false): {
         const entry = { type: 'progress', message: msg, ...meta };
         jsonOutput.push(entry);
         logEvent('info', msg, meta);
+      },
+      warn: (msg: string, meta?: Record<string, unknown>) => {
+        const entry = { type: 'warn', message: msg, ...meta };
+        jsonOutput.push(entry);
+        logEvent('warn', msg, meta);
       },
       error: (msg: string, meta?: Record<string, unknown>) => {
         const entry = { type: 'error', message: msg, ...meta };
@@ -66,6 +72,10 @@ export function createProgressLogger(jsonMode: boolean = false): {
     log: (msg: string, meta?: Record<string, unknown>) => {
       console.log(msg);
       logEvent('info', msg, meta);
+    },
+    warn: (msg: string, meta?: Record<string, unknown>) => {
+      console.warn(msg);
+      logEvent('warn', msg, meta);
     },
     error: (msg: string, meta?: Record<string, unknown>) => {
       console.error(msg);

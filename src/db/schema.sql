@@ -48,3 +48,6 @@ CREATE INDEX IF NOT EXISTS idx_tasks_sub_project ON tasks(sub_project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
 CREATE INDEX IF NOT EXISTS idx_sub_projects_project ON sub_projects(project_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_type ON projects(creative_type);
+CREATE INDEX IF NOT EXISTS idx_projects_created ON projects(created_at);
