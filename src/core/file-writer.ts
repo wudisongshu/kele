@@ -107,6 +107,13 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput): string[] {
 
     let content = file.content;
 
+    // Reject unreasonably large files (likely AI hallucination or copy-paste error)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (content.length > MAX_FILE_SIZE) {
+      console.warn(`[WARNING] File "${relativePath}" is ${(content.length / 1024 / 1024).toFixed(1)}MB — truncating to 5MB`);
+      content = content.slice(0, MAX_FILE_SIZE) + '\n\n<!-- Truncated by kele: file exceeded 5MB -->';
+    }
+
     // Auto-fix HTML files for local file opening
     if (relativePath.endsWith('.html')) {
       content = fixHtmlForLocal(content);
