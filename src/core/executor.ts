@@ -10,6 +10,7 @@ import { debugLog } from '../debug.js';
 import { reviewTaskOutput } from './task-reviewer.js';
 import { reviewProjectHealth } from './project-reviewer.js';
 import { runProject, buildFixPrompt } from './run-validator.js';
+import { runAcceptanceCriteria } from './acceptance-runner.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -377,11 +378,94 @@ export async function executeTask(
       }
     }
 
-    // Phase 3: Task-level supervision — AI reviews the output quality
-    // Save validation result for smart degradation decision
-    const validationPassed = validation.valid;
 
-    if (isCodingTask && route.provider !== 'mock') {
+    // Phase 3: Acceptance test — execute incubator-generated criteria
+    // If the incubator defined acceptance criteria for this sub-project, kele runs them.
+    // This replaces subjective AI review with objective, requirement-grounded verification.
+    const validationPassed = validation.valid;
+    const hasAcceptanceCriteria = (subProject.acceptanceCriteria?.length || 0) > 0;
+
+    if (hasAcceptanceCriteria) {
+      onProgress?.(`   🧪 执行孵化器验收标准 (${subProject.acceptanceCriteria!.length} 项)...`);
+      const acceptance = runAcceptanceCriteria(subProject);
+
+      if (acceptance.passed) {
+        onProgress?.(`   ✅ 验收通过 (评分: ${acceptance.score}/100)`);
+        if (acceptance.results.length > 0) {
+          for (const r of acceptance.results) {
+            const icon = r.passed ? '✓' : '○';
+            onProgress?.(`      ${icon} ${r.criterion.description}`);
+          }
+        }
+      } else {
+        onProgress?.(`   ❌ 验收未通过 (评分: ${acceptance.score}/100)`);
+        const failed = acceptance.results.filter(r => !r.passed);
+        for (const r of failed) {
+          onProgress?.(`      ✗ ${r.criterion.description} — ${r.actual}`);
+        }
+
+        // Retry loop: feed specific criterion failures back to AI
+        const maxRetries = 2;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          onProgress?.(`   🔄 第 ${attempt}/${maxRetries} 次修复...`);
+
+          const fixPrompt = buildPrompt(task, subProject, project) + `\n\n` +
+            `⚠️ ACCEPTANCE TEST FAILED. The incubator defined these criteria that your output did not meet:\n\n` +
+            failed.map((r) => `- ${r.criterion.description}\n  Expected: ${r.criterion.expected}\n  Actual: ${r.actual}`).join('\n\n') + `\n\n` +
+            `Please fix ALL failures and return the COMPLETE corrected output.`;
+
+          try {
+            const retryOutput = await route.adapter.execute(fixPrompt, onToken);
+            const retryWritten = applyAIOutput(subProject.targetDir, retryOutput);
+            if (retryWritten.length > 0) {
+              onProgress?.(`   📝 修复后写入: ${retryWritten.join(', ')}`);
+            }
+            task.result = retryOutput;
+            db.saveTask(task, project.id);
+
+            // Re-run acceptance after fix
+            const reAcceptance = runAcceptanceCriteria(subProject);
+            if (reAcceptance.passed) {
+              onProgress?.(`   ✅ 修复后验收通过 (评分: ${reAcceptance.score}/100)`);
+              break;
+            } else {
+              onProgress?.(`   ⚠️  修复后仍未通过 (评分: ${reAcceptance.score}/100)`);
+              if (attempt >= maxRetries) {
+                // Smart degradation: if validation + runtime passed, accept as WARNING
+                if (validationPassed && runtimePassed) {
+                  onProgress?.(`   ⚠️  修复用尽但代码可运行，接受为警告继续执行`);
+                  task.status = 'completed';
+                  task.error = `Acceptance test warning (score: ${reAcceptance.score}/100). Failed: ${failed.map(f => f.criterion.description).join('; ')}`;
+                  db.saveTask(task, project.id);
+                  break;
+                }
+                task.status = 'failed';
+                task.error = `Acceptance test failed after ${maxRetries} fix attempts.`;
+                db.saveTask(task, project.id);
+                return { success: false, error: task.error };
+              }
+            }
+          } catch (retryErr) {
+            const retryError = retryErr instanceof Error ? retryErr.message : String(retryErr);
+            onProgress?.(`   ❌ 修复请求失败: ${retryError.slice(0, 120)}`);
+            if (attempt >= maxRetries) {
+              if (validationPassed && runtimePassed) {
+                onProgress?.(`   ⚠️  修复请求失败但代码可运行，接受为警告继续执行`);
+                task.status = 'completed';
+                task.error = `Acceptance test warning. Retry failed: ${retryError}`;
+                db.saveTask(task, project.id);
+                break;
+              }
+              task.status = 'failed';
+              task.error = `Fix attempt failed: ${retryError}`;
+              db.saveTask(task, project.id);
+              return { success: false, error: task.error };
+            }
+          }
+        }
+      }
+    } else if (isCodingTask && route.provider !== 'mock') {
+      // Fallback to AI review if no acceptance criteria defined (legacy path)
       onProgress?.(`   🔍 AI 正在验收任务产出...`);
       let review = await reviewTaskOutput(task, subProject, project, route.adapter);
 

@@ -141,8 +141,13 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
     case 'testing':
       return [
         {
-          title: 'Write and run tests',
-          description: 'Design tests, execute, fix bugs, verify coverage',
+          title: 'Run acceptance tests',
+          description:
+            'Execute the acceptance criteria that the incubator generated for this sub-project. ' +
+            'The incubator defined specific verifiable requirements (e.g. "canvas renders 8x8 grid", ' +
+            '"clicking a gem selects it", "3+ matches trigger elimination"). ' +
+            'kele runs these criteria automatically against the built game. ' +
+            'If any criterion fails, fix the game code until all critical criteria pass.',
           baseComplexity: 'medium',
         },
       ];

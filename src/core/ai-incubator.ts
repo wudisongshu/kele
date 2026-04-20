@@ -52,7 +52,17 @@ Return ONLY a JSON object in this exact format:
       "monetizationRelevance": "core|supporting|optional",
       "estimatedEffort": "e.g. 2-4 hours, 1-2 days, 3-5 days",
       "criticalPath": true,
-      "riskLevel": "low|medium|high"
+      "riskLevel": "low|medium|high",
+      "acceptanceCriteria": [
+        {
+          "description": "What kele must verify after this sub-project is built",
+          "type": "functional|visual|performance|compatibility|security",
+          "action": "How kele checks it: 'open', 'click', 'check-text', 'check-element', 'play-game', 'load-url', 'verify-file'",
+          "target": "Selector, URL, file path, or coordinate for the action",
+          "expected": "What kele should observe to consider this criterion PASSED",
+          "critical": true
+        }
+      ]
     }
   ],
   "riskAssessment": {
@@ -65,6 +75,16 @@ Return ONLY a JSON object in this exact format:
   "reasoning": "Brief explanation of why you chose this structure",
   "selfReviewNotes": "What you changed during Pass 2 review and why"
 }
+
+## Acceptance Criteria Rules
+Each sub-project MUST include 3-7 acceptance criteria that kele can EXECUTE automatically:
+- For **setup**: verify-file checks ("package.json exists", "index.html has canvas element")
+- For **game development**: play-game checks ("canvas renders 8x8 grid", "clicking a gem selects it", "swapping adjacent gems triggers match detection", "3+ matches eliminate and score updates", "gravity refills the board")
+- For **deployment**: verify-file checks (".github/workflows/deploy.yml exists and has valid YAML", "CNAME file exists")
+- For **monetization**: check-element checks ("ad script tag present in HTML", "AdSense client ID placeholder exists")
+- action must be one of: "open", "click", "check-text", "check-element", "play-game", "load-url", "verify-file"
+- target should be specific enough for automation (CSS selector, file path, or URL)
+- critical=true for criteria that block acceptance; critical=false for nice-to-have
 
 ## Rules
 1. ALWAYS include a "project-setup" sub-project first (type: setup, dependencies: [], criticalPath: true)
@@ -334,6 +354,14 @@ function parseIncubationResponse(jsonStr: string, rootDir: string): AIIncubateRe
       estimatedEffort?: string;
       criticalPath?: boolean;
       riskLevel?: string;
+      acceptanceCriteria?: Array<{
+        description: string;
+        type: string;
+        action: string;
+        target?: string;
+        expected: string;
+        critical: boolean;
+      }>;
     }>;
     riskAssessment?: {
       technicalRisks: string[];
@@ -364,6 +392,14 @@ function parseIncubationResponse(jsonStr: string, rootDir: string): AIIncubateRe
     estimatedEffort: tpl.estimatedEffort,
     criticalPath: tpl.criticalPath ?? false,
     riskLevel: normalizeRiskLevel(tpl.riskLevel),
+    acceptanceCriteria: (tpl.acceptanceCriteria || []).map((ac) => ({
+      description: ac.description,
+      type: normalizeAcceptanceType(ac.type),
+      action: ac.action,
+      target: ac.target,
+      expected: ac.expected,
+      critical: ac.critical ?? true,
+    })),
   }));
 
   return {
@@ -392,4 +428,14 @@ function normalizeRiskLevel(value?: string): 'low' | 'medium' | 'high' | undefin
   if (lower === 'medium') return 'medium';
   if (lower === 'high') return 'high';
   return undefined;
+}
+
+function normalizeAcceptanceType(value?: string): 'functional' | 'visual' | 'performance' | 'compatibility' | 'security' {
+  if (!value) return 'functional';
+  const lower = value.toLowerCase();
+  if (lower === 'visual') return 'visual';
+  if (lower === 'performance') return 'performance';
+  if (lower === 'compatibility') return 'compatibility';
+  if (lower === 'security') return 'security';
+  return 'functional';
 }
