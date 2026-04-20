@@ -3,14 +3,15 @@ import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { applyAIOutput, parseAIOutput } from './file-writer.js';
 import { validateTaskOutput } from './task-validator.js';
-import { copyTemplate, getTemplateType, getTemplateDescription } from './template-loader.js';
-import { getPlatformCredentials } from '../platform-credentials.js';
-import { formatPlatformGuideForPrompt, getDeployableConfigTemplate } from '../platform-knowledge.js';
+import { copyTemplate } from './template-loader.js';
+
+
 import { debugLog } from '../debug.js';
 import { reviewTaskOutput } from './task-reviewer.js';
 import { reviewProjectHealth } from './project-reviewer.js';
-import { runProject, buildFixPrompt } from './run-validator.js';
+import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
+import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -65,107 +66,6 @@ export function sortSubProjects(subProjects: SubProject[]): SubProject[] {
 }
 
 /**
- * Code quality rules injected into every coding task prompt.
- * Ensures AI-generated code is maintainable and follows best practices.
- */
-const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
-1. COMPLETE IMPLEMENTATION: You MUST generate FULLY WORKING code. NO stubs, NO TODOs, NO placeholder functions. Every function must do something real.
-2. PLAYABLE FIRST: For games, the core gameplay loop MUST be fully implemented and playable. Do NOT leave rendering, scoring, or game logic as stubs.
-3. Modularity: Each file has ONE clear responsibility. No god files.
-4. Naming: Use descriptive names (isValidEmail, not check). No abbreviations.
-5. Types: Use strict typing (TypeScript/JSDoc). No 'any' types.
-6. Error handling: Validate inputs, handle edge cases, fail gracefully.
-7. Comments: Explain WHY, not WHAT. Complex logic gets inline comments.
-8. No bloat: No speculative abstractions. If 200 lines could be 50, rewrite.
-9. Consistency: Match existing code style in the project.
-10. No hardcoded secrets: Use config/env for API keys, URLs, etc.
-
-DEATH LINE: If you output code with empty functions, TODO comments, or stub implementations, the task will be REJECTED and you will be asked to rewrite it completely.`;
-
-/**
- * Build a prompt for a specific task.
- */
-function buildPrompt(task: Task, subProject: SubProject, project: Project): string {
-  // Setup tasks always use generic web scaffold template (not platform-specific)
-  const templateType = subProject.type === 'setup' ? 'web-scaffold' : getTemplateType(project.idea.monetization);
-  const templateDesc = getTemplateDescription(templateType);
-  const isCodingTask = ['setup', 'development', 'production', 'creation', 'build', 'testing', 'deployment', 'monetization'].includes(subProject.type);
-
-  // Inject platform knowledge + credentials for deployment tasks
-  let platformSection = '';
-  if (['deployment', 'monetization', 'store-submit', 'platform-config'].includes(subProject.type)) {
-    const guideText = formatPlatformGuideForPrompt(project.idea.monetization);
-    if (guideText) {
-      platformSection = `\n${guideText}\n`;
-    }
-
-    const creds = getPlatformCredentials(project.idea.monetization);
-    if (creds && Object.keys(creds).length > 0) {
-      const masked = Object.entries(creds).map(([k, v]) => {
-        const display = v.length > 8 ? v.slice(0, 4) + '****' + v.slice(-4) : '****';
-        return `${k}: ${display}`;
-      });
-      platformSection += `\nPlatform credentials available:\n${masked.map((m) => `  - ${m}`).join('\n')}\n`;
-      platformSection += `\nINSTRUCTION: Use these credentials to generate deployable configuration files. `;
-      platformSection += `The user should be able to deploy with minimal manual steps. `;
-      platformSection += `Generate actual files like: CI/CD workflows, config JSONs, shell scripts, privacy policies. `;
-      platformSection += `Do NOT just output a manual guide — output the actual deployable configs.\n`;
-    } else {
-      platformSection += `\nCRITICAL: No platform credentials configured. Generate deployable configs with placeholders `;
-      platformSection += `AND output a SETUP.md explaining:\n`;
-      platformSection += `  1. What platform accounts the user needs to create\n`;
-      platformSection += `  2. What credentials/materials are required\n`;
-      platformSection += `  3. How to configure them with: kele secrets --platform <name> --set key=value\n`;
-      platformSection += `  4. Step-by-step deployment commands (one command ideally)\n`;
-      platformSection += `\nGenerate BOTH the deployable config files AND the setup guide.\n`;
-    }
-
-    // Inject deployable config template for the selected platform
-    const deployTemplate = getDeployableConfigTemplate(project.idea.monetization);
-    if (deployTemplate) {
-      platformSection += `\n\nDEPLOYABLE CONFIG TEMPLATE for ${project.idea.monetization}:\n${deployTemplate}\n`;
-    }
-
-    // Ask AI to use its latest knowledge to supplement hardcoded platform data
-    platformSection += `\nNOTE: The platform guide above is based on kele's built-in knowledge (may be outdated). `;
-    platformSection += `Please use your latest training data to verify, correct, and supplement any outdated information `;
-    platformSection += `(especially estimated days, required materials, and policy changes).\n`;
-  }
-
-  // For setup sub-projects, use a generic web template to avoid misleading the AI
-  // into generating platform-specific entry files (e.g. game.json for Douyin)
-  // instead of standard project scaffolding (package.json, vite.config.ts, index.html)
-  const effectiveTemplateDesc = subProject.type === 'setup'
-    ? 'Standard Web Project (package.json + Vite + index.html)'
-    : templateDesc;
-
-  const baseContext = `You are a senior software engineer working on the project "${project.name}".
-
-Sub-project: ${subProject.name}
-Description: ${subProject.description}
-Target directory: ${subProject.targetDir}
-Platform template: ${effectiveTemplateDesc}
-User's original idea: "${project.idea.rawText}"${platformSection}`;
-
-  if (isCodingTask) {
-    const isSetup = subProject.type === 'setup';
-    const gameConstraint = !isSetup && project.idea.type === 'game'
-      ? '\n4. For game development: the core gameplay loop (rendering + input + game logic) MUST be fully implemented and playable. Do NOT split core mechanics across multiple tasks — one task must produce a runnable game.'
-      : '';
-    const setupConstraint = isSetup
-      ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'
-      : '';
-
-    return `${baseContext}\n\nTask: ${task.title}\n${task.description}\n\n${CODE_QUALITY_RULES}\n\nCRITICAL: Return your response as a JSON object in this exact format (no markdown, no explanations outside the JSON):\n{\n  "files": [\n    { "path": "relative/path/to/file", "content": "file content here" }\n  ],\n  "notes": "optional notes about the implementation"\n}\n\nMANDATORY CONSTRAINTS:
-1. Every acceptance criterion listed in the task description MUST be fully implemented. If any criterion is missing, the task will be REJECTED.
-2. Each file MUST be complete and functional. NO stubs, NO TODOs, NO placeholder code.
-3. If the project already has existing files, preserve them and only modify what this specific task requires.${gameConstraint}${setupConstraint}`;
-  }
-
-  return `${baseContext}\n\nTask: ${task.title}\n${task.description}\n\nPlease provide clear step-by-step instructions. Return as JSON:\n{\n  "files": [],\n  "notes": "your detailed instructions here"\n}`;
-}
-
-/**
  * Execute a single task via the routed AI provider.
  * Supports automatic fallback to mock on failure.
  */
@@ -208,7 +108,7 @@ export async function executeTask(
     }
 
     // Build prompt and execute
-    const prompt = buildPrompt(task, subProject, project);
+    const prompt = buildTaskPrompt(task, subProject, project);
     debugLog(`Executor Prompt [${subProject.name} / ${task.title}]`, prompt);
     let output: string;
 
@@ -342,7 +242,7 @@ export async function executeTask(
         let fixed = false;
         for (let fixAttempt = 1; fixAttempt <= 2; fixAttempt++) {
           onProgress?.(`   🔄 第 ${fixAttempt}/2 次自动修复...`);
-          const fixPrompt = buildFixPrompt(task.description, prompt, runResult);
+          const fixPrompt = buildFixPrompt(prompt, runResult);
           try {
             const fixOutput = await route.adapter.execute(fixPrompt, onToken);
             const fixWritten = applyAIOutput(subProject.targetDir, fixOutput);
@@ -409,7 +309,7 @@ export async function executeTask(
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           onProgress?.(`   🔄 第 ${attempt}/${maxRetries} 次修复...`);
 
-          const fixPrompt = buildPrompt(task, subProject, project) + `\n\n` +
+          const fixPrompt = buildTaskPrompt(task, subProject, project) + `\n\n` +
             `⚠️ ACCEPTANCE TEST FAILED. The incubator defined these criteria that your output did not meet:\n\n` +
             failed.map((r) => `- ${r.criterion.description}\n  Expected: ${r.criterion.expected}\n  Actual: ${r.actual}`).join('\n\n') + `\n\n` +
             `Please fix ALL failures and return the COMPLETE corrected output.`;
@@ -481,7 +381,7 @@ export async function executeTask(
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           onProgress?.(`   🔄 第 ${attempt}/${maxRetries} 次修复...`);
 
-          const fixPrompt = buildPrompt(task, subProject, project) + `\n\n` +
+          const fixPrompt = buildTaskPrompt(task, subProject, project) + `\n\n` +
             `⚠️ PREVIOUS ATTEMPT FAILED QUALITY REVIEW (FAIL).\n\n` +
             `Issues found:\n${review.issues.map((i) => `- ${i}`).join('\n')}\n\n` +
             `Fix instructions:\n${review.fixInstructions}\n\n` +

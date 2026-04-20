@@ -1,0 +1,119 @@
+/**
+ * Prompt Builder — constructs AI prompts for task execution.
+ *
+ * Extracted from executor.ts to reduce file size and improve testability.
+ */
+
+import type { Task, SubProject, Project } from '../types/index.js';
+import { getTemplateType, getTemplateDescription } from './template-loader.js';
+import { getPlatformCredentials } from '../platform-credentials.js';
+import { formatPlatformGuideForPrompt, getDeployableConfigTemplate } from '../platform-knowledge.js';
+import { escapePromptInput } from './security.js';
+
+const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
+1. COMPLETE IMPLEMENTATION: You MUST generate FULLY WORKING code. NO stubs, NO TODOs, NO placeholder functions. Every function must do something real.
+2. PLAYABLE FIRST: For games, the core gameplay loop MUST be fully implemented and playable. Do NOT leave rendering, scoring, or game logic as stubs.
+3. Modularity: Each file has ONE clear responsibility. No god files.
+4. Naming: Use descriptive names (isValidEmail, not check). No abbreviations.
+5. Types: Use strict typing (TypeScript/JSDoc). No 'any' types.
+6. Error handling: Validate inputs, handle edge cases, fail gracefully.
+7. Comments: Explain WHY, not WHAT. Complex logic gets inline comments.
+8. No bloat: No speculative abstractions. If 200 lines could be 50, rewrite.
+9. Consistency: Match existing code style in the project.
+10. No hardcoded secrets: Use config/env for API keys, URLs, etc.
+
+DEATH LINE: If you output code with empty functions, TODO comments, or stub implementations, the task will be REJECTED and you will be asked to rewrite it completely.`;
+
+/**
+ * Build the execution prompt for a task.
+ */
+export function buildTaskPrompt(task: Task, subProject: SubProject, project: Project): string {
+  const isSetup = subProject.type === 'setup';
+  const templateType = isSetup ? 'web-scaffold' : getTemplateType(project.idea.monetization);
+  const templateDesc = getTemplateDescription(templateType);
+  const isCodingTask = ['setup', 'development', 'production', 'creation', 'build', 'testing', 'deployment', 'monetization'].includes(subProject.type);
+
+  // Platform knowledge injection for deployment tasks
+  let platformSection = '';
+  if (['deployment', 'monetization', 'store-submit', 'platform-config'].includes(subProject.type)) {
+    platformSection = buildPlatformSection(project.idea.monetization);
+  }
+
+  const effectiveTemplateDesc = isSetup
+    ? 'Standard Web Project (package.json + Vite + index.html)'
+    : templateDesc;
+
+  const baseContext = `You are a senior software engineer working on the project "${escapePromptInput(project.name)}".
+
+Sub-project: ${escapePromptInput(subProject.name)}
+Description: ${escapePromptInput(subProject.description)}
+Target directory: ${subProject.targetDir}
+Platform template: ${effectiveTemplateDesc}
+User's original idea: "${escapePromptInput(project.idea.rawText)}"${platformSection}`;
+
+  if (isCodingTask) {
+    const gameConstraint = !isSetup && project.idea.type === 'game'
+      ? '\n4. For game development: the core gameplay loop (rendering + input + game logic) MUST be fully implemented and playable. Do NOT split core mechanics across multiple tasks — one task must produce a runnable game.'
+      : '';
+    const setupConstraint = isSetup
+      ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'
+      : '';
+
+    return `${baseContext}\n\nTask: ${escapePromptInput(task.title)}\n${task.description}\n\n${CODE_QUALITY_RULES}\n\nCRITICAL: Return your response as a JSON object in this exact format (no markdown, no explanations outside the JSON):\n{\n  "files": [\n    { "path": "relative/path/to/file", "content": "file content here" }\n  ],\n  "notes": "optional notes about the implementation"\n}\n\nMANDATORY CONSTRAINTS:\n1. Every acceptance criterion listed in the task description MUST be fully implemented. If any criterion is missing, the task will be REJECTED.\n2. Each file MUST be complete and functional. NO stubs, NO TODOs, NO placeholder code.\n3. If the project already has existing files, preserve them and only modify what this specific task requires.${gameConstraint}${setupConstraint}`;
+  }
+
+  return `${baseContext}\n\nTask: ${escapePromptInput(task.title)}\n${task.description}\n\nPlease provide clear step-by-step instructions. Return as JSON:\n{\n  "files": [],\n  "notes": "your detailed instructions here"\n}`;
+}
+
+function buildPlatformSection(monetization: string): string {
+  let section = '';
+  const guideText = formatPlatformGuideForPrompt(monetization);
+  if (guideText) {
+    section = `\n${guideText}\n`;
+  }
+
+  const creds = getPlatformCredentials(monetization);
+  if (creds && Object.keys(creds).length > 0) {
+    const masked = Object.entries(creds).map(([k, v]) => {
+      const display = v.length > 8 ? v.slice(0, 4) + '****' + v.slice(-4) : '****';
+      return `${k}: ${display}`;
+    });
+    section += `\nPlatform credentials available:\n${masked.map((m) => `  - ${m}`).join('\n')}\n`;
+    section += `\nINSTRUCTION: Use these credentials to generate deployable configuration files. `;
+    section += `The user should be able to deploy with minimal manual steps. `;
+    section += `Generate actual files like: CI/CD workflows, config JSONs, shell scripts, privacy policies. `;
+    section += `Do NOT just output a manual guide — output the actual deployable configs.\n`;
+  } else {
+    section += `\nCRITICAL: No platform credentials configured. Generate deployable configs with placeholders `;
+    section += `AND output a SETUP.md explaining:\n`;
+    section += `  1. What platform accounts the user needs to create\n`;
+    section += `  2. What credentials/materials are required\n`;
+    section += `  3. How to configure them with: kele secrets --platform <name> --set key=value\n`;
+    section += `  4. Step-by-step deployment commands (one command ideally)\n`;
+    section += `\nGenerate BOTH the deployable config files AND the setup guide.\n`;
+  }
+
+  const deployTemplate = getDeployableConfigTemplate(monetization);
+  if (deployTemplate) {
+    section += `\n\nDEPLOYABLE CONFIG TEMPLATE for ${monetization}:\n${deployTemplate}\n`;
+  }
+
+  section += `\nNOTE: The platform guide above is based on kele's built-in knowledge (may be outdated). `;
+  section += `Please use your latest training data to verify, correct, and supplement any outdated information `;
+  section += `(especially estimated days, required materials, and policy changes).\n`;
+
+  return section;
+}
+
+/**
+ * Build a fix prompt from runtime validation errors.
+ */
+export function buildFixPrompt(originalPrompt: string, runResult: { stdout: string; stderr: string; exitCode: number | null }): string {
+  return `${originalPrompt}\n\n` +
+    `⚠️ PREVIOUS ATTEMPT FAILED AT RUNTIME.\n\n` +
+    `Error output:\n${runResult.stderr.slice(0, 800)}\n\n` +
+    `Standard output:\n${runResult.stdout.slice(0, 400)}\n\n` +
+    `Exit code: ${runResult.exitCode}\n\n` +
+    `Please fix ALL runtime errors and return the COMPLETE corrected output. ` +
+    `Do NOT return partial fixes. The code MUST run successfully when executed.`;
+}

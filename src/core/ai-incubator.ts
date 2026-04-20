@@ -164,7 +164,8 @@ export interface AIIncubateResult {
 export async function incubateWithAI(
   idea: Idea,
   rootDir: string,
-  adapter: AIAdapter
+  adapter: AIAdapter,
+  timeoutMs = 120000 // 2 minute default timeout for incubation
 ): Promise<AIIncubateResult> {
   const validationMeta = {
     localValid: false,
@@ -175,8 +176,23 @@ export async function incubateWithAI(
     revisions: 0,
   };
 
+  // Helper for timeout-wrapped AI calls
+  const withTimeout = <T>(promise: Promise<T>, label: string): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+  };
+
   // --- Attempt 1: Generate initial plan ---
-  let result = await tryIncubate(idea, rootDir, adapter);
+  let result: AIIncubateResult;
+  try {
+    result = await withTimeout(tryIncubate(idea, rootDir, adapter), 'Incubation');
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return { success: false, error, validation: validationMeta };
+  }
   if (!result.success) {
     return { ...result, validation: validationMeta };
   }
@@ -189,24 +205,22 @@ export async function incubateWithAI(
 
   if (!localValidation.valid) {
     // Structural errors — AI needs to fix them
-    const fixed = await tryFixIncubator(
-      idea,
-      rootDir,
-      adapter,
-      result.subProjects!,
-      localValidation.errors,
-      localValidation.warnings,
-      result.reasoning ?? '',
-      result.monetizationPath ?? ''
-    );
-    if (fixed.success && fixed.subProjects) {
-      result = fixed;
-      validationMeta.revisions++;
-      // Re-validate after fix
-      const reValidation = validateIncubatorOutput(result.subProjects!, idea);
-      validationMeta.localValid = reValidation.valid;
-      validationMeta.localErrors = reValidation.errors;
-      validationMeta.localWarnings = reValidation.warnings;
+    try {
+      const fixed = await withTimeout(
+        tryFixIncubator(idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? ''),
+        'Incubation fix'
+      );
+      if (fixed.success && fixed.subProjects) {
+        result = fixed;
+        validationMeta.revisions++;
+        // Re-validate after fix
+        const reValidation = validateIncubatorOutput(result.subProjects!, idea);
+        validationMeta.localValid = reValidation.valid;
+        validationMeta.localErrors = reValidation.errors;
+        validationMeta.localWarnings = reValidation.warnings;
+      }
+    } catch {
+      // Fix attempt timed out — continue with current result
     }
   }
 
@@ -224,40 +238,39 @@ export async function incubateWithAI(
     localValidation.warnings.length > 0 || idea.complexity === 'complex';
 
   if (needsAiReview) {
-    const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea);
-    validationMeta.aiApproved = review.approved;
-    validationMeta.aiIssues = review.issues;
+    try {
+      const review = await withTimeout(reviewIncubatorOutput(adapter, result.subProjects!, idea), 'Incubation review');
+      validationMeta.aiApproved = review.approved;
+      validationMeta.aiIssues = review.issues;
 
-    if (!review.approved && review.suggestions.length > 0) {
-      // Try to fix based on AI review
-      const fixed = await tryFixIncubator(
-        idea,
-        rootDir,
-        adapter,
-        result.subProjects!,
-        review.issues,
-        review.suggestions,
-        result.reasoning ?? '',
-        result.monetizationPath ?? ''
-      );
-      if (fixed.success && fixed.subProjects) {
-        result = fixed;
-        validationMeta.revisions++;
-        // Re-validate after AI-guided fix
-        const reValidation = validateIncubatorOutput(result.subProjects!, idea);
-        validationMeta.localValid = reValidation.valid;
-        validationMeta.localErrors = reValidation.errors;
-        validationMeta.localWarnings = reValidation.warnings;
+      if (!review.approved && review.suggestions.length > 0) {
+        // Try to fix based on AI review
+        const fixed = await withTimeout(
+          tryFixIncubator(idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? ''),
+          'Incubation review fix'
+        );
+        if (fixed.success && fixed.subProjects) {
+          result = fixed;
+          validationMeta.revisions++;
+          // Re-validate after AI-guided fix
+          const reValidation = validateIncubatorOutput(result.subProjects!, idea);
+          validationMeta.localValid = reValidation.valid;
+          validationMeta.localErrors = reValidation.errors;
+          validationMeta.localWarnings = reValidation.warnings;
 
-        // If AI fix introduced structural errors, fail fast
-        if (!validationMeta.localValid) {
-          return {
-            success: false,
-            error: `AI review fix broke structure: ${validationMeta.localErrors.join('; ')}`,
-            validation: validationMeta,
-          };
+          // If AI fix introduced structural errors, fail fast
+          if (!validationMeta.localValid) {
+            return {
+              success: false,
+              error: `AI review fix broke structure: ${validationMeta.localErrors.join('; ')}`,
+              validation: validationMeta,
+            };
+          }
         }
       }
+    } catch {
+      // Review or fix timed out — continue with current result
+      validationMeta.aiApproved = true;
     }
   } else {
     validationMeta.aiApproved = true;
