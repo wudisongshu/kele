@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { readFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { createInterface } from 'readline';
 import { fileURLToPath } from 'url';
@@ -746,25 +746,96 @@ async function confirmCheckpoint(question: string): Promise<boolean> {
 }
 
 /**
+ * Scan sub-project directories for runnable files.
+ * Returns the best entry point and its directory.
+ *
+ * Priority: game/app > html > python/go > npm (setup)
+ */
+function findRunEntry(rootDir: string): { dir: string; type: 'npm' | 'html' | 'python' | 'go' | 'none'; entryFile?: string } {
+  const candidates: Array<{ dir: string; type: 'npm' | 'html' | 'python' | 'go'; entryFile?: string; priority: number }> = [];
+
+  // Helper to score directory priority
+  function dirPriority(name: string): number {
+    const lower = name.toLowerCase();
+    if (lower.includes('game')) return 100;
+    if (lower.includes('app')) return 90;
+    if (lower.includes('dev')) return 80;
+    if (lower.includes('frontend')) return 70;
+    if (lower.includes('client')) return 60;
+    if (lower.includes('web')) return 50;
+    return 0;
+  }
+
+  // Check rootDir
+  if (existsSync(join(rootDir, 'package.json'))) {
+    candidates.push({ dir: rootDir, type: 'npm', priority: dirPriority('root') });
+  }
+  if (existsSync(join(rootDir, 'index.html'))) {
+    candidates.push({ dir: rootDir, type: 'html', entryFile: 'index.html', priority: dirPriority('root') + 10 });
+  }
+  if (existsSync(join(rootDir, 'main.py'))) {
+    candidates.push({ dir: rootDir, type: 'python', entryFile: 'main.py', priority: dirPriority('root') + 10 });
+  }
+  if (existsSync(join(rootDir, 'main.go'))) {
+    candidates.push({ dir: rootDir, type: 'go', entryFile: 'main.go', priority: dirPriority('root') + 10 });
+  }
+
+  // Scan immediate subdirectories (sub-projects)
+  try {
+    const entries = readdirSync(rootDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const subDir = join(rootDir, entry.name);
+      const priority = dirPriority(entry.name);
+
+      if (existsSync(join(subDir, 'package.json'))) {
+        candidates.push({ dir: subDir, type: 'npm', priority });
+      }
+      if (existsSync(join(subDir, 'index.html'))) {
+        candidates.push({ dir: subDir, type: 'html', entryFile: 'index.html', priority: priority + 10 });
+      }
+      // For games: check nested game-dev/ inside sub-project (legacy path duplication)
+      if (existsSync(join(subDir, 'game-dev', 'index.html'))) {
+        candidates.push({ dir: join(subDir, 'game-dev'), type: 'html', entryFile: 'index.html', priority: priority + 20 });
+      }
+      if (existsSync(join(subDir, 'main.py'))) {
+        candidates.push({ dir: subDir, type: 'python', entryFile: 'main.py', priority: priority + 10 });
+      }
+      if (existsSync(join(subDir, 'main.go'))) {
+        candidates.push({ dir: subDir, type: 'go', entryFile: 'main.go', priority: priority + 10 });
+      }
+    }
+  } catch {
+    // Ignore read errors
+  }
+
+  if (candidates.length === 0) {
+    return { dir: rootDir, type: 'none' };
+  }
+
+  // Sort by priority descending and return the best match
+  candidates.sort((a, b) => b.priority - a.priority);
+  const best = candidates[0];
+  return { dir: best.dir, type: best.type, entryFile: best.entryFile };
+}
+
+/**
  * Print a local run guide based on what files were generated.
  */
 async function printLocalRunGuide(rootDir: string) {
-  const pkgPath = join(rootDir, 'package.json');
-  const htmlPath = join(rootDir, 'index.html');
-  const pyPath = join(rootDir, 'main.py');
-  const goPath = join(rootDir, 'main.go');
+  const runEntry = findRunEntry(rootDir);
 
   console.log('\n🚀 本地运行指南');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-  if (existsSync(pkgPath)) {
+  if (runEntry.type === 'npm') {
     try {
-      const pkgRaw = await readFile(pkgPath, 'utf-8');
+      const pkgRaw = await readFile(join(runEntry.dir, 'package.json'), 'utf-8');
       const pkg = JSON.parse(pkgRaw);
       const hasDev = pkg.scripts?.dev;
       const hasStart = pkg.scripts?.start;
-      console.log(`   cd "${rootDir}"`);
-      if (!existsSync(join(rootDir, 'node_modules'))) {
+      console.log(`   cd "${runEntry.dir}"`);
+      if (!existsSync(join(runEntry.dir, 'node_modules'))) {
         console.log('   npm install');
       }
       if (hasDev) {
@@ -775,19 +846,21 @@ async function printLocalRunGuide(rootDir: string) {
         console.log('   npx serve .   # 或 python3 -m http.server 8080');
       }
     } catch {
-      console.log(`   cd "${rootDir}"`);
+      console.log(`   cd "${runEntry.dir}"`);
       console.log('   npm install && npm run dev');
     }
-  } else if (existsSync(htmlPath)) {
-    console.log(`   cd "${rootDir}"`);
+  } else if (runEntry.type === 'html') {
+    console.log(`   cd "${runEntry.dir}"`);
     console.log('   python3 -m http.server 8080');
     console.log('   # 然后浏览器打开 http://localhost:8080');
-  } else if (existsSync(pyPath)) {
-    console.log(`   cd "${rootDir}"`);
-    console.log('   python3 main.py');
-  } else if (existsSync(goPath)) {
-    console.log(`   cd "${rootDir}"`);
-    console.log('   go run main.go');
+    // Also suggest direct open for local files
+    console.log('   # 或直接双击打开 index.html（部分浏览器可能限制本地资源）');
+  } else if (runEntry.type === 'python') {
+    console.log(`   cd "${runEntry.dir}"`);
+    console.log(`   python3 ${runEntry.entryFile}`);
+  } else if (runEntry.type === 'go') {
+    console.log(`   cd "${runEntry.dir}"`);
+    console.log(`   go run ${runEntry.entryFile}`);
   } else {
     console.log(`   cd "${rootDir}"`);
     console.log('   请查看项目内的 README 文件获取运行方式');
