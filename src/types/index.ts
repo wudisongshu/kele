@@ -13,6 +13,10 @@ export type MonetizationChannel =
   | 'web'
   | 'app-store'
   | 'google-play'
+  | 'discord-bot'
+  | 'telegram-bot'
+  | 'itchio'
+  | 'github-sponsors'
   | 'unknown';
 
 export type Complexity = 'simple' | 'medium' | 'complex';

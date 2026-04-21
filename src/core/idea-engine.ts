@@ -94,6 +94,26 @@ const MONETIZATION_KEYWORDS: Record<MonetizationChannel, Array<{ word: string; w
     { word: 'apk', weight: 2 },
     { word: 'google', weight: 1 },
   ],
+  'discord-bot': [
+    { word: 'discord', weight: 3 },
+    { word: 'bot', weight: 2 },
+    { word: '机器人', weight: 2 },
+  ],
+  'telegram-bot': [
+    { word: 'telegram', weight: 3 },
+    { word: 'tg', weight: 2 },
+    { word: 'bot', weight: 2 },
+  ],
+  itchio: [
+    { word: 'itch', weight: 3 },
+    { word: '独立游戏', weight: 2 },
+    { word: 'indie', weight: 2 },
+  ],
+  'github-sponsors': [
+    { word: 'opensource', weight: 3 },
+    { word: '开源', weight: 3 },
+    { word: 'sponsor', weight: 2 },
+  ],
   unknown: [],
 };
 
