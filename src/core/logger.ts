@@ -61,6 +61,7 @@ export function createProgressLogger(jsonMode: boolean = false): {
   log: (msg: string, meta?: Record<string, unknown>) => void;
   warn: (msg: string, meta?: Record<string, unknown>) => void;
   error: (msg: string, meta?: Record<string, unknown>) => void;
+  debug: (msg: string, meta?: Record<string, unknown>) => void;
   jsonOutput: unknown[];
 } {
   const jsonOutput: unknown[] = [];
@@ -82,6 +83,11 @@ export function createProgressLogger(jsonMode: boolean = false): {
         jsonOutput.push(entry);
         logEvent('error', msg, meta);
       },
+      debug: (msg: string, meta?: Record<string, unknown>) => {
+        const entry = { type: 'debug', message: msg, ...meta };
+        jsonOutput.push(entry);
+        logEvent('debug', msg, meta);
+      },
       jsonOutput,
     };
   }
@@ -98,6 +104,10 @@ export function createProgressLogger(jsonMode: boolean = false): {
     error: (msg: string, meta?: Record<string, unknown>) => {
       console.error(msg);
       logEvent('error', msg, meta);
+    },
+    debug: (msg: string, meta?: Record<string, unknown>) => {
+      // Debug messages only go to log file, not console
+      logEvent('debug', msg, meta);
     },
     jsonOutput,
   };

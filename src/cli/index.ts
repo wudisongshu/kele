@@ -242,6 +242,7 @@ async function handleCreateIntent(
   // Test provider connectivity before starting
   if (!useMock) {
     console.log(`   🔌 检测 ${route.provider} 连接...`);
+    logger.debug('Testing provider connection', { provider: route.provider });
     const testResult = await route.adapter.testConnection();
     if (!testResult.ok) {
       console.error(`\n❌ ${route.provider} 连接失败: ${testResult.error}`);
@@ -253,6 +254,7 @@ async function handleCreateIntent(
       process.exit(1);
     }
     console.log(`   ✅ ${route.provider} 连接正常\n`);
+    logger.debug('Provider connection successful', { provider: route.provider });
   }
 
   // Step 2: Business Research (if needed)
@@ -330,6 +332,11 @@ async function handleCreateIntent(
   }
 
   const subProjects = incubateResult.subProjects;
+  logger.debug('Incubation result', {
+    subProjectCount: subProjects.length,
+    reasoningLength: incubateResult.reasoning?.length,
+    provider: route.provider,
+  });
   if (incubateResult.reasoning) {
     console.log(`💡 AI 设计思路: ${incubateResult.reasoning}`);
   }
