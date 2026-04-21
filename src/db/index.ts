@@ -177,6 +177,21 @@ export class KeleDatabase {
     }));
   }
 
+  getProjectsByStatus(status: ProjectStatus): Project[] {
+    const rows = this.db.prepare('SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC').all(status) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToProject(r));
+  }
+
+  getProjectsByType(type: CreativeType): Project[] {
+    const rows = this.db.prepare('SELECT * FROM projects WHERE creative_type = ? ORDER BY created_at DESC').all(type) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToProject(r));
+  }
+
+  getFailedTasks(projectId: string): Task[] {
+    const rows = this.db.prepare('SELECT * FROM tasks WHERE project_id = ? AND status = ? ORDER BY created_at DESC').all(projectId, 'failed') as Record<string, unknown>[];
+    return rows.map((r) => this.rowToTask(r));
+  }
+
   // --- Helpers ---
 
   private rowToProject(row: Record<string, unknown>): Project {
