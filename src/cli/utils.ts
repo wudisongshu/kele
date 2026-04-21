@@ -1,6 +1,14 @@
 import { createInterface } from 'readline';
 import { randomBytes } from 'crypto';
 import { getAutoYes } from '../config/index.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+export const { version } = packageJson;
 
 const NO_COLOR = process.env.NO_COLOR || process.env.FORCE_COLOR === '0';
 
@@ -80,6 +88,59 @@ export function formatDuration(ms: number): string {
 /**
  * Print help when no AI provider is configured.
  */
+/**
+ * Collect repeatable --header options into a Record.
+ */
+export function collectHeaders(value: string, previous: Record<string, string>): Record<string, string> {
+  const [k, v] = value.split(':');
+  if (k && v !== undefined) {
+    previous[k.trim()] = v.trim();
+  }
+  return previous;
+}
+
+/**
+ * Parse timeout from CLI option.
+ * kele principle: no timeouts by default. Wait indefinitely for AI.
+ * This option is kept for backward compatibility but has no effect.
+ */
+export function parseTimeout(value: string): number {
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed) || parsed < 1) {
+    console.warn(`⚠️  Invalid timeout "${value}"`);
+    return Infinity as unknown as number;
+  }
+  return parsed;
+}
+
+/**
+ * Print usage help.
+ */
+export function printUsage(): void {
+  console.log('🥤 kele — 你的创意变现助手\n');
+  console.log('用法示例：');
+  console.log('  kele "我要做一个塔防游戏并部署到微信小程序赚钱"');
+  console.log('  kele "帮我写一首歌并发布到音乐平台" --output ~/my-music');
+  console.log('  kele "做一个像牛牛消消乐那样的游戏" --yes');
+  console.log('\n管理项目：');
+  console.log('  kele list                    列出所有项目');
+  console.log('  kele show <project-id>       查看项目详情');
+  console.log('  kele upgrade <pid> <tid> "..."  升级某个任务');
+  console.log('  kele "继续" 或 kele "接着干"    恢复中断的项目');
+  console.log('\n配置 AI：');
+  console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
+  console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
+  console.log('  kele config --provider deepseek --key sk-xxx --url https://api.deepseek.com/v1 --model deepseek-chat');
+  console.log('\n配置平台凭证：');
+  console.log('  kele secrets --platform wechat-miniprogram --set appId=wx123456');
+  console.log('\n选项：');
+  console.log('  -o, --output <dir>   指定项目生成目录');
+  console.log('  -y, --yes            自动执行所有任务（跳过确认）');
+  console.log('  -t, --timeout <s>    AI 超时时间（已废弃，kele 永不超时）');
+  console.log('  --debug              显示 kele 发给 AI 的所有 prompt');
+  console.log('  -v, --version        显示版本号');
+}
+
 export function printNoProviderHelp(): void {
   console.log('⚠️  未配置 AI API Key');
   console.log('kele 需要调用 AI 来完成任务。请配置至少一个 provider：\n');

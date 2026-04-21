@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { Command } from 'commander';
 
 export function runDoctor(fix = false): void {
   let issues: string[] = [];
@@ -133,4 +134,14 @@ export function runDoctor(fix = false): void {
   } else {
     console.log('\n✅ All checks passed. kele is ready!');
   }
+}
+
+export function setupDoctorCommand(program: Command): void {
+  program
+    .command('doctor')
+    .description('Diagnose environment and configuration issues')
+    .option('--fix', 'Auto-fix common issues (create directories, default config)')
+    .action((opts: { fix?: boolean }) => {
+      runDoctor(opts.fix);
+    });
 }

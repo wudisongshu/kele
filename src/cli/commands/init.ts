@@ -3,6 +3,7 @@
  */
 
 import { existsSync, readdirSync } from 'fs';
+import { Command } from 'commander';
 
 export function runInit(targetDir?: string): void {
   const dir = targetDir || process.cwd();
@@ -41,4 +42,14 @@ export function runInit(targetDir?: string): void {
 
   console.log(`\n💡 使用 kele "你的改进想法" 来升级这个项目`);
   console.log(`   或使用 kele upgrade <project-id> <task-id> "改进内容"`);
+}
+
+export function setupInitCommand(program: Command): void {
+  program
+    .command('init')
+    .argument('[dir]', 'Directory to initialize (default: current directory)')
+    .description('Initialize kele in an existing project directory')
+    .action((dir?: string) => {
+      runInit(dir);
+    });
 }

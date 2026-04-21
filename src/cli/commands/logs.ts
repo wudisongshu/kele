@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { Command } from 'commander';
 
 export function runLogs(lines: number = 20, levelFilter?: string): void {
   const logDir = join(homedir(), '.kele', 'logs');
@@ -51,4 +52,14 @@ export function runLogs(lines: number = 20, levelFilter?: string): void {
       console.log(`   📝 ${entry.slice(0, 120)}`);
     }
   }
+}
+
+export function setupLogsCommand(program: Command): void {
+  program
+    .command('logs')
+    .option('-n, --lines <number>', 'Number of lines to show', '20')
+    .description('View recent log entries')
+    .action((options: { lines: string }) => {
+      runLogs(parseInt(options.lines, 10));
+    });
 }

@@ -4,6 +4,7 @@
 
 import { existsSync, cpSync, mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
+import { Command } from 'commander';
 import { KeleDatabase } from '../../db/index.js';
 
 export function runExport(projectId: string, targetDir?: string, format?: 'dir' | 'markdown' | 'zip' | 'json'): void {
@@ -115,4 +116,18 @@ export function runExport(projectId: string, targetDir?: string, format?: 'dir' 
 
   console.log(`✅ 项目已导出: ${destDir}`);
   console.log(`   源目录: ${sourceDir}`);
+}
+
+export function setupExportCommand(program: Command): void {
+  program
+    .command('export')
+    .argument('<project-id>', 'Project ID to export')
+    .argument('[target-dir]', 'Target directory (default: ./<project-name>-export)')
+    .description('Export a project to a directory')
+    .option('--format <type>', 'Export format: dir (default), markdown, zip, or json')
+    .action((projectId: string, targetDir?: string, opts?: { format?: string }) => {
+      const validFormats = ['dir', 'markdown', 'zip', 'json'];
+      const format = validFormats.includes(opts?.format || '') ? (opts?.format as 'dir' | 'markdown' | 'zip' | 'json') : 'dir';
+      runExport(projectId, targetDir, format);
+    });
 }

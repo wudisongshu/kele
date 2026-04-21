@@ -6,6 +6,7 @@ import { KeleDatabase } from '../../db/index.js';
 import { rmSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { Command } from 'commander';
 
 export function runClean(autoDelete = false, debugLogs = false): void {
   // Handle debug logs cleanup first
@@ -84,4 +85,15 @@ export function runClean(autoDelete = false, debugLogs = false): void {
 
   console.log('💡 使用 kele delete <project-id> 删除指定项目');
   console.log('   或使用 kele retry <project-id> <task-id> 重试失败任务');
+}
+
+export function setupCleanCommand(program: Command): void {
+  program
+    .command('clean')
+    .description('List failed/abandoned projects for cleanup')
+    .option('--delete', 'Auto-delete failed/abandoned projects')
+    .option('--debug-logs', 'Clean debug log files from ~/.kele/debug')
+    .action((opts: { delete?: boolean; debugLogs?: boolean }) => {
+      runClean(opts.delete, opts.debugLogs);
+    });
 }

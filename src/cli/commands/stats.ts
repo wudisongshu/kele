@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { Command } from 'commander';
 import { KeleDatabase } from '../../db/index.js';
 
 export function runStats(jsonMode = false): void {
@@ -86,4 +87,14 @@ export function runStats(jsonMode = false): void {
   if (telemetryCount > 0) {
     console.log(`\n   遥测事件: ${telemetryCount}`);
   }
+}
+
+export function setupStatsCommand(program: Command): void {
+  program
+    .command('stats')
+    .description('Show usage statistics')
+    .option('--format <type>', 'Output format: text (default) or json', 'text')
+    .action((options: { format: string }) => {
+      runStats(options.format === 'json');
+    });
 }
