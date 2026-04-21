@@ -567,6 +567,16 @@ CRITICAL: For web games, the monetization sub-project should ALSO modify the gam
 1. .env.example — Environment variables template (TELEGRAM_BOT_TOKEN)
 2. deploy.sh — Script to deploy webhook or polling mode
 3. SETUP.md — How to register commands with BotFather`,
+
+    'itchio': `For itch.io deployment, generate these actual files:
+1. .itch.toml — itch.io app configuration (if using butler)
+2. butler-push.sh — Script to push builds with butler
+3. SETUP.md — How to install butler and push builds`,
+
+    'github-sponsors': `For GitHub Sponsors setup, generate these actual files:
+1. .github/FUNDING.yml — GitHub Sponsors configuration
+2. SPONSORS.md — Sponsorship tiers and benefits description
+3. SETUP.md — How to enable GitHub Sponsors on your profile`,
   };
 
   return templates[platform] || '';
