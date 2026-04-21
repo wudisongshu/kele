@@ -3,9 +3,35 @@
  */
 
 import { KeleDatabase } from '../../db/index.js';
-import { rmSync } from 'fs';
+import { rmSync, existsSync, readdirSync, statSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 
-export function runClean(autoDelete = false): void {
+export function runClean(autoDelete = false, debugLogs = false): void {
+  // Handle debug logs cleanup first
+  if (debugLogs) {
+    const debugDir = join(homedir(), '.kele', 'debug');
+    if (!existsSync(debugDir)) {
+      console.log('🥤 暂无 debug 日志需要清理');
+      return;
+    }
+    const files = readdirSync(debugDir);
+    let totalSize = 0;
+    let removed = 0;
+    for (const file of files) {
+      const filePath = join(debugDir, file);
+      try {
+        totalSize += statSync(filePath).size;
+        rmSync(filePath, { force: true });
+        removed++;
+      } catch {
+        // skip
+      }
+    }
+    const sizeMB = (totalSize / 1024 / 1024).toFixed(1);
+    console.log(`🧹 已清理 ${removed} 个 debug 日志文件 (${sizeMB}MB)`);
+    return;
+  }
   const db = new KeleDatabase();
   const projects = db.listProjects();
 

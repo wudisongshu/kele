@@ -1296,8 +1296,9 @@ program
   .command('clean')
   .description('List failed/abandoned projects for cleanup')
   .option('--delete', 'Auto-delete failed/abandoned projects')
-  .action((opts: { delete?: boolean }) => {
-    runClean(opts.delete);
+  .option('--debug-logs', 'Clean debug log files from ~/.kele/debug')
+  .action((opts: { delete?: boolean; debugLogs?: boolean }) => {
+    runClean(opts.delete, opts.debugLogs);
   });
 
 // --- Export command: kele export <project-id> [target-dir] ---
