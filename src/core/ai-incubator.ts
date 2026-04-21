@@ -92,6 +92,9 @@ Each sub-project MUST include 3-7 acceptance criteria that kele can EXECUTE auto
   - verify-file: "ads.txt exists" (critical)
   - verify-file: "adsense.html exists" (critical)
   - verify-file: "CNAME exists" (non-critical)
+  - verify-file: "manifest.json exists" (non-critical)
+  - check-text: "manifest.json contains name and start_url" (non-critical)
+  - verify-file: "sw.js exists" (non-critical)
   - verify-file: "SETUP.md exists" (critical)
 - For **monetization** (web/H5):
   - verify-file: "adsense.html exists and contains adsbygoogle script" (critical)
