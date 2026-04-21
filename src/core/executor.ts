@@ -558,7 +558,9 @@ export async function executeTask(
     // Route to AI provider
     const route = registry.route(task.complexity);
     task.aiProvider = route.provider;
-    onProgress?.(`   🤖 Using ${route.provider}`);
+    const modelInfo = route.adapter.getModelInfo?.();
+    const modelLabel = modelInfo ? ` (${modelInfo.name})` : '';
+    onProgress?.(`   🤖 Using ${route.provider}${modelLabel}`);
 
     // For setup tasks, copy the appropriate template based on monetization channel
     if (subProject.type === 'setup') {
