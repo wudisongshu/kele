@@ -228,6 +228,12 @@ function validateHtmlFile(htmlPath: string): string[] {
     }
   }
 
+  // Check for PWA manifest link
+  const hasManifestLink = content.includes('rel="manifest"') || content.includes("rel='manifest'");
+  if (!hasManifestLink) {
+    issues.push('No PWA manifest link found — add <link rel="manifest" href="manifest.json">');
+  }
+
   return issues;
 }
 
