@@ -1143,7 +1143,8 @@ program
   .command('validate')
   .argument('<project-id>', 'Project ID to validate')
   .description('Validate project quality and output a score report')
-  .action(async (projectId: string) => {
+  .option('--fix', 'Auto-fix issues by retrying failed tasks')
+  .action(async (projectId: string, opts: { fix?: boolean }) => {
     const db = new KeleDatabase();
     const project = db.getProject(projectId);
 
@@ -1195,6 +1196,25 @@ program
       console.log('   ⚠️  一般 — 建议用 kele upgrade 改进');
     } else {
       console.log('   ❌ 较差 — 建议用 kele retry 重试');
+    }
+
+    if (opts.fix && avgScore < 80) {
+      console.log('\n🔧 --fix 模式: 自动修复低分任务...');
+      const tasks = db.getTasks(projectId).filter(t => t.status === 'failed' || t.status === 'completed');
+      const lowScoreTasks = tasks.filter(t => {
+        const sp = subProjects.find(s => s.id === t.subProjectId);
+        if (!sp) return false;
+        const r = validateTaskOutput(sp.targetDir, sp.name);
+        return !r.valid;
+      });
+      if (lowScoreTasks.length > 0) {
+        console.log(`   发现 ${lowScoreTasks.length} 个需要修复的任务`);
+        for (const t of lowScoreTasks) {
+          console.log(`   → 运行: kele retry ${projectId} ${t.id}`);
+        }
+      } else {
+        console.log('   所有任务静态检查通过，无需修复');
+      }
     }
   });
 

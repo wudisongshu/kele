@@ -477,6 +477,33 @@ export function getDeployableConfigTemplate(platform: string): string {
   const templates: Record<string, string> = {
     'web': `For H5/Web deployment, generate these actual files (not guides):
 
+PWA SUPPORT (Highly Recommended for Games):
+1. manifest.json — Web App Manifest with these fields:
+   - name, short_name, start_url: "/", display: "standalone"
+   - background_color, theme_color
+   - icons: 192x192 and 512x512 PNG icons
+   - description, categories: ["games"]
+
+2. sw.js — Service Worker for offline play:
+   - Cache-first strategy for game assets
+   - Precache: index.html, game.js, CSS, icon files
+   - Runtime cache for API calls (if any)
+   - MUST use cache names with version prefix (e.g., "kele-game-v1")
+
+3. In index.html, add:
+   - <link rel="manifest" href="manifest.json">
+   - <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js')</script>
+   - <meta name="theme-color" content="#1a1a2e">
+   - Apple touch icon: <link rel="apple-touch-icon" href="icon-192.png">
+
+BENEFITS of PWA:
+- Users can "Add to Home Screen" → looks like a native app
+- Works offline after first load
+- Better retention (no app store friction)
+- Still monetizable with AdSense
+
+For H5/Web deployment, generate these actual files (not guides):
+
 1. .github/workflows/deploy.yml — GitHub Actions workflow for GitHub Pages deploy. MUST use actions/deploy-pages@v4. EXACT structure:
    - on: push: branches: ["main"] + workflow_dispatch
    - permissions: contents: read, pages: write, id-token: write
