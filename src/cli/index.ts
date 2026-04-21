@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { readFileSync, mkdirSync } from 'fs';
+import { readFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
@@ -1213,6 +1213,15 @@ program
           for (const err of browserResult.errors.slice(0, 3)) {
             console.log(`       - ${err}`);
           }
+        }
+      }
+
+      // PWA validation for web projects
+      if (project.idea.monetization === 'web' || project.idea.monetization === 'unknown') {
+        const hasManifest = existsSync(join(sp.targetDir, 'manifest.json'));
+        const hasSW = existsSync(join(sp.targetDir, 'sw.js'));
+        if (hasManifest || hasSW) {
+          console.log(`     PWA 支持: ${hasManifest ? '✅ manifest' : '⚠️ manifest'} ${hasSW ? '✅ sw.js' : '⚠️ sw.js'}`);
         }
       }
 
