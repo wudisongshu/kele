@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, renameSync, rmSync } from 'fs';
 import { dirname, join, basename } from 'path';
 import { sanitizeFilePath } from './security.js';
 import { extractJson as extractJsonFromUtils } from './json-utils.js';
@@ -180,7 +180,16 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (
       }
     }
 
-    writeFileSync(filePath, content, 'utf-8');
+    // Atomic write: write to temp file then rename
+    const tmpPath = `${filePath}.tmp.${Date.now()}`;
+    try {
+      writeFileSync(tmpPath, content, 'utf-8');
+      renameSync(tmpPath, filePath);
+    } catch (err) {
+      // Clean up temp file on failure
+      try { rmSync(tmpPath); } catch { /* ignore */ }
+      throw err;
+    }
     const sizeKb = (content.length / 1024).toFixed(1);
     const lines = content.split('\n').length;
     onProgress?.(`      📄 ${relativePath} — ${sizeKb}KB, ${lines} lines`);

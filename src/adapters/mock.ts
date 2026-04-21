@@ -57,12 +57,15 @@ export class MockAdapter implements AIAdapter {
       else if (lower.includes('memory') || lower.includes('记忆') || lower.includes('翻牌') || lower.includes('card')) gameType = 'memory';
       else if (lower.includes('shooter') || lower.includes('射击') || lower.includes('space') || lower.includes('太空')) gameType = 'shooter';
 
+      const gameHtml = generateGameByType(gameType);
+      // Inject manifest link and service worker registration into <head>
+      const pwaHead = `<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1a1a2e"><link rel="apple-touch-icon" href="icon-192.png">`;
+      const pwaScript = `<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js')</script>`;
+      const enhancedHtml = gameHtml.replace('</head>', `${pwaHead}</head>`).replace('</body>', `${pwaScript}</body>`);
+
       return JSON.stringify({
         files: [
-          {
-            path: 'index.html',
-            content: generateGameByType(gameType),
-          },
+          { path: 'index.html', content: enhancedHtml },
           {
             path: 'manifest.json',
             content: JSON.stringify({
@@ -80,7 +83,12 @@ export class MockAdapter implements AIAdapter {
             content: `const CACHE_NAME = 'kele-game-v1';
 const urlsToCache = ['/', '/index.html'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache))));
+self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))))));
 self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));`,
+          },
+          {
+            path: 'icon-192.png',
+            content: '<!-- SVG icon placeholder: replace with real PNG -->',
           },
         ],
         notes: `Complete playable single-file ${gameType} game with PWA support (mock mode). Open index.html directly in browser.`,

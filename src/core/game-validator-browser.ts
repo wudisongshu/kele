@@ -260,7 +260,7 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
       strokeRect: () => {},
       fillText: () => {},
       strokeText: () => {},
-      measureText: () => ({ width: 0 }),
+      measureText: (text: string) => ({ width: (text?.length || 0) * 8 }),
       beginPath: () => {},
       closePath: () => {},
       moveTo: () => {},
