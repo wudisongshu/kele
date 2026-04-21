@@ -83,6 +83,12 @@ export function setupConfigCommand(program: Command): void {
       }
 
       if (options.platform) {
+        const validPlatforms = ['web', 'wechat-miniprogram', 'douyin', 'steam', 'app-store', 'google-play', 'discord-bot', 'telegram-bot', 'itchio', 'github-sponsors'];
+        if (!validPlatforms.includes(options.platform)) {
+          console.error(`❌ 无效的平台: ${options.platform}`);
+          console.error(`   支持的平台: ${validPlatforms.join(', ')}`);
+          process.exit(1);
+        }
         setDefaultPlatform(options.platform);
         console.log(`✅ 默认变现平台已设为: ${options.platform}`);
         return;
