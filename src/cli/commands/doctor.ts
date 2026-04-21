@@ -85,6 +85,27 @@ export function runDoctor(fix = false): void {
     checks.push(`Output dir: ${outputDir} will be created on first run`);
   }
 
+  // Check 5: Debug logs
+  const debugDir = join(homedir(), '.kele', 'debug');
+  if (existsSync(debugDir)) {
+    try {
+      const { readdirSync, statSync } = require('fs');
+      const files = readdirSync(debugDir);
+      const totalSize = files.reduce((sum: number, f: string) => {
+        try { return sum + statSync(join(debugDir, f)).size; } catch { return sum; }
+      }, 0);
+      const sizeMB = (totalSize / 1024 / 1024).toFixed(1);
+      checks.push(`Debug logs: ${files.length} files, ${sizeMB}MB in ${debugDir}`);
+      if (parseFloat(sizeMB) > 100) {
+        issues.push(`Debug logs are ${sizeMB}MB. Run: rm -rf ${debugDir}`);
+      }
+    } catch {
+      checks.push(`Debug logs: ${debugDir} exists`);
+    }
+  } else {
+    checks.push(`Debug logs: ${debugDir} will be created when --debug is used`);
+  }
+
   if (fix && issues.length > 0) {
     const autoFixable = issues.filter(i => i.includes('Config missing') || i.includes('No providers configured'));
     if (autoFixable.length > 0) {
