@@ -155,6 +155,13 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (
       }
     }
 
+    // Validate SVG files
+    if (relativePath.endsWith('.svg')) {
+      if (!content.includes('<svg') || !content.includes('</svg>')) {
+        console.warn(`[WARNING] SVG file "${relativePath}" missing <svg> tags — writing anyway`);
+      }
+    }
+
     writeFileSync(filePath, content, 'utf-8');
     const sizeKb = (content.length / 1024).toFixed(1);
     const lines = content.split('\n').length;
