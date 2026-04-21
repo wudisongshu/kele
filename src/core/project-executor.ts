@@ -115,7 +115,8 @@ export async function executeProject(
   let completed = 0;
   let failed = 0;
 
-  for (const batch of batches) {
+  for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+    const batch = batches[batchIdx];
     if (signal?.aborted) {
       onProgress?.(`\n⏹️  Execution aborted by user`);
       return { completed, failed, aborted: true };
@@ -123,9 +124,7 @@ export async function executeProject(
 
     // Execute sub-projects in this batch concurrently
     const batchSize = batch.length;
-    if (batchSize > 1) {
-      onProgress?.(`\n📦 并行执行 ${batchSize} 个子项目...`);
-    }
+    onProgress?.(`\n📦 Batch ${batchIdx + 1}/${batches.length} (${batchSize} sub-projects)...`);
 
     const results = await Promise.all(
       batch.map((sp) => executeSubProject(sp, project, options))
