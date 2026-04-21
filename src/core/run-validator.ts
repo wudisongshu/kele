@@ -101,9 +101,10 @@ function detectRunConfig(targetDir: string): RunConfig | null {
 }
 
 /**
- * Run a shell command with timeout and capture output.
+ * Run a shell command and capture output.
+ * kele principle: no timeouts. Commands run until they complete.
  */
-function runCommand(config: RunConfig, timeoutMs: number = 30000): Promise<RunResult> {
+function runCommand(config: RunConfig): Promise<RunResult> {
   return new Promise((resolve) => {
     const child = spawn(config.command, config.args, {
       cwd: config.cwd,
@@ -113,14 +114,6 @@ function runCommand(config: RunConfig, timeoutMs: number = 30000): Promise<RunRe
 
     let stdout = '';
     let stderr = '';
-    let killed = false;
-
-    const timer = setTimeout(() => {
-      killed = true;
-      child.kill('SIGTERM');
-      // Force kill after 5s if still running
-      setTimeout(() => child.kill('SIGKILL'), 5000);
-    }, timeoutMs);
 
     child.stdout?.on('data', (data) => {
       stdout += data.toString();
@@ -131,29 +124,17 @@ function runCommand(config: RunConfig, timeoutMs: number = 30000): Promise<RunRe
     });
 
     child.on('close', (exitCode) => {
-      clearTimeout(timer);
       const fullCommand = `${config.command} ${config.args.join(' ')}`;
-      if (killed && exitCode === null) {
-        resolve({
-          success: false,
-          command: fullCommand,
-          stdout: stdout.slice(0, 5000),
-          stderr: (stderr + '\n[kele] Command timed out after ' + timeoutMs + 'ms').slice(0, 5000),
-          exitCode: null,
-        });
-      } else {
-        resolve({
-          success: exitCode === 0,
-          command: fullCommand,
-          stdout: stdout.slice(0, 5000),
-          stderr: stderr.slice(0, 5000),
-          exitCode,
-        });
-      }
+      resolve({
+        success: exitCode === 0,
+        command: fullCommand,
+        stdout: stdout.slice(0, 5000),
+        stderr: stderr.slice(0, 5000),
+        exitCode,
+      });
     });
 
     child.on('error', (err) => {
-      clearTimeout(timer);
       resolve({
         success: false,
         command: `${config.command} ${config.args.join(' ')}`,
@@ -185,8 +166,7 @@ export async function runProject(targetDir: string): Promise<RunResult> {
   if (config.command === 'npm' && config.args[0] !== 'install') {
     if (!existsSync(join(targetDir, 'node_modules'))) {
       const installResult = await runCommand(
-        { command: 'npm', args: ['install'], cwd: targetDir },
-        60000
+        { command: 'npm', args: ['install'], cwd: targetDir }
       );
       if (!installResult.success) {
         return {
@@ -198,7 +178,7 @@ export async function runProject(targetDir: string): Promise<RunResult> {
   }
 
   // Run the actual validation command
-  const result = await runCommand(config, 30000);
+  const result = await runCommand(config);
   return result;
 }
 

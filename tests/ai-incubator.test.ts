@@ -31,7 +31,7 @@ describe('incubateWithAI', () => {
         { id: 'dev', name: 'Dev', description: 'Build', type: 'development', dependencies: ['setup'] },
       ],
     }));
-    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter, 5000);
+    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter);
     expect(result.success).toBe(true);
     expect(result.subProjects).toHaveLength(2);
     expect(result.subProjects![0].id).toBe('setup');
@@ -39,24 +39,16 @@ describe('incubateWithAI', () => {
 
   it('returns error on invalid JSON', async () => {
     const adapter = makeMockAdapter('not json');
-    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter, 5000);
+    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter);
     expect(result.success).toBe(false);
     expect(result.error).toContain('Invalid JSON');
   });
 
   it('returns error on schema validation failure', async () => {
     const adapter = makeMockAdapter(JSON.stringify({ subProjects: [] }));
-    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter, 5000);
+    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter);
     expect(result.success).toBe(false);
     expect(result.error).toContain('Schema validation failed');
-  });
-
-  it('times out after specified duration', async () => {
-    const adapter = makeMockAdapter(new Promise(() => {})) as unknown as AIAdapter;
-    adapter.execute = vi.fn(() => new Promise(() => {}));
-    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter, 100);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('timed out');
   });
 
   it('includes validation metadata in result', async () => {
@@ -65,7 +57,7 @@ describe('incubateWithAI', () => {
         { id: 'setup', name: 'Setup', description: 'Init', type: 'setup', dependencies: [] },
       ],
     }));
-    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter, 5000);
+    const result = await incubateWithAI(makeIdea(), '/tmp/test', adapter);
     expect(result.validation).toBeDefined();
     expect(result.validation!.localValid).toBe(true);
   });

@@ -2,20 +2,15 @@ import { describe, it, expect, vi } from 'vitest';
 import { withTimeout, withRetry } from '../src/core/async-utils.js';
 
 describe('withTimeout', () => {
-  it('resolves when promise finishes before timeout', async () => {
+  it('returns the resolved value (no timeout in kele)', async () => {
     const result = await withTimeout(Promise.resolve('ok'), 'test', 1000);
     expect(result).toBe('ok');
   });
 
-  it('rejects when promise takes longer than timeout', async () => {
-    const slow = new Promise((resolve) => setTimeout(resolve, 1000));
-    await expect(withTimeout(slow, 'slow', 50)).rejects.toThrow('slow timed out after 50ms');
-  });
-
-  it('cleans up timer after resolution', async () => {
-    const before = process._getActiveHandles?.().length ?? 0;
-    await withTimeout(Promise.resolve(42), 'test', 5000);
-    // No assertion on handle count (Node API varies), but the test ensures no hang
+  it('waits indefinitely for slow promises (kele never times out)', async () => {
+    const slow = new Promise((resolve) => setTimeout(() => resolve('done'), 50));
+    const result = await withTimeout(slow, 'slow', 10); // 10ms is ignored
+    expect(result).toBe('done');
   });
 });
 

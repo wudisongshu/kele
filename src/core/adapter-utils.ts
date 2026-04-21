@@ -9,8 +9,6 @@ const RETRY_DELAY_MS = process.env.VITEST
 function isRetryableError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
   return (
-    msg.includes('timeout') ||
-    msg.includes('etimedout') ||
     msg.includes('econnreset') ||
     msg.includes('econnrefused') ||
     msg.includes('socket hang up') ||

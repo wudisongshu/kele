@@ -4,7 +4,7 @@ import { debugLog } from '../debug.js';
 import { safeJsonParse } from './json-utils.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
 import { IncubationResponseSchema } from './schemas.js';
-import { withTimeout } from './async-utils.js';
+
 
 /**
  * AI-Driven Incubator — lets the AI decide what sub-projects are needed.
@@ -167,7 +167,6 @@ export async function incubateWithAI(
   idea: Idea,
   rootDir: string,
   adapter: AIAdapter,
-  timeoutMs = 120000 // 2 minute default timeout for incubation
 ): Promise<AIIncubateResult> {
   const validationMeta = {
     localValid: false,
@@ -178,14 +177,12 @@ export async function incubateWithAI(
     revisions: 0,
   };
 
-  // Wrapper for timeout-wrapped AI calls
-  const withTimeoutWrap = <T>(promise: Promise<T>, label: string): Promise<T> =>
-    withTimeout(promise, label, timeoutMs);
+  // kele principle: no timeouts. Wait indefinitely for AI to respond.
 
   // --- Attempt 1: Generate initial plan ---
   let result: AIIncubateResult;
   try {
-    result = await withTimeoutWrap(tryIncubate(idea, rootDir, adapter), 'Incubation');
+    result = await tryIncubate(idea, rootDir, adapter);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     return { success: false, error, validation: validationMeta };
@@ -203,9 +200,8 @@ export async function incubateWithAI(
   if (!localValidation.valid) {
     // Structural errors — AI needs to fix them
     try {
-      const fixed = await withTimeoutWrap(
-        tryFixIncubator(idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? ''),
-        'Incubation fix'
+      const fixed = await tryFixIncubator(
+        idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? ''
       );
       if (fixed.success && fixed.subProjects) {
         result = fixed;
@@ -217,7 +213,7 @@ export async function incubateWithAI(
         validationMeta.localWarnings = reValidation.warnings;
       }
     } catch {
-      // Fix attempt timed out — continue with current result
+      // Fix attempt failed — continue with current result
     }
   }
 
@@ -236,15 +232,14 @@ export async function incubateWithAI(
 
   if (needsAiReview) {
     try {
-      const review = await withTimeoutWrap(reviewIncubatorOutput(adapter, result.subProjects!, idea), 'Incubation review');
+      const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea);
       validationMeta.aiApproved = review.approved;
       validationMeta.aiIssues = review.issues;
 
       if (!review.approved && review.suggestions.length > 0) {
         // Try to fix based on AI review
-        const fixed = await withTimeoutWrap(
-          tryFixIncubator(idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? ''),
-          'Incubation review fix'
+        const fixed = await tryFixIncubator(
+          idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? ''
         );
         if (fixed.success && fixed.subProjects) {
           result = fixed;

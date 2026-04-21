@@ -197,8 +197,9 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
     }
 
     let fixed = false;
-    for (let fixAttempt = 1; fixAttempt <= 2; fixAttempt++) {
-      onProgress?.(`   🔄 第 ${fixAttempt}/2 次修复代码质量问题...`);
+    let fixAttempt = 1;
+    while (true) {
+      onProgress?.(`   🔄 第 ${fixAttempt} 次修复代码质量问题...`);
       const fixPrompt = prompt + `\n\n` +
         `⚠️ CODE QUALITY VALIDATION FAILED. The generated code has critical issues:\n\n` +
         `${validation.issues.map((i) => `- ${i}`).join('\n')}\n\n` +
@@ -229,15 +230,17 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
         for (const issue of validation.issues.slice(0, 3)) {
           onProgress?.(`      • ${issue}`);
         }
+        fixAttempt++;
       } catch (fixErr) {
         const fixErrMsg = fixErr instanceof Error ? fixErr.message : String(fixErr);
         onProgress?.(`   ⚠️  修复请求失败: ${fixErrMsg.slice(0, 120)}`);
+        fixAttempt++;
       }
     }
 
     if (!fixed) {
       task.status = 'failed';
-      task.error = `Code validation failed after 2 fix attempts: ${validation.issues.join('; ')}`;
+      task.error = `Code validation failed after ${fixAttempt} fix attempts: ${validation.issues.join('; ')}`;
       db.saveTask(task, project.id);
       throw new ValidationError(task.error);
     }
@@ -259,8 +262,9 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       onProgress?.(`   ❌ 运行失败: ${runResult.stderr.slice(0, 200)}`);
       runtimePassed = false;
       let fixed = false;
-      for (let fixAttempt = 1; fixAttempt <= 2; fixAttempt++) {
-        onProgress?.(`   🔄 第 ${fixAttempt}/2 次自动修复...`);
+      let fixAttempt = 1;
+      while (true) {
+        onProgress?.(`   🔄 第 ${fixAttempt} 次自动修复...`);
         const fixPrompt = buildFixPrompt(prompt, runResult);
         try {
           const route = ctx.registry.route(task.complexity);
@@ -280,15 +284,17 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
             break;
           }
           onProgress?.(`   ❌ 修复后仍运行失败`);
+          fixAttempt++;
         } catch (fixErr) {
           const fixErrMsg = fixErr instanceof Error ? fixErr.message : String(fixErr);
           onProgress?.(`   ⚠️  修复请求失败: ${fixErrMsg.slice(0, 120)}`);
+          fixAttempt++;
         }
       }
 
       if (!fixed) {
         task.status = 'failed';
-        task.error = `Runtime validation failed after 2 fix attempts. ${runResult.stderr.slice(0, 200)}`;
+        task.error = `Runtime validation failed after ${fixAttempt} fix attempts. ${runResult.stderr.slice(0, 200)}`;
         db.saveTask(task, project.id);
         throw new ValidationError(task.error);
       }
@@ -316,8 +322,9 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 
       // Auto-fix: feed browser validation errors to AI
       let fixed = false;
-      for (let fixAttempt = 1; fixAttempt <= 2; fixAttempt++) {
-        onProgress?.(`   🔄 第 ${fixAttempt}/2 次游戏修复...`);
+      let fixAttempt = 1;
+      while (true) {
+        onProgress?.(`   🔄 第 ${fixAttempt} 次游戏修复...`);
         const fixPrompt = prompt + `\n\n` +
           `⚠️ BROWSER VALIDATION FAILED. The game is NOT PLAYABLE.\n\n` +
           `Issues found:\n${browser.errors.map((e) => `- ${e}`).join('\n')}\n\n` +
@@ -380,8 +387,8 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 async function runAcceptanceValidation(
   ctx: ExecutionContext,
   prompt: string,
-  validationPassed: boolean,
-  runtimePassed: boolean
+  _validationPassed: boolean,
+  _runtimePassed: boolean
 ): Promise<void> {
   const { subProject, onProgress, task, project, db } = ctx;
   const criteria = subProject.acceptanceCriteria || [];
@@ -405,9 +412,9 @@ async function runAcceptanceValidation(
     onProgress?.(`      ✗ ${r.criterion.description} — ${r.actual}`);
   }
 
-  const maxRetries = 2;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    onProgress?.(`   🔄 第 ${attempt}/${maxRetries} 次修复...`);
+  let attempt = 1;
+  while (true) {
+    onProgress?.(`   🔄 第 ${attempt} 次修复...`);
 
     const fixPrompt = prompt + `\n\n` +
       `⚠️ ACCEPTANCE TEST FAILED. The incubator defined these criteria that your output did not meet:\n\n` +
@@ -430,35 +437,11 @@ async function runAcceptanceValidation(
         return;
       }
       onProgress?.(`   ⚠️  修复后仍未通过 (评分: ${reAcceptance.score}/100)`);
-      if (attempt >= maxRetries) {
-        if (validationPassed && runtimePassed) {
-          onProgress?.(`   ⚠️  修复用尽但代码可运行，接受为警告继续执行`);
-          task.status = 'completed';
-          task.error = `Acceptance test warning (score: ${reAcceptance.score}/100). Failed: ${failed.map(f => f.criterion.description).join('; ')}`;
-          db.saveTask(task, project.id);
-          return;
-        }
-        task.status = 'failed';
-        task.error = `Acceptance test failed after ${maxRetries} fix attempts.`;
-        db.saveTask(task, project.id);
-        throw new ValidationError(task.error);
-      }
+      attempt++;
     } catch (retryErr) {
       const retryError = retryErr instanceof Error ? retryErr.message : String(retryErr);
       onProgress?.(`   ❌ 修复请求失败: ${retryError.slice(0, 120)}`);
-      if (attempt >= maxRetries) {
-        if (validationPassed && runtimePassed) {
-          onProgress?.(`   ⚠️  修复请求失败但代码可运行，接受为警告继续执行`);
-          task.status = 'completed';
-          task.error = `Acceptance test warning. Retry failed: ${retryError}`;
-          db.saveTask(task, project.id);
-          return;
-        }
-        task.status = 'failed';
-        task.error = `Fix attempt failed: ${retryError}`;
-        db.saveTask(task, project.id);
-        throw new ValidationError(task.error);
-      }
+      attempt++;
     }
   }
 }
@@ -469,8 +452,8 @@ async function runAcceptanceValidation(
 async function runAIQualityReview(
   ctx: ExecutionContext,
   prompt: string,
-  validationPassed: boolean,
-  runtimePassed: boolean
+  _validationPassed: boolean,
+  _runtimePassed: boolean
 ): Promise<void> {
   const { subProject, onProgress, task, project, db } = ctx;
   const isCodingTask = CODING_TYPES.includes(subProject.type);
@@ -490,9 +473,9 @@ async function runAIQualityReview(
   onProgress?.(`   ❌ 验收未通过 (评分: ${review.score}/10)`);
   onProgress?.(`   问题: ${review.issues.join('; ')}`);
 
-  const maxRetries = 2;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    onProgress?.(`   🔄 第 ${attempt}/${maxRetries} 次修复...`);
+  let attempt = 1;
+  while (true) {
+    onProgress?.(`   🔄 第 ${attempt} 次修复...`);
 
     const fixPrompt = prompt + `\n\n` +
       `⚠️ PREVIOUS ATTEMPT FAILED QUALITY REVIEW (FAIL).\n\n` +
@@ -520,35 +503,11 @@ async function runAIQualityReview(
         return;
       }
       onProgress?.(`   ⚠️  修复后仍未通过 (评分: ${review.score}/10)`);
-      if (attempt >= maxRetries) {
-        if (validationPassed && runtimePassed && review.score >= 5) {
-          onProgress?.(`   ⚠️  修复用尽但代码可运行，接受为警告继续执行`);
-          task.status = 'completed';
-          task.error = `Quality review warning (score: ${review.score}/10). Issues: ${review.issues.join('; ')}`;
-          db.saveTask(task, project.id);
-          return;
-        }
-        task.status = 'failed';
-        task.error = `Task failed quality review after ${maxRetries} fix attempts. Issues: ${review.issues.join('; ')}`;
-        db.saveTask(task, project.id);
-        throw new ValidationError(task.error);
-      }
+      attempt++;
     } catch (retryErr) {
       const retryError = retryErr instanceof Error ? retryErr.message : String(retryErr);
       onProgress?.(`   ❌ 修复请求失败: ${retryError.slice(0, 120)}`);
-      if (attempt >= maxRetries) {
-        if (validationPassed && runtimePassed && review.score >= 5) {
-          onProgress?.(`   ⚠️  修复请求失败但代码可运行，接受为警告继续执行`);
-          task.status = 'completed';
-          task.error = `Quality review warning (score: ${review.score}/10). Retry failed: ${retryError}`;
-          db.saveTask(task, project.id);
-          return;
-        }
-        task.status = 'failed';
-        task.error = `Fix attempt failed: ${retryError}`;
-        db.saveTask(task, project.id);
-        throw new ValidationError(task.error);
-      }
+      attempt++;
     }
   }
 }

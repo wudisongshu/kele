@@ -127,80 +127,66 @@ export class OpenAICompatibleAdapter implements AIAdapter {
   }
 
   private async executeOnce(prompt: string, onToken?: (token: string) => void): Promise<string> {
-    const timeoutMs = (this.config.timeout ?? 1800) * 1000; // default 30 min per task
+    // kele principle: no timeouts. Wait indefinitely for AI to respond.
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    try {
-      // Auto-inject Kimi Code User-Agent if baseURL matches
-      const isKimiCode = this.config.baseURL.includes('api.kimi.com');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        ...this.config.headers,
-      };
-      if (isKimiCode && !headers['User-Agent']) {
-        headers['User-Agent'] = 'KimiCLI/0.77';
-      }
-
-      const body: Record<string, unknown> = {
-        model: this.config.model,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a senior software engineer and business analyst. ' +
-              'When generating code, return structured JSON with a "files" array containing {path, content}. ' +
-              'For analysis tasks, return clear structured insights.',
-          },
-          { role: 'user', content: prompt },
-        ],
-        temperature: this.config.temperature ?? 0.7,
-      };
-
-      if (this.config.maxTokens) {
-        body.max_tokens = this.config.maxTokens;
-      }
-
-      // Use streaming when onToken callback is provided
-      // This avoids 504 gateway timeouts because data flows continuously
-      const useStreaming = !!onToken;
-      if (useStreaming) {
-        body.stream = true;
-      }
-
-      const response = await fetch(`${this.config.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`${this.name} API error (${response.status}): ${errorText}`);
-      }
-
-      if (useStreaming) {
-        return await this.parseStream(response, onToken!);
-      }
-
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-      };
-
-      return data.choices[0]?.message?.content ?? '';
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error(
-          `${this.name} API request timed out after ${timeoutMs / 1000}s. ` +
-          'Consider increasing timeout with `kele config --provider <name>` or reducing task complexity.'
-        );
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeoutId);
+    // Auto-inject Kimi Code User-Agent if baseURL matches
+    const isKimiCode = this.config.baseURL.includes('api.kimi.com');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.config.apiKey}`,
+      ...this.config.headers,
+    };
+    if (isKimiCode && !headers['User-Agent']) {
+      headers['User-Agent'] = 'KimiCLI/0.77';
     }
+
+    const body: Record<string, unknown> = {
+      model: this.config.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a senior software engineer and business analyst. ' +
+            'When generating code, return structured JSON with a "files" array containing {path, content}. ' +
+            'For analysis tasks, return clear structured insights.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      temperature: this.config.temperature ?? 0.7,
+    };
+
+    if (this.config.maxTokens) {
+      body.max_tokens = this.config.maxTokens;
+    }
+
+    // Use streaming when onToken callback is provided
+    const useStreaming = !!onToken;
+    if (useStreaming) {
+      body.stream = true;
+    }
+
+    const response = await fetch(`${this.config.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`${this.name} API error (${response.status}): ${errorText}`);
+    }
+
+    if (useStreaming) {
+      return await this.parseStream(response, onToken!);
+    }
+
+    const data = (await response.json()) as {
+      choices: Array<{ message: { content: string } }>;
+    };
+
+    return data.choices[0]?.message?.content ?? '';
   }
 
   /**

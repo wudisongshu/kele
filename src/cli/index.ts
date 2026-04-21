@@ -67,13 +67,15 @@ function collectHeaders(value: string, previous: Record<string, string>): Record
 }
 
 /**
- * Parse timeout from CLI option or environment variable.
+ * Parse timeout from CLI option.
+ * kele principle: no timeouts by default. Wait indefinitely for AI.
+ * This option is kept for backward compatibility but has no effect.
  */
 function parseTimeout(value: string): number {
   const parsed = parseInt(value, 10);
   if (isNaN(parsed) || parsed < 1) {
-    console.warn(`⚠️  Invalid timeout "${value}", using default 1800s`);
-    return 1800;
+    console.warn(`⚠️  Invalid timeout "${value}"`);
+    return Infinity as unknown as number;
   }
   return parsed;
 }
@@ -99,7 +101,7 @@ program
   .argument('[idea]', 'Your idea, e.g. "我要做一个塔防游戏并部署赚钱"')
   .option('-o, --output <dir>', 'Output directory for generated projects', join(homedir(), 'kele-projects'))
   .option('-y, --yes', 'Skip confirmation and auto-execute all tasks', false)
-  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
+  .option('-t, --timeout <seconds>', 'AI request timeout (kept for compatibility, no effect)', parseTimeout)
   .option('--debug', 'Show all prompts sent to AI for debugging', false)
   .option('--mock', 'Force mock AI mode for fast testing (no API calls)', false)
   .option('--json', 'Output structured JSON instead of human-readable text (for CI/CD)', false)
@@ -956,7 +958,7 @@ program
   .argument('<task-id>', 'Task ID to upgrade')
   .argument('<request>', 'Upgrade request, e.g. "change art to pixel style"')
   .description('Upgrade an existing task with new requirements')
-  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
+  .option('-t, --timeout <seconds>', 'AI request timeout (kept for compatibility, no effect)', parseTimeout)
   .option('--debug', 'Show all prompts sent to AI for debugging', false)
   .action(async (projectId: string, taskId: string, request: string, options: { timeout?: number; debug: boolean }) => {
     if (options.debug) {
@@ -1054,7 +1056,7 @@ program
   .argument('<project-id>', 'Project ID')
   .argument('<task-id>', 'Task ID to retry')
   .description('Retry a failed task without re-running the entire project')
-  .option('-t, --timeout <seconds>', 'AI request timeout in seconds (default: 1800 = 30min)', parseTimeout)
+  .option('-t, --timeout <seconds>', 'AI request timeout (kept for compatibility, no effect)', parseTimeout)
   .option('--mock', 'Force mock AI mode for fast testing', false)
   .action(async (projectId: string, taskId: string, options: { timeout?: number; mock: boolean }) => {
     const db = new KeleDatabase();
@@ -1306,7 +1308,7 @@ function printUsage(): void {
   console.log('\n选项：');
   console.log('  -o, --output <dir>   指定项目生成目录');
   console.log('  -y, --yes            自动执行所有任务（跳过确认）');
-  console.log('  -t, --timeout <s>    AI 超时时间（默认 1800 秒 = 30 分钟）');
+  console.log('  -t, --timeout <s>    AI 超时时间（已废弃，kele 永不超时）');
   console.log('  --debug              显示 kele 发给 AI 的所有 prompt');
   console.log('  -v, --version        显示版本号');
 }
