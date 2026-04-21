@@ -47,3 +47,4 @@
 4. **真实 API 优先** — mock 只在 API 完全不可用时的最后手段
 5. **用户输入即真理** — `snake game` 就要生成 snake，不是 match-3
 6. **PWA 优先** — Web 项目必须生成 PWA 支持文件（manifest.json + Service Worker），让用户可以添加到主屏幕、离线游玩
+7. **测试覆盖** — 每个新功能必须有对应的单元测试，测试数量只增不减
