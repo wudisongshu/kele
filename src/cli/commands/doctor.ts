@@ -25,6 +25,19 @@ export function runDoctor(fix = false): void {
     issues.push('Available memory is very low. AI generation may fail.');
   }
 
+  // Check 1c: Disk space (rough estimate via tmpdir)
+  try {
+    const { statfsSync } = require('fs');
+    const tmpStat = statfsSync(require('os').tmpdir());
+    const freeGB = (tmpStat.bavail * tmpStat.bsize) / (1024 * 1024 * 1024);
+    checks.push(`Disk: ${freeGB.toFixed(1)}GB free`);
+    if (freeGB < 1) {
+      issues.push('Disk space is very low. Project generation may fail.');
+    }
+  } catch {
+    // statfsSync may not be available on all platforms
+  }
+
   // Check 2: Config file
   const configPath = join(homedir(), '.kele', 'config.json');
   if (existsSync(configPath)) {
