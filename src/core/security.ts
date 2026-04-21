@@ -36,8 +36,14 @@ export function escapePromptInput(input: string, maxLength = 500): string {
 export function sanitizeFilePath(filePath: string): string | null {
   if (!filePath || typeof filePath !== 'string') return null;
 
+  // Reject null bytes
+  if (filePath.includes('\0')) return null;
+
   // Normalize path separators
   const normalized = filePath.replace(/\\/g, '/');
+
+  // Reject overly long paths
+  if (normalized.length > 500) return null;
 
   // Block sensitive system files
   const sensitivePatterns = [
@@ -58,6 +64,13 @@ export function sanitizeFilePath(filePath: string): string | null {
     /^\/sys\//,
     /^\/proc\//,
     /^\/dev\//,
+    /^\.keystore/,
+    /^\.p12$/,
+    /^\.pfx$/,
+    /^\.key$/,
+    /^\.pem$/,
+    /^\.cer$/,
+    /^\.crt$/,
   ];
   if (sensitivePatterns.some(p => p.test(normalized))) {
     return null;
