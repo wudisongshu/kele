@@ -21,6 +21,7 @@ Review the task output against:
 2. Correctness — does the code look runnable? Are there obvious bugs, syntax errors, or missing imports?
 3. Requirements — does the output match what the task asked for?
 4. Compatibility — is it consistent with the project's overall goal and previous work?
+5. PWA Support — for web projects, does it include manifest.json and Service Worker for offline play?
 
 Be STRICT but fair. A "PASS" means the task is genuinely complete and usable. "PARTIAL" means it mostly works but needs minor fixes. "FAIL" means it's incomplete, broken, or wrong.
 
