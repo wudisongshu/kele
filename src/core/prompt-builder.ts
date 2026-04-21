@@ -9,6 +9,8 @@ import { getTemplateType, getTemplateDescription } from './template-loader.js';
 import { getPlatformCredentials } from '../platform-credentials.js';
 import { formatPlatformGuideForPrompt, getDeployableConfigTemplate } from '../platform-knowledge.js';
 import { escapePromptInput } from './security.js';
+import { existsSync, readdirSync, statSync } from 'fs';
+import { join } from 'path';
 
 const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
 1. COMPLETE IMPLEMENTATION: You MUST generate FULLY WORKING code. NO stubs, NO TODOs, NO placeholder functions. Every function must do something real.
@@ -31,6 +33,30 @@ DEATH LINE: If you output code with empty functions, TODO comments, or stub impl
 /**
  * Build the execution prompt for a task.
  */
+function getProjectFileTree(targetDir: string, maxDepth = 2): string {
+  if (!existsSync(targetDir)) return '';
+  const lines: string[] = [];
+  function walk(dir: string, prefix: string, depth: number) {
+    if (depth > maxDepth) return;
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      if (entry === 'node_modules' || entry === '.git' || entry === 'dist' || entry.startsWith('.')) continue;
+      const fullPath = join(dir, entry);
+      const stat = statSync(fullPath);
+      if (stat.isDirectory()) {
+        lines.push(`${prefix}${entry}/`);
+        walk(fullPath, prefix + '  ', depth + 1);
+      } else {
+        const size = stat.size;
+        const sizeStr = size < 1024 ? `${size}B` : size < 1024 * 1024 ? `${(size / 1024).toFixed(1)}KB` : `${(size / 1024 / 1024).toFixed(1)}MB`;
+        lines.push(`${prefix}${entry} (${sizeStr})`);
+      }
+    }
+  }
+  walk(targetDir, '', 0);
+  return lines.length > 0 ? lines.join('\n') : '';
+}
+
 export function buildTaskPrompt(task: Task, subProject: SubProject, project: Project): string {
   const isSetup = subProject.type === 'setup';
   const templateType = getTemplateType(project.idea.monetization);
@@ -47,13 +73,19 @@ export function buildTaskPrompt(task: Task, subProject: SubProject, project: Pro
     ? 'Standard Web Project (package.json + Vite + index.html)'
     : templateDesc;
 
+  // Inject existing project files context so AI knows what already exists
+  const fileTree = getProjectFileTree(subProject.targetDir);
+  const fileTreeSection = fileTree
+    ? `\n--- EXISTING PROJECT FILES ---\n${fileTree}\n--- END FILE TREE ---\n`
+    : '';
+
   const baseContext = `You are a senior software engineer working on the project "${escapePromptInput(project.name)}".
 
 Sub-project: ${escapePromptInput(subProject.name)}
 Description: ${escapePromptInput(subProject.description)}
 Target directory: ${subProject.targetDir}
 Platform template: ${effectiveTemplateDesc}
-User's original idea: "${escapePromptInput(project.idea.rawText)}"${platformSection}`;
+User's original idea: "${escapePromptInput(project.idea.rawText)}"${fileTreeSection}${platformSection}`;
 
   if (isCodingTask) {
     const gameConstraint = !isSetup && project.idea.type === 'game'
