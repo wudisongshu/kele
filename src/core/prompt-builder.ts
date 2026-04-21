@@ -59,7 +59,8 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${platformSect
    c) Choose the BEST technology for the game described by the user. If the user wants a simple browser game, HTML5 Canvas or DOM is fine. If they want a more complex game, use appropriate frameworks (Phaser, Three.js, React, Vue, etc.). If the target platform is WeChat/Douyin mini-game, follow their SDK requirements.
    d) The game MUST be runnable immediately after this task completes. If it's a web game, the user should be able to open the HTML file in a browser. If it requires a build step, include the build config and instructions.
    e) The game MUST have: (1) a visible score/lives/progress display, (2) clear start/restart/game-over states, (3) immediate feedback on player input (visual/audio).
-   f) For simple web games: prefer inlining JS/CSS in a single HTML file for easy testing. For complex games or framework-based games: generate proper project structure with all files.`
+   f) For simple web games: prefer inlining JS/CSS in a single HTML file for easy testing. For complex games or framework-based games: generate proper project structure with all files.
+   g) PWA SUPPORT: For web games, generate manifest.json and sw.js (Service Worker) so the game can be installed on mobile home screens and work offline.`
       : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'
