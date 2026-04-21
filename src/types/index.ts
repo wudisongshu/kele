@@ -31,7 +31,7 @@ export type ProjectStatus =
 
 export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
 
-export type AIProvider = 'deepseek' | 'qwen' | 'claude' | 'openai' | 'mock';
+export type AIProvider = string;
 
 /**
  * A user's raw idea, parsed into structured form.

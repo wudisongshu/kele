@@ -37,9 +37,9 @@ const PLATFORM_RULES: PlatformRule[] = [
     needsSoftWareCopyright: false,
     baseScore: 25,
     keywordMatches: ['网页', 'h5', 'web', 'online', '网站', '浏览器', '线上'],
-    revenueModel: '广告变现（Google AdSense / 百度联盟）',
-    payoutMethod: '电汇至银行卡（AdSense 满 $100 自动打款）',
-    estimatedRevenue: '日活 1000 ≈ $3-10/天',
+    revenueModel: '广告变现（Google AdSense / 百度联盟）+ 订阅/付费（Patreon/Ko-fi/Stripe）+ 内购（数字商品）',
+    payoutMethod: '电汇至银行卡（AdSense 满 $100 自动打款）/ Stripe/PayPal',
+    estimatedRevenue: '日活 1000 ≈ $3-10/天（广告）+ 订阅收入（如有Premium功能）',
   },
   {
     id: 'google-play',
