@@ -857,9 +857,18 @@ program
 program
   .command('list')
   .description('List all projects and their tasks')
-  .action(() => {
+  .option('--status <status>', 'Filter by status (pending, executing, completed, failed)')
+  .option('--type <type>', 'Filter by type (game, tool, bot, etc.)')
+  .action((opts: { status?: string; type?: string }) => {
     const db = new KeleDatabase();
-    const projects = db.listProjects();
+    let projects = db.listProjects();
+
+    if (opts.status) {
+      projects = projects.filter((p) => p.status === opts.status);
+    }
+    if (opts.type) {
+      projects = projects.filter((p) => p.idea.type === opts.type);
+    }
 
     if (projects.length === 0) {
       console.log('🥤 暂无项目。用 kele "你的想法" 创建一个！');
