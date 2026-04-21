@@ -20,7 +20,7 @@ export function getTemplateType(monetization: string): TemplateType {
     case 'web':
     case 'unknown':
     default:
-      return 'pwa-game';
+      return 'game-web';
   }
 }
 

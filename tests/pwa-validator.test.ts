@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -50,8 +50,8 @@ describe('PWA validation', () => {
       icons: [{ src: 'icon.png', sizes: '192x192' }],
     };
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
-    const content = writeFileSync.toString();
-    const parsed = JSON.parse(JSON.stringify(manifest));
+    const content = readFileSync(join(dir, 'manifest.json'), 'utf-8');
+    const parsed = JSON.parse(content);
     expect(parsed.name).toBe('Test Game');
     expect(parsed.display).toBe('standalone');
     cleanup(dir);

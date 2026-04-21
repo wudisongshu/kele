@@ -6,7 +6,7 @@
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { findSourceFiles } from './file-utils.js';
 import { validateGamePlayability } from './game-validator.js';
 
@@ -228,10 +228,13 @@ function validateHtmlFile(htmlPath: string): string[] {
     }
   }
 
-  // Check for PWA manifest link
-  const hasManifestLink = content.includes('rel="manifest"') || content.includes("rel='manifest'");
-  if (!hasManifestLink) {
-    issues.push('No PWA manifest link found — add <link rel="manifest" href="manifest.json">');
+  // Check for PWA manifest link (only for web projects, skip mini-programs)
+  const isMiniProgram = existsSync(join(dirname(htmlPath), 'game.json')) || existsSync(join(dirname(htmlPath), 'project.config.json'));
+  if (!isMiniProgram) {
+    const hasManifestLink = content.includes('rel="manifest"') || content.includes("rel='manifest'");
+    if (!hasManifestLink) {
+      issues.push('No PWA manifest link found — add <link rel="manifest" href="manifest.json">');
+    }
   }
 
   return issues;
