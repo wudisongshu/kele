@@ -59,6 +59,29 @@ export function checkMonetizationReadiness(targetDir: string, platform: string):
       checks.push(checkJsHasPremiumCommand(targetDir));
       break;
 
+    case 'app-store':
+    case 'google-play':
+      checks.push(checkFileExists(targetDir, 'package.json', true, 'Project manifest'));
+      checks.push(checkFileExists(targetDir, 'index.html', true, 'Game entry point'));
+      checks.push(checkHtmlHasAdContainer(targetDir));
+      break;
+
+    case 'steam':
+      checks.push(checkFileExists(targetDir, 'package.json', true, 'Electron project manifest'));
+      checks.push(checkFileExists(targetDir, 'main.js', true, 'Electron main process'));
+      checks.push(checkFileExists(targetDir, 'index.html', true, 'Game entry point'));
+      break;
+
+    case 'itchio':
+      checks.push(checkFileExists(targetDir, 'index.html', true, 'Game entry point'));
+      checks.push(checkFileExists(targetDir, 'package.json', false, 'Project manifest'));
+      break;
+
+    case 'github-sponsors':
+      checks.push(checkFileExists(targetDir, 'README.md', true, 'Project README with sponsorship info'));
+      checks.push(checkFileExists(targetDir, '.github/FUNDING.yml', false, 'GitHub Sponsors config'));
+      break;
+
     default:
       checks.push({
         name: 'platform_support',
