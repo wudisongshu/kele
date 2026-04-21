@@ -21,6 +21,7 @@ export type UserIntent =
   | { type: 'CONFIG'; configType: 'provider' | 'secrets' | 'unknown'; action: string }
   | { type: 'RUN'; projectQuery?: string }
   | { type: 'RESUME'; projectQuery?: string }
+  | { type: 'DELETE'; projectQuery: string }
   | { type: 'CHAT'; message: string };
 
 const INTENT_PROMPT = `You are an intent classification assistant for "kele" — an AI tool that turns ideas into products.
@@ -34,6 +35,7 @@ Intent types:
 - CONFIG: User wants to configure settings, API keys, or credentials (mentions "config", "setup", "key", "provider", "secret", "account")
 - RUN: User wants to run or preview a project locally (mentions "run", "start", "preview", "launch", "启动", "运行", "打开", "预览")
 - RESUME: User wants to continue/resume an interrupted project (mentions "continue", "resume", "接着", "继续", "接着干", "接着做", "go on", "resume")
+- DELETE: User wants to delete a project (mentions "delete", "remove", "删掉", "删除", "移除")
 - CHAT: General conversation, questions, or casual chat
 
 Rules:
@@ -106,6 +108,9 @@ export async function parseIntent(userInput: string, adapter: AIAdapter): Promis
       case 'RESUME':
         return { type: 'RESUME', projectQuery: parsed.projectName || undefined };
 
+      case 'DELETE':
+        return { type: 'DELETE', projectQuery: parsed.projectName || details };
+
       case 'CHAT':
       default:
         return { type: 'CHAT', message: userInput };
@@ -153,6 +158,11 @@ function heuristicParse(input: string): UserIntent {
   const configSignals = ['config', 'setup', 'key', 'provider', 'secret', '配置', '设置', 'key'];
   const isConfig = configSignals.some((s) => lower.includes(s.toLowerCase()));
 
+  // DELETE signals
+  const deleteSignals = ['delete', 'remove', '删掉', '删除', '移除'];
+  const isDelete = deleteSignals.some((s) => lower.includes(s.toLowerCase()));
+
+  if (isDelete) return { type: 'DELETE', projectQuery: input };
   if (isResume) return { type: 'RESUME', projectQuery: input };
   if (isRun) return { type: 'RUN', projectQuery: input };
   if (isQuery) return { type: 'QUERY', query: input };
