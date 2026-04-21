@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
-export function runLogs(lines: number = 20): void {
+export function runLogs(lines: number = 20, levelFilter?: string): void {
   const logDir = join(homedir(), '.kele', 'logs');
   const date = new Date().toISOString().split('T')[0];
   const logFile = join(logDir, `kele-${date}.log`);
@@ -17,14 +17,28 @@ export function runLogs(lines: number = 20): void {
   }
 
   const content = readFileSync(logFile, 'utf-8');
-  const entries = content.trim().split('\n').filter((l) => l.trim());
+  let entries = content.trim().split('\n').filter((l) => l.trim());
+
+  // Filter by level if specified
+  if (levelFilter) {
+    const filter = levelFilter.toLowerCase();
+    entries = entries.filter((entry) => {
+      try {
+        const parsed = JSON.parse(entry);
+        return parsed.level?.toLowerCase() === filter;
+      } catch {
+        return false;
+      }
+    });
+  }
 
   if (entries.length === 0) {
     console.log('📭 日志文件为空');
     return;
   }
 
-  console.log(`📋 最近 ${Math.min(lines, entries.length)} 条日志:\n`);
+  const filterLabel = levelFilter ? ` (${levelFilter})` : '';
+  console.log(`📋 最近 ${Math.min(lines, entries.length)} 条日志${filterLabel}:\n`);
   const recent = entries.slice(-lines);
   for (const entry of recent) {
     try {
