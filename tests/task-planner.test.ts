@@ -30,9 +30,22 @@ function makeIdea(overrides: Partial<Idea> = {}): Idea {
 }
 
 describe('TaskPlanner', () => {
-  it('should generate tasks for development sub-project', () => {
+  it('should generate tasks for development sub-project (medium = 2 tasks)', () => {
     const sp = makeSubProject({ type: 'development' });
-    const idea = makeIdea();
+    const idea = makeIdea({ complexity: 'medium' });
+    const result = planTasks(sp, idea);
+
+    expect(result.success).toBe(true);
+    expect(result.tasks!.length).toBe(2);
+
+    const titles = result.tasks!.map((t) => t.title);
+    expect(titles).toContain('Implement core gameplay');
+    expect(titles).toContain('Add UI, menus, and polish');
+  });
+
+  it('should generate 1 task for simple game development', () => {
+    const sp = makeSubProject({ type: 'development' });
+    const idea = makeIdea({ complexity: 'simple' });
     const result = planTasks(sp, idea);
 
     expect(result.success).toBe(true);
@@ -40,6 +53,18 @@ describe('TaskPlanner', () => {
 
     const titles = result.tasks!.map((t) => t.title);
     expect(titles).toContain('Implement complete playable game');
+  });
+
+  it('should generate 3 tasks for complex game development', () => {
+    const sp = makeSubProject({ type: 'development' });
+    const idea = makeIdea({ complexity: 'complex' });
+    const result = planTasks(sp, idea);
+
+    expect(result.success).toBe(true);
+    expect(result.tasks!.length).toBe(3);
+
+    const titles = result.tasks!.map((t) => t.title);
+    expect(titles).toContain('Implement core gameplay engine');
   });
 
   it('should generate tasks for store-submit sub-project', () => {

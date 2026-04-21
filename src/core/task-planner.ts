@@ -18,25 +18,64 @@ interface TaskTemplate {
  * Get development task templates based on project type.
  * Games are split into smaller, verifiable tasks to prevent AI from generating skeletons.
  */
-function getDevTaskTemplates(ideaType: string, ideaRawText: string): TaskTemplate[] {
+function getDevTaskTemplates(ideaType: string, ideaRawText: string, complexity: Complexity = 'medium'): TaskTemplate[] {
   if (ideaType === 'game') {
+    // Dynamic split based on complexity to avoid AI truncation
+    if (complexity === 'simple') {
+      return [
+        {
+          title: 'Implement complete playable game',
+          description:
+            `Implement the FULL game based on the user's idea: "${ideaRawText}".\n\n` +
+            'This is a SIMPLE game — keep it to a single HTML file with inline JS/CSS. ' +
+            'Implement rendering, input handling, game logic, scoring, and game over/restart.',
+          baseComplexity: 'medium',
+        },
+      ];
+    }
+    if (complexity === 'medium') {
+      return [
+        {
+          title: 'Implement core gameplay',
+          description:
+            `Implement the CORE game mechanics for: "${ideaRawText}".\n\n` +
+            'Focus on: rendering, player input, core game loop, and basic scoring. ' +
+            'Return the COMPLETE code for these mechanics.',
+          baseComplexity: 'medium',
+        },
+        {
+          title: 'Add UI, menus, and polish',
+          description:
+            'Add start screen, game over screen, restart functionality, sound effects (if applicable), ' +
+            'and visual polish. Build ON TOP of the existing code from the previous task. ' +
+            'Preserve all existing game logic and only add/enhance.',
+          baseComplexity: 'medium',
+        },
+      ];
+    }
+    // complex
     return [
       {
-        title: 'Implement complete playable game',
+        title: 'Implement core gameplay engine',
         description:
-          `Implement the FULL game based on the user's idea: "${ideaRawText}".\n\n` +
-          'You MUST implement ALL core game mechanics described by the user: ' +
-          'rendering, player input handling, game logic, scoring/progression, and win/lose conditions. ' +
-          'The game MUST be fully playable and enjoyable when this task completes. ' +
-          'NO stub logic, NO TODO comments, NO placeholder functions.\n\n' +
-          'ACCEPTANCE CRITERIA (kele will verify the game is playable):\n' +
-          '1. The game renders correctly when opened in a browser\n' +
-          '2. Player input (click, touch, keyboard, etc.) is handled and produces visible results\n' +
-          '3. Core game mechanics work as described by the user\n' +
-          '4. Score/progress/lives are displayed and update correctly\n' +
-          '5. Game over and restart work correctly\n' +
-          '6. The game is responsive and works on different screen sizes',
+          `Implement the CORE game engine for: "${ideaRawText}".\n\n` +
+          'Focus on: rendering system, player input, core game loop, and collision/detection logic. ' +
+          'Return the COMPLETE foundational code.',
         baseComplexity: 'complex',
+      },
+      {
+        title: 'Add game systems and progression',
+        description:
+          'Add scoring, levels/progression, power-ups, enemies, and advanced mechanics. ' +
+          'Build ON TOP of the existing code. Preserve all existing logic.',
+        baseComplexity: 'complex',
+      },
+      {
+        title: 'Add UI, menus, audio, and polish',
+        description:
+          'Add start screen, pause menu, game over screen, settings, sound effects, music, ' +
+          'and visual polish. Build ON TOP of existing code. Preserve all existing logic.',
+        baseComplexity: 'medium',
       },
     ];
   }
@@ -97,7 +136,7 @@ function adjustComplexity(base: Complexity, ideaComplexity: Complexity): Complex
  * Get task templates for a given sub-project type.
  * Intentionally minimal — each sub-project gets 1-2 tasks max.
  */
-function getTaskTemplates(subProjectType: string, ideaType: string, subProjectName: string, subProjectDesc: string): TaskTemplate[] {
+function getTaskTemplates(subProjectType: string, ideaType: string, subProjectName: string, subProjectDesc: string, complexity: Complexity = 'medium'): TaskTemplate[] {
   switch (subProjectType) {
     case 'setup': {
       // If this is NOT the first setup (project-setup), generate different tasks
@@ -127,7 +166,7 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
     }
 
     case 'development':
-      return getDevTaskTemplates(ideaType || 'unknown', subProjectDesc);
+      return getDevTaskTemplates(ideaType || 'unknown', subProjectDesc, complexity);
 
     case 'production':
       return [
@@ -265,7 +304,7 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
  */
 export function planTasks(subProject: SubProject, idea: Idea): PlanResult {
   try {
-    const templates = getTaskTemplates(subProject.type, idea.type, subProject.name, subProject.description);
+    const templates = getTaskTemplates(subProject.type, idea.type, subProject.name, subProject.description, idea.complexity);
     const now = new Date().toISOString();
 
     const tasks: Task[] = templates.map((tpl) => ({

@@ -6,7 +6,7 @@ import { existsSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export type TemplateType = 'game-web' | 'web-scaffold' | 'wechat-miniprogram' | 'douyin-game' | 'pwa-game' | 'discord-bot' | 'telegram-bot' | 'android-app' | 'steam-game' | 'generic';
+export type TemplateType = 'game-web' | 'web-scaffold' | 'wechat-miniprogram' | 'douyin-game' | 'pwa-game' | 'discord-bot' | 'telegram-bot' | 'android-app' | 'ios-app' | 'steam-game' | 'itchio-game' | 'github-sponsors' | 'generic';
 
 /**
  * Map monetization channel to template type.
@@ -23,8 +23,14 @@ export function getTemplateType(monetization: string): TemplateType {
       return 'telegram-bot';
     case 'google-play':
       return 'android-app';
+    case 'app-store':
+      return 'ios-app';
     case 'steam':
       return 'steam-game';
+    case 'itchio':
+      return 'itchio-game';
+    case 'github-sponsors':
+      return 'github-sponsors';
     case 'web':
     case 'unknown':
     default:
