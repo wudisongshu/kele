@@ -1344,8 +1344,9 @@ program
 program
   .command('stats')
   .description('Show usage statistics')
-  .action(() => {
-    runStats();
+  .option('--format <type>', 'Output format: text (default) or json', 'text')
+  .action((options: { format: string }) => {
+    runStats(options.format === 'json');
   });
 
 // --- Secrets command: kele secrets ---
