@@ -14,7 +14,7 @@ import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
 import { executeWithFallback, executeFixWithFallback } from './adapter-utils.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { trackTaskComplete, trackTaskFail } from './telemetry.js';
+import { trackTaskComplete, trackTaskFail, trackFixAttempt } from './telemetry.js';
 
 /**
  * Executor — schedules and runs tasks in dependency order.
@@ -199,6 +199,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
     let fixed = false;
     let fixAttempt = 1;
     while (true) {
+      trackFixAttempt(ctx.project.id, task.id, fixAttempt, 'code_quality');
       onProgress?.(`   🔄 第 ${fixAttempt} 次修复代码质量问题...`);
       const fixPrompt = prompt + `\n\n` +
         `⚠️ CODE QUALITY VALIDATION FAILED. The generated code has critical issues:\n\n` +
@@ -264,6 +265,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       let fixed = false;
       let fixAttempt = 1;
       while (true) {
+        trackFixAttempt(ctx.project.id, task.id, fixAttempt, 'runtime');
         onProgress?.(`   🔄 第 ${fixAttempt} 次自动修复...`);
         const fixPrompt = buildFixPrompt(prompt, runResult);
         try {
@@ -324,6 +326,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       let fixed = false;
       let fixAttempt = 1;
       while (true) {
+        trackFixAttempt(ctx.project.id, task.id, fixAttempt, 'game');
         onProgress?.(`   🔄 第 ${fixAttempt} 次游戏修复...`);
         const fixPrompt = prompt + `\n\n` +
           `⚠️ BROWSER VALIDATION FAILED. The game is NOT PLAYABLE.\n\n` +
@@ -414,6 +417,7 @@ async function runAcceptanceValidation(
 
   let attempt = 1;
   while (true) {
+    trackFixAttempt(ctx.project.id, ctx.task.id, attempt, 'acceptance');
     onProgress?.(`   🔄 第 ${attempt} 次修复...`);
 
     const fixPrompt = prompt + `\n\n` +
@@ -475,6 +479,7 @@ async function runAIQualityReview(
 
   let attempt = 1;
   while (true) {
+    trackFixAttempt(ctx.project.id, ctx.task.id, attempt, 'ai_review');
     onProgress?.(`   🔄 第 ${attempt} 次修复...`);
 
     const fixPrompt = prompt + `\n\n` +

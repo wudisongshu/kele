@@ -18,7 +18,7 @@ function ensureDir(): void {
 
 export interface TelemetryEvent {
   timestamp: string;
-  event: 'project_start' | 'project_complete' | 'project_fail' | 'task_complete' | 'task_fail' | 'api_call' | 'api_error' | 'validation_pass' | 'validation_fail';
+  event: 'project_start' | 'project_complete' | 'project_fail' | 'task_complete' | 'task_fail' | 'api_call' | 'api_error' | 'validation_pass' | 'validation_fail' | 'fix_attempt';
   projectId?: string;
   projectName?: string;
   taskId?: string;
@@ -86,6 +86,16 @@ export function trackApiError(provider: string, error: string, promptLength?: nu
     provider,
     error,
     meta: { promptLength },
+  });
+}
+
+export function trackFixAttempt(projectId: string, taskId: string, attemptNum: number, issueType: string): void {
+  trackEvent({
+    timestamp: new Date().toISOString(),
+    event: 'fix_attempt',
+    projectId,
+    taskId,
+    meta: { attemptNum, issueType },
   });
 }
 
