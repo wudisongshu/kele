@@ -14,7 +14,7 @@ const TYPE_KEYWORDS: Record<CreativeType, string[]> = {
     'roguelike', 'roguelite', 'dungeon', 'tower defense', 'td',
     'card game', 'board game', 'word game', 'quiz', 'trivia',
     'endless runner', 'runner', 'jump', 'flappy', 'doodle',
-    '2048', 'sudoku', 'chess', 'minesweeper', 'solitaire', 'memory', 'flip', 'match', 'concentration',
+    '2048', 'sudoku', 'chess', 'minesweeper', 'solitaire', 'memory', 'flip', 'match', 'concentration', 'wordle', 'hangman', 'crossword',
     'typing', 'rhythm', 'guitar hero', 'bejeweled', 'bubble shooter',
     'pinball', 'pool', 'billiards', 'bowling', 'golf', 'soccer', 'football',
     'basketball', 'volleyball', 'tennis', 'hockey', 'boxing', 'wrestling',
