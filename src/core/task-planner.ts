@@ -234,6 +234,20 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
         },
       ];
 
+    case 'analytics':
+      return [
+        {
+          title: 'Add analytics and tracking',
+          description:
+            'Integrate analytics tracking into the project. ' +
+            'For web: add Google Analytics 4 (gtag.js) or Plausible Analytics script. ' +
+            'Track page views, user sessions, and key events (game start, level complete, ad impression). ' +
+            'Generate a privacy-friendly analytics setup that respects user consent. ' +
+            'Include a PRIVACY.md explaining what data is collected and how it is used.',
+          baseComplexity: 'simple',
+        },
+      ];
+
     default:
       return [
         {
