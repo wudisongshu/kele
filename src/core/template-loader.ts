@@ -126,8 +126,14 @@ export function getTemplateDescription(type: TemplateType): string {
       return 'Telegram Bot template (Node.js + node-telegram-bot-api)';
     case 'android-app':
       return 'Android App template (WebView / Cordova wrapper)';
+    case 'ios-app':
+      return 'iOS App template (WKWebView / Capacitor wrapper)';
     case 'steam-game':
       return 'Steam Game template (Electron wrapper for desktop)';
+    case 'itchio-game':
+      return 'itch.io Game template (HTML5 zip package)';
+    case 'github-sponsors':
+      return 'GitHub Sponsors project template (README + FUNDING.yml)';
     default:
       return 'Generic web project template';
   }
