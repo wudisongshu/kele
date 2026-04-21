@@ -18,7 +18,7 @@ function ensureDir(): void {
 
 export interface TelemetryEvent {
   timestamp: string;
-  event: 'project_start' | 'project_complete' | 'project_fail' | 'task_complete' | 'task_fail' | 'api_call' | 'api_error' | 'validation_pass' | 'validation_fail' | 'fix_attempt';
+  event: 'project_start' | 'project_complete' | 'project_fail' | 'task_complete' | 'task_fail' | 'api_call' | 'api_error' | 'validation_pass' | 'validation_fail' | 'fix_attempt' | 'upgrade' | 'retry';
   projectId?: string;
   projectName?: string;
   taskId?: string;
