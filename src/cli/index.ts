@@ -94,7 +94,7 @@ program
     `  $ kele retry <project> <task>             # Retry failed task\n` +
     `  $ kele delete <project>                   # Delete a project\n` +
     `  $ kele export <project> [dir]             # Export project files`)
-  .version(`${version} (Node ${process.version}, ${process.platform})`, '-v, --version', 'Display version number');
+  .version(`${version} (Node ${process.version}, TS 5.9.3, ${process.platform})`, '-v, --version', 'Display version number');
 
 // --- Main command: kele "idea" ---
 program

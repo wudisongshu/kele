@@ -68,6 +68,6 @@ describe('monetization-router', () => {
     expect(platforms).toContain('steam');
     expect(platforms).toContain('wechat-miniprogram');
     expect(platforms).toContain('douyin');
-    expect(routes.length).toBe(8);
+    expect(routes.length).toBe(10);
   });
 });
