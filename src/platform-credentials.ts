@@ -77,6 +77,12 @@ export const PLATFORM_FIELDS: Record<string, Array<{ key: string; label: string;
     { key: 'packageName', label: 'Package Name', required: true, sensitive: false },
     { key: 'serviceAccountJson', label: 'Service Account JSON', required: false, sensitive: true },
   ],
+  'itchio': [
+    { key: 'apiKey', label: 'itch.io Butler API Key', required: false, sensitive: true },
+  ],
+  'github-sponsors': [
+    { key: 'githubUsername', label: 'GitHub Username', required: false, sensitive: false },
+  ],
 };
 
 function loadSecrets(): PlatformCredentials {
