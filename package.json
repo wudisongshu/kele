@@ -1,6 +1,6 @@
 {
   "name": "kele",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "kele — Idea-to-Monetization AI workflow engine",
   "type": "module",
   "main": "dist/cli/index.js",
