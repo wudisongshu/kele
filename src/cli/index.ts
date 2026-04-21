@@ -898,7 +898,8 @@ program
   .command('delete')
   .argument('<project-id>', 'Project ID to delete')
   .description('Delete a project and all its data')
-  .action((projectId: string) => {
+  .option('--force', 'Skip confirmation and delete project files too', false)
+  .action((projectId: string, opts: { force?: boolean }) => {
     const db = new KeleDatabase();
     const project = db.getProject(projectId);
 
@@ -908,15 +909,28 @@ program
       process.exit(1);
     }
 
-    console.log(`⚠️  即将删除项目: ${project.name}`);
-    console.log(`   ID: ${project.id}`);
-    console.log(`   目录: ${project.rootDir}`);
-    console.log();
+    if (!opts.force) {
+      console.log(`⚠️  即将删除项目: ${project.name}`);
+      console.log(`   ID: ${project.id}`);
+      console.log(`   目录: ${project.rootDir}`);
+      console.log();
+    }
 
     db.deleteProject(projectId);
-    console.log(`✅ 项目已删除: ${project.name}`);
-    console.log(`   💡 提示: 项目文件仍保留在 ${project.rootDir}`);
-    console.log(`      如需彻底清理，请手动删除该目录。`);
+
+    if (opts.force) {
+      try {
+        const { rmSync } = require('fs');
+        rmSync(project.rootDir, { recursive: true, force: true });
+        console.log(`✅ 项目已彻底删除: ${project.name}`);
+      } catch {
+        console.log(`✅ 数据库记录已删除，但文件清理失败: ${project.rootDir}`);
+      }
+    } else {
+      console.log(`✅ 项目已删除: ${project.name}`);
+      console.log(`   💡 提示: 项目文件仍保留在 ${project.rootDir}`);
+      console.log(`      如需彻底清理，请手动删除该目录。`);
+    }
   });
 
 // --- Show command: kele show <project-id> ---
