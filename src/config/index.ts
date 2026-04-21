@@ -140,6 +140,12 @@ export function getOutputDir(): string {
   return loadConfig().outputDir ?? join(homedir(), 'kele-projects');
 }
 
+export function setOutputDir(dir: string): void {
+  const config = loadConfig();
+  config.outputDir = dir;
+  saveConfig(config);
+}
+
 /**
  * Check if any provider is configured.
  */

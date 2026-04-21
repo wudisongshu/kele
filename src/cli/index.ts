@@ -4,7 +4,6 @@ import { Command } from 'commander';
 import { readFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { homedir } from 'os';
 import { parseIdea } from '../core/idea-engine.js';
 import { incubate } from '../core/incubator.js';
 import { incubateWithAI } from '../core/ai-incubator.js';
@@ -33,6 +32,8 @@ import {
   hasAnyProvider,
   setAutoYes,
   setTelemetryEnabled,
+  setOutputDir,
+  getOutputDir,
 } from '../config/index.js';
 import {
   setPlatformCredentials,
@@ -100,7 +101,7 @@ program
 // --- Main command: kele "idea" ---
 program
   .argument('[idea]', 'Your idea, e.g. "我要做一个塔防游戏并部署赚钱"')
-  .option('-o, --output <dir>', 'Output directory for generated projects', join(homedir(), 'kele-projects'))
+  .option('-o, --output <dir>', 'Output directory for generated projects', getOutputDir())
   .option('-y, --yes', 'Skip confirmation and auto-execute all tasks', false)
   .option('-t, --timeout <seconds>', 'AI request timeout (kept for compatibility, no effect)', parseTimeout)
   .option('--debug', 'Show all prompts sent to AI for debugging', false)
@@ -789,6 +790,7 @@ program
   .option('--no-auto-yes', 'Disable auto-confirm')
   .option('--telemetry', 'Enable telemetry collection')
   .option('--no-telemetry', 'Disable telemetry collection')
+  .option('--output-dir <dir>', 'Set default output directory for projects')
   .option('--list', 'List all configured providers')
   .action((options: {
     provider?: string;
@@ -800,6 +802,7 @@ program
     remove?: string;
     autoYes?: boolean;
     telemetry?: boolean;
+    outputDir?: string;
     list?: boolean;
   }) => {
     if (options.list) {
@@ -827,6 +830,12 @@ program
     if (options.telemetry === false) {
       setTelemetryEnabled(false);
       console.log('✅ 已关闭遥测数据收集');
+      return;
+    }
+
+    if (options.outputDir) {
+      setOutputDir(options.outputDir);
+      console.log(`✅ 默认输出目录已设为: ${options.outputDir}`);
       return;
     }
 
