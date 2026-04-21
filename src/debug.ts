@@ -3,6 +3,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 
 let _debugEnabled = false;
+const _timers = new Map<string, number>();
 
 export function setDebug(enabled: boolean): void {
   _debugEnabled = enabled;
@@ -40,4 +41,24 @@ export function debugLog(label: string, content: string): void {
   const filename = `${timestamp}_${safeLabel}.txt`;
   const filepath = join(debugDir, filename);
   writeFileSync(filepath, `[${label}]\n\n${content}`, 'utf-8');
+}
+
+/**
+ * Start a debug timer.
+ */
+export function debugTimerStart(label: string): void {
+  if (!isDebug()) return;
+  _timers.set(label, Date.now());
+}
+
+/**
+ * End a debug timer and log the duration.
+ */
+export function debugTimerEnd(label: string): void {
+  if (!isDebug()) return;
+  const start = _timers.get(label);
+  if (!start) return;
+  const duration = Date.now() - start;
+  _timers.delete(label);
+  debugLog(`${label} duration`, `${duration}ms`);
 }
