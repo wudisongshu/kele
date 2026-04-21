@@ -219,6 +219,13 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
 
   const html = readFileSync(htmlPath, 'utf-8');
 
+  // Check for PWA files
+  const hasManifest = existsSync(join(targetDir, 'manifest.json'));
+  const hasServiceWorker = existsSync(join(targetDir, 'sw.js'));
+  if (hasManifest && hasServiceWorker) {
+    result.score += 5; // Bonus for PWA support
+  }
+
   // Check for canvas element before running JS
   if (!html.includes('<canvas')) {
     // For DOM games, check for game container
