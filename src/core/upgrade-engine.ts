@@ -191,3 +191,35 @@ export async function upgradeTask(
     return { success: false, error };
   }
 }
+
+/**
+ * Batch upgrade multiple tasks with the same request.
+ * Useful for applying a global change (e.g., "change all colors to dark mode").
+ */
+export async function batchUpgrade(
+  tasks: Task[],
+  subProjects: SubProject[],
+  project: Project,
+  upgradeRequest: string,
+  options: UpgradeOptions
+): Promise<{ success: number; failed: number }> {
+  let success = 0;
+  let failed = 0;
+
+  for (const task of tasks) {
+    const sp = subProjects.find((s) => s.id === task.subProjectId);
+    if (!sp) {
+      failed++;
+      continue;
+    }
+
+    const result = await upgradeTask(task, sp, project, upgradeRequest, options);
+    if (result.success) {
+      success++;
+    } else {
+      failed++;
+    }
+  }
+
+  return { success, failed };
+}
