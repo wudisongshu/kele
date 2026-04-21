@@ -19,7 +19,12 @@
     "vibe-coding",
     "agentic-engineering",
     "cli",
-    "workflow"
+    "workflow",
+    "pwa",
+    "game-dev",
+    "monetization",
+    "mini-program",
+    "h5"
   ],
   "author": "wudisongshu <1572699677@qq.com>",
   "license": "MIT",
