@@ -1072,7 +1072,8 @@ program
   .option('-t, --timeout <seconds>', 'AI request timeout (kept for compatibility, no effect)', parseTimeout)
   .option('--mock', 'Force mock AI mode for fast testing', false)
   .option('--all', 'Retry all failed tasks in the project', false)
-  .action(async (projectId: string, taskId: string | undefined, options: { timeout?: number; mock: boolean; all: boolean }) => {
+  .option('--force', 'Retry even if task is not in failed status', false)
+  .action(async (projectId: string, taskId: string | undefined, options: { timeout?: number; mock: boolean; all: boolean; force: boolean }) => {
     const db = new KeleDatabase();
     const project = db.getProject(projectId);
 
@@ -1104,8 +1105,8 @@ program
         console.log('   用 kele show <project-id> 查看所有任务');
         process.exit(1);
       }
-      if (task.status !== 'failed') {
-        console.log(`⚠️  任务状态为 ${task.status}，不是失败状态。只有失败的任务才能 retry。`);
+      if (task.status !== 'failed' && !options.force) {
+        console.log(`⚠️  任务状态为 ${task.status}，不是失败状态。只有失败的任务才能 retry。使用 --force 强制重试。`);
         process.exit(1);
       }
       tasksToRetry = [task];
