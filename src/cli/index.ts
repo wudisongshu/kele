@@ -1030,15 +1030,19 @@ program
   .command('search')
   .argument('<query>', 'Search query for projects')
   .description('Search projects by name or keywords')
-  .action((query: string) => {
+  .option('--type <type>', 'Filter by project type (game, tool, bot, etc.)')
+  .action((query: string, opts: { type?: string }) => {
     const db = new KeleDatabase();
     const projects = db.listProjects();
     const lowerQuery = query.toLowerCase();
-    const matches = projects.filter((p) =>
+    let matches = projects.filter((p) =>
       p.name.toLowerCase().includes(lowerQuery) ||
       p.idea?.keywords?.some((k: string) => k.toLowerCase().includes(lowerQuery)) ||
       p.idea?.rawText?.toLowerCase().includes(lowerQuery)
     );
+    if (opts.type) {
+      matches = matches.filter((p) => p.idea.type === opts.type);
+    }
     if (matches.length === 0) {
       console.log(`🔍 未找到匹配 "${query}" 的项目`);
       return;
