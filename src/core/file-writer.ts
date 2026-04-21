@@ -146,6 +146,15 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (
       content = fixHtmlForLocal(content);
     }
 
+    // Validate JSON files
+    if (relativePath.endsWith('.json') || relativePath.endsWith('.webmanifest')) {
+      try {
+        JSON.parse(content);
+      } catch {
+        console.warn(`[WARNING] JSON file "${relativePath}" has syntax errors — writing anyway`);
+      }
+    }
+
     writeFileSync(filePath, content, 'utf-8');
     const sizeKb = (content.length / 1024).toFixed(1);
     const lines = content.split('\n').length;
