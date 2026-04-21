@@ -46,7 +46,7 @@ export function setupCreateCommand(program: Command): void {
         setDebug(true);
         console.log('🔍 Debug mode enabled — all AI prompts will be logged\n');
       }
-      if (!ideaText) {
+      if (!ideaText || ideaText.trim().length === 0) {
         printUsage();
         return;
       }
