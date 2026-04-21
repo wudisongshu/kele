@@ -298,6 +298,14 @@ function evaluatePlayGame(criterion: AcceptanceCriterion, targetDir: string): Cr
     }
   }
 
+  if (desc.includes('pwa') || desc.includes('manifest') || desc.includes('offline')) {
+    const hasManifest = existsSync(join(targetDir, 'manifest.json'));
+    const hasSW = existsSync(join(targetDir, 'sw.js'));
+    if (!hasManifest || !hasSW) {
+      return { criterion, passed: false, actual: `PWA files missing: manifest=${hasManifest}, sw=${hasSW}` };
+    }
+  }
+
   return { criterion, passed: true, actual: 'Game mechanics verified' };
 }
 
