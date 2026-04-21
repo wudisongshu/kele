@@ -1241,8 +1241,10 @@ program
   .argument('<project-id>', 'Project ID to export')
   .argument('[target-dir]', 'Target directory (default: ./<project-name>-export)')
   .description('Export a project to a directory')
-  .action((projectId: string, targetDir?: string) => {
-    runExport(projectId, targetDir);
+  .option('--format <type>', 'Export format: dir (default) or markdown')
+  .action((projectId: string, targetDir?: string, opts?: { format?: string }) => {
+    const format = opts?.format === 'markdown' ? 'markdown' : 'dir';
+    runExport(projectId, targetDir, format);
   });
 
 // --- Init command: kele init [dir] ---

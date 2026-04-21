@@ -6,7 +6,7 @@ import { existsSync, cpSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { KeleDatabase } from '../../db/index.js';
 
-export function runExport(projectId: string, targetDir?: string): void {
+export function runExport(projectId: string, targetDir?: string, format?: 'dir' | 'markdown'): void {
   const db = new KeleDatabase();
   const project = db.getProject(projectId);
 
@@ -26,6 +26,26 @@ export function runExport(projectId: string, targetDir?: string): void {
 
   if (!existsSync(destDir)) {
     mkdirSync(destDir, { recursive: true });
+  }
+
+  if (format === 'markdown') {
+    const subProjects = db.getSubProjects(projectId);
+    const tasks = db.getTasks(projectId);
+    const md = `# ${project.name}\n\n` +
+      `## 项目信息\n\n` +
+      `- **原始想法**: ${project.idea.rawText}\n` +
+      `- **类型**: ${project.idea.type}\n` +
+      `- **变现方式**: ${project.idea.monetization}\n` +
+      `- **创建时间**: ${project.createdAt}\n` +
+      `- **导出时间**: ${new Date().toISOString()}\n\n` +
+      `## 子项目 (${subProjects.length})\n\n` +
+      subProjects.map(sp => `- **${sp.name}** (${sp.type})\n  - 目标目录: ${sp.targetDir}\n  - 状态: ${sp.status}`).join('\n\n') + '\n\n' +
+      `## 任务 (${tasks.length})\n\n` +
+      tasks.map(t => `- **${t.id}** (${t.status})${t.aiProvider ? ` — ${t.aiProvider}` : ''}`).join('\n') + '\n';
+    const mdPath = join(destDir, `${project.name}-report.md`);
+    writeFileSync(mdPath, md, 'utf-8');
+    console.log(`✅ Markdown 报告已导出: ${mdPath}`);
+    return;
   }
 
   cpSync(sourceDir, destDir, { recursive: true, force: true });

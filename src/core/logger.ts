@@ -3,7 +3,7 @@
  * Saves console output to ~/.kele/logs/ for post-mortem analysis.
  */
 
-import { appendFileSync, mkdirSync, existsSync } from 'fs';
+import { appendFileSync, mkdirSync, existsSync, statSync, renameSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -21,18 +21,36 @@ function getLogFileName(): string {
   return join(LOG_DIR, `kele-${date}.log`);
 }
 
+const MAX_LOG_SIZE_MB = 10;
+
+function rotateLogIfNeeded(filePath: string): void {
+  if (!existsSync(filePath)) return;
+  try {
+    const stats = statSync(filePath);
+    const sizeMB = stats.size / (1024 * 1024);
+    if (sizeMB >= MAX_LOG_SIZE_MB) {
+      const rotated = filePath.replace('.log', `.${Date.now()}.log`);
+      renameSync(filePath, rotated);
+    }
+  } catch {
+    // Ignore rotation errors
+  }
+}
+
 /**
  * Write a structured log entry.
  */
 export function logEvent(level: 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>): void {
   ensureLogDir();
+  const filePath = getLogFileName();
+  rotateLogIfNeeded(filePath);
   const entry = {
     timestamp: new Date().toISOString(),
     level,
     message,
     ...meta,
   };
-  appendFileSync(getLogFileName(), JSON.stringify(entry) + '\n', 'utf-8');
+  appendFileSync(filePath, JSON.stringify(entry) + '\n', 'utf-8');
 }
 
 /**
