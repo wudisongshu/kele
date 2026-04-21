@@ -968,8 +968,9 @@ program
   .argument('<request>', 'Upgrade request, e.g. "change art to pixel style"')
   .description('Upgrade an existing task with new requirements')
   .option('-t, --timeout <seconds>', 'AI request timeout (kept for compatibility, no effect)', parseTimeout)
+  .option('--mock', 'Force mock AI mode for fast testing', false)
   .option('--debug', 'Show all prompts sent to AI for debugging', false)
-  .action(async (projectId: string, taskId: string, request: string, options: { timeout?: number; debug: boolean }) => {
+  .action(async (projectId: string, taskId: string, request: string, options: { timeout?: number; debug: boolean; mock: boolean }) => {
     if (options.debug) {
       const { setDebug } = await import('../debug.js');
       setDebug(true);
@@ -1017,6 +1018,10 @@ program
     };
 
     const registry = createRegistryFromConfig();
+    if (options.mock) {
+      const mockAdapter = registry.get('mock')!;
+      registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
+    }
 
     const result = await upgradeTask(originalTask, subProject, fullProject, request, {
       registry,
