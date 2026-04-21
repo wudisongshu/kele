@@ -171,5 +171,12 @@ export function getConfigSummary(): string {
     return `  ${name}: ${cfg.model} @ ${cfg.baseURL}\n    key: ${masked}${headerInfo}${optStr}`;
   });
 
-  return `Providers (${providers.length}):\n${providers.join('\n')}\n\nDefault: ${config.defaultProvider ?? '(none)'}`;
+  const outputDir = config.outputDir ?? join(homedir(), 'kele-projects');
+  const extras = [
+    `Output dir: ${outputDir}`,
+    config.autoYes ? 'Auto-yes: enabled' : null,
+    config.telemetry === false ? 'Telemetry: disabled' : null,
+  ].filter(Boolean);
+
+  return `Providers (${providers.length}):\n${providers.join('\n')}\n\nDefault: ${config.defaultProvider ?? '(none)'}\n${extras.join('\n')}`;
 }
