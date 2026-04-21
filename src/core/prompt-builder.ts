@@ -21,6 +21,7 @@ const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST f
 8. No bloat: No speculative abstractions. If 200 lines could be 50, rewrite.
 9. Consistency: Match existing code style in the project.
 10. No hardcoded secrets: Use config/env for API keys, URLs, etc.
+11. PWA SUPPORT (Web projects): For web games and tools, generate manifest.json and sw.js (Service Worker) so users can install the app on their home screen and use it offline.
 
 DEATH LINE: If you output code with empty functions, TODO comments, or stub implementations, the task will be REJECTED and you will be asked to rewrite it completely.`;
 
