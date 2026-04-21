@@ -352,10 +352,11 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
   result.details.jsErrors = jsErrors;
   result.details.consoleLogs = consoleLogs;
 
-  // Detect game state elements (score, restart, game over)
+  // Detect game state elements (score, restart, game over, start screen)
   const hasScoreDisplay = html.includes('score') || html.includes('得分') || html.includes('分数');
   const hasRestart = html.includes('restart') || html.includes('重新开始') || html.includes('retry');
   const hasGameOver = html.includes('game over') || html.includes('结束');
+  const hasStartScreen = html.includes('start') || html.includes('开始') || html.includes('play') || html.includes('click to start');
 
   // Score calculation
   let score = 0;
@@ -364,9 +365,10 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
   if (result.details.hasInputHandler) score += 20;
   if (jsErrors.length === 0) score += 25;
   else score -= Math.min(25, jsErrors.length * 10);
-  if (hasScoreDisplay) score += 5;
+  if (hasScoreDisplay) score += 4;
   if (hasRestart) score += 3;
   if (hasGameOver) score += 2;
+  if (hasStartScreen) score += 1;
 
   result.score = Math.min(100, Math.max(0, score));
   result.playable = score >= 60 && jsErrors.length === 0;
