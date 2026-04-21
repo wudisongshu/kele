@@ -10,7 +10,7 @@
  * Escape user input to prevent prompt injection.
  * Removes control characters and limits length.
  */
-export function escapePromptInput(input: string, maxLength = 500): string {
+export function escapePromptInput(input: string, maxLength = 2000): string {
   if (!input || typeof input !== 'string') return '';
   // Remove control characters except common whitespace
   let cleaned = input

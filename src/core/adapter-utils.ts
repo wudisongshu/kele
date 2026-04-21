@@ -1,10 +1,10 @@
 import type { AIAdapter } from '../adapters/base.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = process.env.VITEST
-  ? [10, 20] // fast delays in tests
-  : [1000, 2000]; // exponential backoff: 1s, 2s
+  ? [10, 20, 30, 40, 50] // fast delays in tests
+  : [2000, 4000, 8000, 15000, 30000]; // exponential backoff: 2s, 4s, 8s, 15s, 30s
 
 function isRetryableError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
@@ -35,7 +35,7 @@ function sleep(ms: number): Promise<void> {
  * Returns the AI output and the effective provider name.
  */
 export async function executeWithFallback(
-  registry: ProviderRegistry,
+  _registry: ProviderRegistry,
   prompt: string,
   routeProvider: string,
   routeAdapter: AIAdapter,
@@ -83,15 +83,8 @@ export async function executeWithFallback(
     }
   }
 
-  const mock = registry.get('mock');
-  if (mock && routeProvider !== 'mock') {
-    onProgress?.(`   ⚠️  AI provider "${routeProvider}" failed after ${MAX_RETRIES + 1} attempts. Falling back to mock mode.`);
-    onProgress?.(`      ⚠️  WARNING: Mock output is generic and may NOT match your specific idea.`);
-    onProgress?.(`      💡  To use your real provider, check: kele config --provider ${routeProvider}`);
-    const output = await mock.execute(prompt);
-    return { output, provider: 'mock' };
-  }
-
+  // kele principle: real API first. Do NOT silently fallback to mock.
+  // Mock is only used when explicitly enabled via --mock flag.
   throw lastErr;
 }
 
@@ -99,9 +92,9 @@ export async function executeWithFallback(
  * Execute a fix prompt with the same adapter, with retry and optional fallback.
  */
 export async function executeFixWithFallback(
-  registry: ProviderRegistry,
+  _registry: ProviderRegistry,
   prompt: string,
-  routeProvider: string,
+  _routeProvider: string,
   routeAdapter: AIAdapter,
   onToken?: (token: string) => void,
   onProgress?: (msg: string) => void
@@ -130,13 +123,6 @@ export async function executeFixWithFallback(
 
       break;
     }
-  }
-
-  const mock = registry.get('mock');
-  if (mock && routeProvider !== 'mock') {
-    onProgress?.(`   ⚠️  Fix request failed on "${routeProvider}". Falling back to mock.`);
-    onProgress?.(`      ⚠️  WARNING: Mock fix output is generic and may NOT match your idea.`);
-    return await mock.execute(prompt);
   }
 
   throw lastErr;

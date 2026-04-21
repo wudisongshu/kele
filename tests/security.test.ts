@@ -4,8 +4,8 @@ import { escapePromptInput, sanitizeFilePath, isSafePath } from '../src/core/sec
 describe('Security', () => {
   describe('escapePromptInput', () => {
     it('should trim and limit length', () => {
-      const long = 'a'.repeat(1000);
-      expect(escapePromptInput(long)).toHaveLength(503); // 500 + "..."
+      const long = 'a'.repeat(3000);
+      expect(escapePromptInput(long)).toHaveLength(2003); // 2000 + "..."
     });
 
     it('should remove control characters', () => {

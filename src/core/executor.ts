@@ -114,7 +114,7 @@ async function callAI(ctx: ExecutionContext, prompt: string): Promise<{ output: 
 async function processOutput(
   ctx: ExecutionContext,
   output: string,
-  prompt: string,
+  _prompt: string,
   provider: string
 ): Promise<string[]> {
   const { subProject, onProgress } = ctx;
@@ -157,21 +157,9 @@ async function processOutput(
       }
     }
   } else {
-    // AI returned empty or unparseable content
+    // AI returned empty or unparseable content — do NOT fallback to mock (AGENTS.md: real API first)
     onProgress?.(`   ⚠️  AI 返回空内容，可能是服务端超时`);
-    const mock = ctx.registry.get('mock');
-    if (mock && provider !== 'mock') {
-      onProgress?.(`   🔄 使用 Mock 模式补全内容`);
-      const mockOutput = await mock.execute(prompt);
-      const mockFiles = applyAIOutput(targetDir, mockOutput);
-      if (mockFiles.length > 0) {
-        onProgress?.(`   📝 Mock 补全: ${mockFiles.join(', ')}`);
-      }
-      ctx.task.result = mockOutput;
-      ctx.task.aiProvider = 'mock';
-      ctx.db.saveTask(ctx.task, ctx.project.id);
-      writtenFiles = mockFiles;
-    }
+    onProgress?.(`      💡 建议：检查 API provider 状态，或稍后重试此任务`);
   }
 
   return writtenFiles;
@@ -198,9 +186,10 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 
     let fixed = false;
     let fixAttempt = 1;
-    while (true) {
+    const MAX_STATIC_FIX_ATTEMPTS = 3;
+    while (fixAttempt <= MAX_STATIC_FIX_ATTEMPTS) {
       trackFixAttempt(ctx.project.id, task.id, fixAttempt, 'code_quality');
-      onProgress?.(`   🔄 第 ${fixAttempt} 次修复代码质量问题...`);
+      onProgress?.(`   🔄 第 ${fixAttempt}/${MAX_STATIC_FIX_ATTEMPTS} 次修复代码质量问题...`);
       const fixPrompt = prompt + `\n\n` +
         `⚠️ CODE QUALITY VALIDATION FAILED. The generated code has critical issues:\n\n` +
         `${validation.issues.map((i) => `- ${i}`).join('\n')}\n\n` +
@@ -241,7 +230,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 
     if (!fixed) {
       task.status = 'failed';
-      task.error = `Code validation failed after ${fixAttempt} fix attempts: ${validation.issues.join('; ')}`;
+      task.error = `Code validation failed after ${MAX_STATIC_FIX_ATTEMPTS} fix attempts: ${validation.issues.join('; ')}`;
       db.saveTask(task, project.id);
       throw new ValidationError(task.error);
     }
@@ -264,9 +253,10 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       runtimePassed = false;
       let fixed = false;
       let fixAttempt = 1;
-      while (true) {
+      const MAX_RUNTIME_FIX_ATTEMPTS = 3;
+      while (fixAttempt <= MAX_RUNTIME_FIX_ATTEMPTS) {
         trackFixAttempt(ctx.project.id, task.id, fixAttempt, 'runtime');
-        onProgress?.(`   🔄 第 ${fixAttempt} 次自动修复...`);
+        onProgress?.(`   🔄 第 ${fixAttempt}/${MAX_RUNTIME_FIX_ATTEMPTS} 次自动修复...`);
         const fixPrompt = buildFixPrompt(prompt, runResult);
         try {
           const route = ctx.registry.route(task.complexity);
@@ -296,7 +286,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 
       if (!fixed) {
         task.status = 'failed';
-        task.error = `Runtime validation failed after ${fixAttempt} fix attempts. ${runResult.stderr.slice(0, 200)}`;
+        task.error = `Runtime validation failed after ${MAX_RUNTIME_FIX_ATTEMPTS} fix attempts. ${runResult.stderr.slice(0, 200)}`;
         db.saveTask(task, project.id);
         throw new ValidationError(task.error);
       }
@@ -325,9 +315,10 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       // Auto-fix: feed browser validation errors to AI
       let fixed = false;
       let fixAttempt = 1;
-      while (true) {
+      const MAX_GAME_FIX_ATTEMPTS = 2;
+      while (fixAttempt <= MAX_GAME_FIX_ATTEMPTS) {
         trackFixAttempt(ctx.project.id, task.id, fixAttempt, 'game');
-        onProgress?.(`   🔄 第 ${fixAttempt} 次游戏修复...`);
+        onProgress?.(`   🔄 第 ${fixAttempt}/${MAX_GAME_FIX_ATTEMPTS} 次游戏修复...`);
         const fixPrompt = prompt + `\n\n` +
           `⚠️ BROWSER VALIDATION FAILED. The game is NOT PLAYABLE.\n\n` +
           `Issues found:\n${browser.errors.map((e) => `- ${e}`).join('\n')}\n\n` +
@@ -369,7 +360,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       if (!fixed) {
         // No mock fallback — user's idea must be honored. Report failure clearly.
         task.status = 'failed';
-        task.error = `Game generation failed after 2 fix attempts. Issues: ${browser.errors.join('; ')}. ` +
+        task.error = `Game generation failed after ${MAX_GAME_FIX_ATTEMPTS} fix attempts. Issues: ${browser.errors.join('; ')}. ` +
           `The AI was unable to produce a playable game matching your idea "${project.idea.rawText}". ` +
           `This may be due to API limitations, timeout, or the idea being too complex. ` +
           `Suggestions: (1) try a simpler version of your idea, (2) use --mock for a quick test, or (3) check your API provider status.`;
@@ -416,9 +407,10 @@ async function runAcceptanceValidation(
   }
 
   let attempt = 1;
-  while (true) {
+  const MAX_ACCEPTANCE_FIX_ATTEMPTS = 3;
+  while (attempt <= MAX_ACCEPTANCE_FIX_ATTEMPTS) {
     trackFixAttempt(ctx.project.id, ctx.task.id, attempt, 'acceptance');
-    onProgress?.(`   🔄 第 ${attempt} 次修复...`);
+    onProgress?.(`   🔄 第 ${attempt}/${MAX_ACCEPTANCE_FIX_ATTEMPTS} 次修复...`);
 
     const fixPrompt = prompt + `\n\n` +
       `⚠️ ACCEPTANCE TEST FAILED. The incubator defined these criteria that your output did not meet:\n\n` +
@@ -448,6 +440,7 @@ async function runAcceptanceValidation(
       attempt++;
     }
   }
+  onProgress?.(`   ❌ 验收修复达到上限 (${MAX_ACCEPTANCE_FIX_ATTEMPTS} 次)，保留当前最佳结果`);
 }
 
 /**
@@ -478,9 +471,10 @@ async function runAIQualityReview(
   onProgress?.(`   问题: ${review.issues.join('; ')}`);
 
   let attempt = 1;
-  while (true) {
+  const MAX_AI_REVIEW_FIX_ATTEMPTS = 2;
+  while (attempt <= MAX_AI_REVIEW_FIX_ATTEMPTS) {
     trackFixAttempt(ctx.project.id, ctx.task.id, attempt, 'ai_review');
-    onProgress?.(`   🔄 第 ${attempt} 次修复...`);
+    onProgress?.(`   🔄 第 ${attempt}/${MAX_AI_REVIEW_FIX_ATTEMPTS} 次修复...`);
 
     const fixPrompt = prompt + `\n\n` +
       `⚠️ PREVIOUS ATTEMPT FAILED QUALITY REVIEW (FAIL).\n\n` +
@@ -515,6 +509,7 @@ async function runAIQualityReview(
       attempt++;
     }
   }
+  onProgress?.(`   ⚠️  AI 质量审查修复达到上限 (${MAX_AI_REVIEW_FIX_ATTEMPTS} 次)，保留当前结果`);
 }
 
 /** Custom error type for validation failures that should not be double-logged. */

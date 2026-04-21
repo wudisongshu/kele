@@ -17,9 +17,9 @@ function makeFailingAdapter(error: string): AIAdapter {
   } as unknown as AIAdapter;
 }
 
-function makeRegistry(mockAdapter?: AIAdapter): ProviderRegistry {
+function makeRegistry(_mockAdapter?: AIAdapter): ProviderRegistry {
   return {
-    get: vi.fn((name: string) => name === 'mock' ? mockAdapter : undefined),
+    get: vi.fn((name: string) => name === 'mock' ? undefined : undefined),
     route: vi.fn(),
     list: vi.fn().mockReturnValue([]),
   } as unknown as ProviderRegistry;
@@ -34,13 +34,10 @@ describe('executeWithFallback', () => {
     expect(result.provider).toBe('deepseek');
   });
 
-  it('falls back to mock adapter on primary failure', async () => {
+  it('throws on primary failure (no silent mock fallback)', async () => {
     const primary = makeFailingAdapter('timeout');
-    const mock = makeMockAdapter('mock output');
-    const registry = makeRegistry(mock);
-    const result = await executeWithFallback(registry, 'prompt', 'deepseek', primary);
-    expect(result.output).toBe('mock output');
-    expect(result.provider).toBe('mock');
+    const registry = makeRegistry();
+    await expect(executeWithFallback(registry, 'prompt', 'deepseek', primary)).rejects.toThrow('timeout');
   });
 
   it('propagates error when no mock adapter available', async () => {
@@ -51,8 +48,7 @@ describe('executeWithFallback', () => {
 
   it('propagates abort signal without fallback', async () => {
     const primary = makeFailingAdapter('aborted');
-    const mock = makeMockAdapter('mock output');
-    const registry = makeRegistry(mock);
+    const registry = makeRegistry();
     const signal = AbortSignal.abort();
     await expect(executeWithFallback(registry, 'prompt', 'deepseek', primary, undefined, undefined, signal)).rejects.toThrow('aborted');
   });
@@ -63,14 +59,11 @@ describe('executeWithFallback', () => {
     await expect(executeWithFallback(registry, 'prompt', 'mock', primary)).rejects.toThrow('mock failed');
   });
 
-  it('calls onProgress with error and fallback messages', async () => {
-    const primary = makeFailingAdapter('timeout');
-    const mock = makeMockAdapter('mock output');
-    const registry = makeRegistry(mock);
-    const progress: string[] = [];
-    await executeWithFallback(registry, 'prompt', 'deepseek', primary, undefined, (msg) => progress.push(msg));
-    expect(progress.some(p => p.includes('error'))).toBe(true);
-    expect(progress.some(p => p.includes('Falling back'))).toBe(true);
+  it('retries up to 5 times on retryable errors', async () => {
+    const primary = makeFailingAdapter('502 Bad Gateway');
+    const registry = makeRegistry();
+    await expect(executeWithFallback(registry, 'prompt', 'deepseek', primary)).rejects.toThrow('502 Bad Gateway');
+    expect(primary.execute).toHaveBeenCalledTimes(6); // initial + 5 retries
   });
 });
 
@@ -82,18 +75,15 @@ describe('executeFixWithFallback', () => {
     expect(result).toBe('fixed code');
   });
 
-  it('falls back to mock for fix requests', async () => {
+  it('throws on fix failure (no silent mock fallback)', async () => {
     const primary = makeFailingAdapter('rate limited');
-    const mock = makeMockAdapter('mock fix');
-    const registry = makeRegistry(mock);
-    const result = await executeFixWithFallback(registry, 'fix prompt', 'deepseek', primary);
-    expect(result).toBe('mock fix');
+    const registry = makeRegistry();
+    await expect(executeFixWithFallback(registry, 'fix prompt', 'deepseek', primary)).rejects.toThrow('rate limited');
   });
 
-  it('throws when both primary and mock fail', async () => {
+  it('throws when primary fails', async () => {
     const primary = makeFailingAdapter('primary fail');
-    const mock = makeFailingAdapter('mock fail');
-    const registry = makeRegistry(mock);
-    await expect(executeFixWithFallback(registry, 'fix prompt', 'deepseek', primary)).rejects.toThrow('mock fail');
+    const registry = makeRegistry();
+    await expect(executeFixWithFallback(registry, 'fix prompt', 'deepseek', primary)).rejects.toThrow('primary fail');
   });
 });
