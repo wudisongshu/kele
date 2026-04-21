@@ -20,6 +20,11 @@ export interface AIAdapter {
    *                  When provided, the adapter will use streaming mode if supported.
    */
   execute(prompt: string, onToken?: (token: string) => void): Promise<string>;
+
+  /**
+   * Get model info for display/logging.
+   */
+  getModelInfo?(): { name: string; maxTokens?: number };
 }
 
 /**
