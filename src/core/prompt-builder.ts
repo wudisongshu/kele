@@ -22,6 +22,7 @@ const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST f
 9. Consistency: Match existing code style in the project.
 10. No hardcoded secrets: Use config/env for API keys, URLs, etc.
 11. PWA SUPPORT (Web projects): For web games and tools, generate manifest.json and sw.js (Service Worker) so users can install the app on their home screen and use it offline.
+12. RESPONSIVE DESIGN: All web games and tools MUST work correctly on both desktop and mobile devices. Use viewport meta tag, CSS media queries, and touch-friendly controls.
 
 DEATH LINE: If you output code with empty functions, TODO comments, or stub implementations, the task will be REJECTED and you will be asked to rewrite it completely.`;
 
