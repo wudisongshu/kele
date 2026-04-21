@@ -48,7 +48,7 @@ export class MockAdapter implements AIAdapter {
     // Game tasks: return a COMPLETE, PLAYABLE single-file game
     if (lower.includes('game') || lower.includes('游戏') || lower.includes('消消乐') || lower.includes('match') || lower.includes('core feature')) {
       // Select game type based on user input
-      let gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' | 'memory' | 'shooter' = 'match3';
+      let gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' | 'memory' | 'shooter' | 'tower' | 'platformer' | 'racing' = 'match3';
       if (lower.includes('snake') || lower.includes('贪吃蛇')) gameType = 'snake';
       else if (lower.includes('breakout') || lower.includes('brick') || lower.includes('打砖块')) gameType = 'breakout';
       else if (lower.includes('pong') || lower.includes('ping')) gameType = 'pong';
@@ -56,6 +56,9 @@ export class MockAdapter implements AIAdapter {
       else if (lower.includes('flappy') || lower.includes('像素鸟') || lower.includes('飞')) gameType = 'flappy';
       else if (lower.includes('memory') || lower.includes('记忆') || lower.includes('翻牌') || lower.includes('card')) gameType = 'memory';
       else if (lower.includes('shooter') || lower.includes('射击') || lower.includes('space') || lower.includes('太空')) gameType = 'shooter';
+      else if (lower.includes('tower') || lower.includes('塔防') || lower.includes('defense') || lower.includes('防御')) gameType = 'tower';
+      else if (lower.includes('platform') || lower.includes('平台') || lower.includes('跳跃') || lower.includes('jump') || lower.includes('mario') || lower.includes('马里奥')) gameType = 'platformer';
+      else if (lower.includes('racing') || lower.includes('race') || lower.includes('赛车') || lower.includes('竞速') || lower.includes('car') || lower.includes('车')) gameType = 'racing';
 
       const gameHtml = generateGameByType(gameType);
       // Inject manifest link and service worker registration into <head>
@@ -252,7 +255,7 @@ function generateResearchReport(lower: string): string {
 消除游戏、三消、休闲、微信、小程序、广告变现、内购、排行榜`;
 }
 
-function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' | 'memory' | 'shooter'): string {
+function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' | 'memory' | 'shooter' | 'tower' | 'platformer' | 'racing'): string {
   if (gameType === 'snake') return generateSnakeGameHtml();
   if (gameType === 'breakout') return generateBreakoutGameHtml();
   if (gameType === 'pong') return generatePongGameHtml();
@@ -260,6 +263,9 @@ function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong' |
   if (gameType === 'flappy') return generateFlappyGameHtml();
   if (gameType === 'memory') return generateMemoryGameHtml();
   if (gameType === 'shooter') return generateShooterGameHtml();
+  if (gameType === 'tower') return generateTowerGameHtml();
+  if (gameType === 'platformer') return generatePlatformerGameHtml();
+  if (gameType === 'racing') return generateRacingGameHtml();
   return generateMatch3GameHtml();
 }
 
@@ -718,6 +724,149 @@ function endGame(){over=true;playing=false;document.getElementById('msg').textCo
 c.addEventListener('touchmove',e=>{e.preventDefault();const r=c.getBoundingClientRect();const t=e.touches[0];ship.x=t.clientX-r.left-ship.w/2;if(ship.x<0)ship.x=0;if(ship.x>c.width-ship.w)ship.x=c.width-ship.w},{passive:false});
 c.addEventListener('click',()=>{if(playing)bullets.push({x:ship.x+ship.w/2-2,y:ship.y})});
 document.addEventListener('keydown',e=>{if(!playing)return;if(e.key==='ArrowLeft')ship.x-=15;if(e.key==='ArrowRight')ship.x+=15;if(e.key===' '||e.key==='ArrowUp')bullets.push({x:ship.x+ship.w/2-2,y:ship.y});if(ship.x<0)ship.x=0;if(ship.x>c.width-ship.w)ship.x=c.width-ship.w});
+</script>
+</body>
+</html>`;
+}
+
+
+function generateTowerGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>塔防游戏</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;font-family:sans-serif}
+#h{color:#fff;text-align:center;padding:6px}
+#h h1{font-size:20px}#s{color:#ffd700;font-size:14px}
+canvas{display:block;background:#0f3460;border:2px solid #16213e;border-radius:4px}
+#msg{color:#fff;margin-top:6px;font-size:14px;min-height:20px}
+#btn{margin-top:6px;padding:6px 16px;border:none;border-radius:6px;background:#e94560;color:#fff;font-weight:bold;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="h"><h1>🏰 塔防游戏</h1><div id="s">金币: 100 | 生命: 20 | 波次: 1</div></div>
+<canvas id="c" width="600" height="400"></canvas>
+<div id="msg">点击地图放置箭塔（50金币）</div>
+<button id="btn" onclick="startWave()">开始下一波</button>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');
+const path=[{x:0,y:200},{x:150,y:200},{x:150,y:100},{x:300,y:100},{x:300,y:300},{x:450,y:300},{x:450,y:200},{x:600,y:200}];
+let gold=100,lives=20,wave=1,enemies=[],towers=[],projectiles=[],playing=false,frame=0;
+function drawMap(){x.fillStyle='#0f3460';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#1a1a2e';x.lineWidth=20;x.lineCap='round';x.lineJoin='round';x.beginPath();x.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)x.lineTo(path[i].x,path[i].y);x.stroke();x.strokeStyle='#e94560';x.lineWidth=2;x.stroke()}
+function startWave(){if(playing)return;playing=true;let count=5+wave*2;let spawned=0;const sp=setInterval(()=>{if(spawned>=count){clearInterval(sp);return}enemies.push({x:path[0].x,y:path[0].y,w:16,h:16,speed:1+wave*0.2,hp:20+wave*5,maxHp:20+wave*5,pathIdx:0,gold:10});spawned++},800)}
+function update(){if(!playing&&enemies.length===0)return;frame++;x.clearRect(0,0,c.width,c.height);drawMap();
+for(const t of towers){x.fillStyle='#2ecc71';x.fillRect(t.x-12,t.y-12,24,24);x.fillStyle='#fff';x.font='12px sans-serif';x.fillText('🏹',t.x-6,t.y+4);if(frame%40===0){const target=enemies.find(e=>Math.hypot(e.x-t.x,e.y-t.y)<120);if(target)projectiles.push({x:t.x,y:t.y,tx:target.x,ty:target.y,speed:6,dmg:15})}}
+for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];const dx=p.tx-p.x,dy=p.ty-p.y,dist=Math.hypot(dx,dy);if(dist<8){projectiles.splice(i,1);const hit=enemies.find(e=>Math.hypot(e.x-p.tx,e.y-p.ty)<20);if(hit){hit.hp-=p.dmg;if(hit.hp<=0){gold+=hit.gold;enemies=enemies.filter(e=>e!==hit)}}continue}p.x+=dx/dist*p.speed;p.y+=dy/dist*p.speed;x.fillStyle='#ffeb3b';x.beginPath();x.arc(p.x,p.y,3,0,Math.PI*2);x.fill()}
+for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];const target=path[e.pathIdx+1];if(!target){enemies.splice(i,1);lives--;continue}const dx=target.x-e.x,dy=target.y-e.y,dist=Math.hypot(dx,dy);if(dist<5){e.pathIdx++;if(e.pathIdx>=path.length-1){enemies.splice(i,1);lives--;continue}}e.x+=dx/dist*e.speed;e.y+=dy/dist*e.speed;x.fillStyle='#e74c3c';x.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);x.fillStyle='#fff';x.font='10px sans-serif';x.fillText('👾',e.x-5,e.y+3);const hpPct=e.hp/e.maxHp;x.fillStyle='#333';x.fillRect(e.x-10,e.y-e.h/2-6,20,4);x.fillStyle=hpPct>0.5?'#2ecc71':'#e74c3c';x.fillRect(e.x-10,e.y-e.h/2-6,20*hpPct,4)}
+if(lives<=0){playing=false;document.getElementById('msg').textContent='💥 游戏结束! 最终波次: '+wave;document.getElementById('btn').textContent='重新开始';document.getElementById('btn').onclick=()=>location.reload();return}
+if(playing&&enemies.length===0){playing=false;wave++;document.getElementById('msg').textContent='🎉 第 '+(wave-1)+' 波完成! 点击开始下一波'}
+document.getElementById('s').textContent='金币: '+gold+' | 生命: '+lives+' | 波次: '+wave;requestAnimationFrame(update)}
+c.addEventListener('click',e=>{if(playing)return;const r=c.getBoundingClientRect();const cx=(e.clientX-r.left)*(c.width/r.width);const cy=(e.clientY-r.top)*(c.height/r.height);if(gold<50){document.getElementById('msg').textContent='金币不足!';return}for(const p of path){if(Math.hypot(p.x-cx,p.y-cy)<20){document.getElementById('msg').textContent='不能在路径上建塔!';return}}for(const t of towers){if(Math.hypot(t.x-cx,t.y-cy)<24){document.getElementById('msg').textContent='位置已被占用!';return}}towers.push({x:cx,y:cy});gold-=50;document.getElementById('msg').textContent='箭塔已放置! 剩余金币: '+gold;update()});
+drawMap();update();
+</script>
+</body>
+</html>`;
+}
+
+function generatePlatformerGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平台跳跃</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;font-family:sans-serif}
+#h{color:#fff;text-align:center;padding:6px}
+#h h1{font-size:20px}#s{color:#ffd700;font-size:14px}
+canvas{display:block;background:#87CEEB;border:2px solid #16213e;border-radius:4px}
+#msg{color:#fff;margin-top:6px;font-size:14px;min-height:20px}
+#btn{margin-top:6px;padding:6px 16px;border:none;border-radius:6px;background:#e94560;color:#fff;font-weight:bold;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="h"><h1>🦊 平台跳跃</h1><div id="s">得分: 0 | 生命: ❤️❤️❤️</div></div>
+<canvas id="c" width="640" height="360"></canvas>
+<div id="msg">方向键移动，空格跳跃</div>
+<button id="btn" onclick="restart()">重新开始</button>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');
+const gravity=0.6,jumpForce=-12,speed=4;
+let player,platforms,coins,enemies,score=0,lives=3,keys={},camX=0,over=false;
+function init(){player={x:50,y:200,w:24,h:24,vx:0,vy:0,grounded:false};score=0;lives=3;over=false;camX=0;
+platforms=[{x:0,y:300,w:200,h:20},{x:250,y:260,w:120,h:20},{x:420,y:220,w:100,h:20},{x:580,y:180,w:150,h:20},{x:780,y:260,w:120,h:20},{x:950,y:200,w:100,h:20},{x:1100,y:160,w:200,h:20},{x:1350,y:260,w:120,h:20},{x:1550,y:200,w:300,h:20}];
+coins=[{x:280,y:230,r:8},{x:310,y:230,r:8},{x:460,y:190,r:8},{x:640,y:150,r:8},{x:820,y:230,r:8},{x:980,y:170,r:8},{x:1200,y:130,r:8},{x:1400,y:230,r:8}];
+enemies=[{x:300,y:236,w:20,h:20,vx:1,minX:250,maxX:370},{x:850,y:236,w:20,h:20,vx:1.5,minX:780,maxX:900},{x:1250,y:136,w:20,h:20,vx:1,minX:1100,maxX:1300}];}
+function restart(){init();document.getElementById('msg').textContent='方向键移动，空格跳跃';loop()}
+function update(){if(over)return;player.vy+=gravity;player.vx=0;if(keys['ArrowLeft']||keys['a'])player.vx=-speed;if(keys['ArrowRight']||keys['d'])player.vx=speed;player.x+=player.vx;player.y+=player.vy;player.grounded=false;
+for(const p of platforms){if(player.x+player.w>p.x&&player.x<p.x+p.w&&player.y+player.h>p.y&&player.y+player.h<p.y+p.vy+10){player.y=p.y-player.h;player.vy=0;player.grounded=true}}
+if(player.y>c.height){lives--;if(lives<=0){over=true;document.getElementById('msg').textContent='💥 游戏结束! 得分: '+score;document.getElementById('btn').textContent='再玩一次';return}else{player.x=50;player.y=200;player.vy=0;camX=0}}
+camX=Math.max(0,player.x-c.width/2);if(camX>platforms[platforms.length-1].x+c.width-c.width)camX=platforms[platforms.length-1].x+c.width-c.width;
+for(let i=coins.length-1;i>=0;i--){const co=coins[i];if(Math.hypot(player.x+player.w/2-co.x,player.y+player.h/2-co.y)<co.r+player.w/2){coins.splice(i,1);score+=10}}
+for(const e of enemies){e.x+=e.vx;if(e.x<=e.minX||e.x+20>=e.maxX)e.vx*=-1;if(player.x+player.w>e.x&&player.x<e.x+20&&player.y+player.h>e.y&&player.y<e.y+20){if(player.vy>0&&player.y+player.h<e.y+15){score+=50;player.vy=jumpForce*0.7;e.x=-9999}else{lives--;player.x=50;player.y=200;player.vy=0;camX=0;if(lives<=0){over=true;document.getElementById('msg').textContent='💥 游戏结束! 得分: '+score;return}}}}
+if(player.x>platforms[platforms.length-1].x+100){over=true;score+=100;document.getElementById('msg').textContent='🎉 通关! 最终得分: '+score;return}
+draw();requestAnimationFrame(update)}
+function draw(){x.save();x.translate(-camX,0);x.fillStyle='#87CEEB';x.fillRect(camX,0,c.width,c.height);x.fillStyle='#2ecc71';for(const p of platforms){x.fillRect(p.x,p.y,p.w,p.h);x.fillStyle='#27ae60';x.fillRect(p.x,p.y,p.w,4);x.fillStyle='#2ecc71'}
+x.fillStyle='#e67e22';x.fillRect(player.x,player.y,player.w,player.h);x.fillStyle='#f39c12';x.fillRect(player.x,player.y,player.w,6);x.fillStyle='#fff';x.font='14px sans-serif';x.fillText('🦊',player.x+2,player.y+18);
+for(const co of coins){x.fillStyle='#ffd700';x.beginPath();x.arc(co.x,co.y,co.r,0,Math.PI*2);x.fill();x.strokeStyle='#e67e22';x.lineWidth=1;x.stroke()}
+for(const e of enemies){x.fillStyle='#e74c3c';x.fillRect(e.x,e.y,e.w,e.h);x.fillStyle='#fff';x.font='12px sans-serif';x.fillText('👾',e.x+2,e.y+15)}
+x.restore();document.getElementById('s').textContent='得分: '+score+' | 生命: '+Array(lives).fill('❤️').join('')}
+function loop(){update()}
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key===' '||e.key==='ArrowUp'||e.key==='w'){if(player.grounded){player.vy=jumpForce;player.grounded=false}}e.preventDefault()});
+document.addEventListener('keyup',e=>keys[e.key]=false);
+init();loop();
+</script>
+</body>
+</html>`;
+}
+
+function generateRacingGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赛车游戏</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;font-family:sans-serif}
+#h{color:#fff;text-align:center;padding:6px}
+#h h1{font-size:20px}#s{color:#ffd700;font-size:14px}
+canvas{display:block;background:#333;border:2px solid #16213e;border-radius:4px}
+#msg{color:#fff;margin-top:6px;font-size:14px;min-height:20px}
+#btn{margin-top:6px;padding:6px 16px;border:none;border-radius:6px;background:#e94560;color:#fff;font-weight:bold;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="h"><h1>🏎️ 赛车游戏</h1><div id="s">得分: 0 | 速度: 0 km/h</div></div>
+<canvas id="c" width="360" height="520"></canvas>
+<div id="msg">左右方向键控制赛车</div>
+<button id="btn" onclick="restart()">重新开始</button>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');
+const roadW=200,laneCount=3;
+let car,obstacles,score=0,speed=0,over=false,keys={},roadY=0;
+function init(){car={x:c.width/2,y:c.height-80,w:30,h:50};obstacles=[];score=0;speed=0;over=false;roadY=0;}
+function restart(){init();document.getElementById('msg').textContent='左右方向键控制赛车';loop()}
+function update(){if(over)return;
+if(keys['ArrowLeft'])car.x-=6;if(keys['ArrowRight'])car.x+=6;
+if(car.x<80+car.w/2)car.x=80+car.w/2;if(car.x>c.width-80-car.w/2)car.x=c.width-80-car.w/2;
+speed=Math.min(200,5+score*0.5);roadY=(roadY+speed*0.1)%40;score+=Math.floor(speed/20);
+if(Math.random()<0.02){const lane=Math.floor(Math.random()*laneCount);const lx=80+roadW/6+lane*(roadW/3);obstacles.push({x:lx,y:-50,w:30,h:30,speed:speed*0.08+2})}
+for(let i=obstacles.length-1;i>=0;i--){const o=obstacles[i];o.y+=o.speed;if(o.y>c.height){obstacles.splice(i,1);continue}if(Math.abs(car.x-o.x)<(car.w+o.w)/2&&Math.abs(car.y-o.y)<(car.h+o.h)/2){over=true;document.getElementById('msg').textContent='💥 撞车了! 最终得分: '+score;document.getElementById('btn').textContent='再玩一次';return}}
+draw();document.getElementById('s').textContent='得分: '+score+' | 速度: '+Math.floor(speed)+' km/h';requestAnimationFrame(update)}
+function draw(){x.fillStyle='#2d5a27';x.fillRect(0,0,c.width,c.height);x.fillStyle='#444';x.fillRect(80,0,roadW,c.height);x.fillStyle='#fff';for(let i=-1;i<c.height/40+1;i++){const y=i*40+roadY;x.fillRect(c.width/2-2,y,4,20)}
+x.fillStyle='#e74c3c';x.fillRect(car.x-car.w/2,car.y-car.h/2,car.w,car.h);x.fillStyle='#c0392b';x.fillRect(car.x-car.w/2,car.y-car.h/2,car.w,8);x.fillStyle='#f39c12';x.fillRect(car.x-8,car.y-car.h/2-3,6,4);x.fillRect(car.x+2,car.y-car.h/2-3,6,4);x.fillStyle='#fff';x.font='16px sans-serif';x.fillText('🏎️',car.x-10,car.y+5);
+for(const o of obstacles){x.fillStyle='#e67e22';x.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,o.h);x.fillStyle='#fff';x.font='14px sans-serif';x.fillText('🚧',o.x-7,o.y+4)}}
+function loop(){update()}
+document.addEventListener('keydown',e=>{keys[e.key]=true});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+init();loop();
 </script>
 </body>
 </html>`;
