@@ -32,6 +32,13 @@ export function runInit(targetDir?: string): void {
   if (entries.some(e => e === 'requirements.txt' || e === 'pyproject.toml')) detectedType = 'python';
   console.log(`\n   检测到项目类型: ${detectedType}`);
 
+  // Detect PWA support
+  const hasManifest = entries.some(e => e === 'manifest.json');
+  const hasSW = entries.some(e => e === 'sw.js' || e === 'service-worker.js');
+  if (hasManifest || hasSW) {
+    console.log(`   PWA 支持: ${hasManifest ? '✅ manifest.json' : '❌ manifest'} ${hasSW ? '✅ Service Worker' : '❌ SW'}`);
+  }
+
   console.log(`\n💡 使用 kele "你的改进想法" 来升级这个项目`);
   console.log(`   或使用 kele upgrade <project-id> <task-id> "改进内容"`);
 }
