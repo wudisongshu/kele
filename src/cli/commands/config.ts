@@ -102,6 +102,9 @@ export function setupConfigCommand(program: Command): void {
         console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
         console.log('  kele config --provider deepseek --key sk-xxx --url https://api.deepseek.com/v1 --model deepseek-chat');
         console.log('  kele config --provider qwen --key sk-xxx --url https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen-turbo');
+        console.log('\n设置默认变现平台：');
+        console.log('  kele config --platform web');
+        console.log('  kele config --platform steam');
         console.log('\n免确认模式（跳过所有 checkpoint）：');
         console.log('  kele config --auto-yes');
         console.log('  kele config --no-auto-yes');
