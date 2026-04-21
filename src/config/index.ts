@@ -34,6 +34,10 @@ export interface KeleConfig {
   defaultProvider?: string;
   /** If true, skip all confirmation checkpoints */
   autoYes?: boolean;
+  /** If false, disable telemetry collection */
+  telemetry?: boolean;
+  /** Preferred output directory */
+  outputDir?: string;
 }
 
 const CONFIG_DIR = join(homedir(), '.kele');
@@ -42,6 +46,8 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 const DEFAULT_CONFIG: KeleConfig = {
   providers: {},
   autoYes: false,
+  telemetry: true,
+  outputDir: join(homedir(), 'kele-projects'),
 };
 
 export function getConfigPath(): string {
@@ -118,6 +124,20 @@ export function setAutoYes(value: boolean): void {
   const config = loadConfig();
   config.autoYes = value;
   saveConfig(config);
+}
+
+export function getTelemetryEnabled(): boolean {
+  return loadConfig().telemetry ?? true;
+}
+
+export function setTelemetryEnabled(value: boolean): void {
+  const config = loadConfig();
+  config.telemetry = value;
+  saveConfig(config);
+}
+
+export function getOutputDir(): string {
+  return loadConfig().outputDir ?? join(homedir(), 'kele-projects');
 }
 
 /**
