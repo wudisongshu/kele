@@ -42,6 +42,20 @@ export function extractJson(text: string): string | null {
 }
 
 /**
+ * Pretty-print JSON for debug output.
+ * Returns formatted string or the original if parsing fails.
+ */
+export function prettyJson(text: string): string {
+  const raw = extractJson(text);
+  if (!raw) return text;
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
+/**
  * Parse JSON from AI response with multiple fallback strategies.
  * Returns the parsed object/array or null if parsing fails.
  */
