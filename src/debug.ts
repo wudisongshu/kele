@@ -4,6 +4,7 @@ import { homedir } from 'os';
 
 let _debugEnabled = false;
 const _timers = new Map<string, number>();
+const _counters = new Map<string, number>();
 
 export function setDebug(enabled: boolean): void {
   _debugEnabled = enabled;
@@ -61,4 +62,22 @@ export function debugTimerEnd(label: string): void {
   const duration = Date.now() - start;
   _timers.delete(label);
   debugLog(`${label} duration`, `${duration}ms`);
+}
+
+/**
+ * Increment a debug counter.
+ */
+export function debugCounter(label: string): void {
+  if (!isDebug()) return;
+  const count = (_counters.get(label) || 0) + 1;
+  _counters.set(label, count);
+}
+
+/**
+ * Get and reset a debug counter.
+ */
+export function debugCounterGet(label: string): number {
+  const count = _counters.get(label) || 0;
+  _counters.delete(label);
+  return count;
 }
