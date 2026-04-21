@@ -43,6 +43,14 @@ export interface PlatformCredentials {
     packageName: string;
     serviceAccountJson?: string;
   };
+  /** itch.io */
+  itchio?: {
+    apiKey: string;
+  };
+  /** GitHub Sponsors */
+  'github-sponsors'?: {
+    username: string;
+  };
 }
 
 /**
