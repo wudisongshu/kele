@@ -108,7 +108,7 @@ export function parseTimeout(value: string): number {
   const parsed = parseInt(value, 10);
   if (isNaN(parsed) || parsed < 1) {
     console.warn(`⚠️  Invalid timeout "${value}"`);
-    return Infinity as unknown as number;
+    return 3000;
   }
   return parsed;
 }
@@ -136,7 +136,7 @@ export function printUsage(): void {
   console.log('\n选项：');
   console.log('  -o, --output <dir>   指定项目生成目录');
   console.log('  -y, --yes            自动执行所有任务（跳过确认）');
-  console.log('  -t, --timeout <s>    AI 超时时间（已废弃，kele 永不超时）');
+  console.log('  -t, --timeout <s>    AI 请求超时时间（默认 3000 秒 = 50 分钟）');
   console.log('  --debug              显示 kele 发给 AI 的所有 prompt');
   console.log('  -v, --version        显示版本号');
 }

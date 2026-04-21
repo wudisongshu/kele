@@ -251,15 +251,22 @@ function fixHtmlForLocal(html: string): string {
     fixed = fixed.replace(/<head([^>]*)>/i, '<head$1>\n  <meta charset="UTF-8">');
   }
 
-  // Move scripts from <head> to end of <body>
+  // Move scripts from <head> to end of <body> — but preserve defer/async/module scripts
   const headMatch = fixed.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
   if (headMatch) {
     const headContent = headMatch[1];
     const scripts: string[] = [];
     const newHead = headContent.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, (match) => {
+      // Don't move scripts that already have defer/async/type=module
+      if (/\sdefer\b|\sasync\b|\stype\s*=\s*["']module["']/i.test(match)) {
+        return match;
+      }
       scripts.push(match);
       return '';
     }).replace(/<script[^>]*\/>/gi, (match) => {
+      if (/\sdefer\b|\sasync\b|\stype\s*=\s*["']module["']/i.test(match)) {
+        return match;
+      }
       scripts.push(match);
       return '';
     });

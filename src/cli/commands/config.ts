@@ -12,7 +12,7 @@ import {
   setTelemetryEnabled,
   setOutputDir,
 } from '../../config/index.js';
-import { collectHeaders } from '../utils.js';
+import { collectHeaders, parseTimeout } from '../utils.js';
 
 export function setupConfigCommand(program: Command): void {
   program
@@ -22,6 +22,7 @@ export function setupConfigCommand(program: Command): void {
     .option('--key <apiKey>', 'API Key')
     .option('--url <baseURL>', 'Base URL for the API')
     .option('--model <model>', 'Model name')
+    .option('--timeout <seconds>', 'Request timeout in seconds (default: 3000 = 50min)', parseTimeout)
     .option('--header <header>', 'Extra header in key:value format (repeatable)', collectHeaders, {})
     .option('--default <name>', 'Set default provider')
     .option('--remove <name>', 'Remove a provider')
@@ -36,6 +37,7 @@ export function setupConfigCommand(program: Command): void {
       key?: string;
       url?: string;
       model?: string;
+      timeout?: number;
       header?: Record<string, string>;
       default?: string;
       remove?: string;
@@ -114,6 +116,7 @@ export function setupConfigCommand(program: Command): void {
           apiKey: options.key,
           baseURL: options.url,
           model: options.model,
+          timeout: options.timeout,
           headers: options.header && Object.keys(options.header).length > 0 ? options.header : undefined,
         });
 

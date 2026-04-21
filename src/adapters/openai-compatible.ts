@@ -250,7 +250,8 @@ export class OpenAICompatibleAdapter implements AIAdapter {
               }>;
             };
 
-            const delta = chunk.choices?.[0]?.delta?.content;
+            const choice = chunk.choices?.[0];
+            const delta = choice?.delta?.content;
             if (delta) {
               content += delta;
               tokenCount++;
@@ -259,7 +260,20 @@ export class OpenAICompatibleAdapter implements AIAdapter {
               }
               onToken(delta);
             }
-          } catch {
+
+            // Detect content filtering or length truncation
+            const finishReason = choice?.finish_reason;
+            if (finishReason === 'content_filter') {
+              throw new Error(`${this.name} API response was blocked by content filter`);
+            }
+            if (finishReason === 'length') {
+              throw new Error(`${this.name} API response was truncated due to max_tokens limit — increase maxTokens in config`);
+            }
+          } catch (err) {
+            // Re-throw our own errors; ignore malformed JSON
+            if (err instanceof Error && (err.message.includes('content filter') || err.message.includes('truncated'))) {
+              throw err;
+            }
             // Ignore malformed JSON lines (e.g. keep-alive pings)
           }
         }
