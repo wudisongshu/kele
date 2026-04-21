@@ -89,6 +89,20 @@ function detectRunConfig(targetDir: string): RunConfig | null {
       };
     }
 
+    // Validate manifest.json if present
+    const manifestPath = join(targetDir, 'manifest.json');
+    if (existsSync(manifestPath)) {
+      try {
+        JSON.parse(readFileSync(manifestPath, 'utf-8'));
+      } catch {
+        return {
+          command: 'echo',
+          args: ['[kele] manifest.json validation FAILED: invalid JSON'],
+          cwd: targetDir,
+        };
+      }
+    }
+
     return {
       command: 'echo',
       args: [`[kele] HTML validation PASSED: doctype=${hasDoctype}, html=${hasHtmlTag}, body=${hasBody}, script=${hasScript}`],
