@@ -21,8 +21,10 @@ const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST f
 8. No bloat: No speculative abstractions. If 200 lines could be 50, rewrite.
 9. Consistency: Match existing code style in the project.
 10. No hardcoded secrets: Use config/env for API keys, URLs, etc.
-11. PWA SUPPORT (Web projects): For web games and tools, generate manifest.json and sw.js (Service Worker) so users can install the app on their home screen and use it offline.
+11. PWA SUPPORT (Web projects) — MANDATORY: For ALL web games and tools, generate manifest.json AND sw.js (Service Worker). Failure to include these will cause rejection. PWA enables users to install the app on their home screen and play offline, which directly increases retention and ad revenue.
 12. RESPONSIVE DESIGN: All web games and tools MUST work correctly on both desktop and mobile devices. Use viewport meta tag, CSS media queries, and touch-friendly controls.
+13. NPM DEPENDENCY VALIDATION: When adding npm dependencies, ONLY use well-known, verified package names (e.g., 'phaser' not 'phaser-game-engine'). If unsure, omit the dependency and inline the functionality.
+14. NO EXTERNAL RESOURCE HALLUCINATION: Do NOT reference files you haven't generated (e.g., './assets/player.png' unless you also generated that file). All game assets should be generated as code (SVG, Canvas drawing, or CSS) or omitted.
 
 DEATH LINE: If you output code with empty functions, TODO comments, or stub implementations, the task will be REJECTED and you will be asked to rewrite it completely.`;
 
@@ -62,7 +64,7 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${platformSect
    d) The game MUST be runnable immediately after this task completes. If it's a web game, the user should be able to open the HTML file in a browser. If it requires a build step, include the build config and instructions.
    e) The game MUST have: (1) a visible score/lives/progress display, (2) clear start/restart/game-over states, (3) immediate feedback on player input (visual/audio).
    f) For simple web games: prefer inlining JS/CSS in a single HTML file for easy testing. For complex games or framework-based games: generate proper project structure with all files.
-   g) PWA SUPPORT: For web games, generate manifest.json and sw.js (Service Worker) so the game can be installed on mobile home screens and work offline.`
+   g) PWA SUPPORT (MANDATORY): For web games, generate manifest.json AND sw.js. Add <link rel="manifest" href="manifest.json"> and navigator.serviceWorker.register('sw.js') to index.html.`
       : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'

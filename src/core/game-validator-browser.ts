@@ -365,9 +365,16 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
   const hasGameOver = html.includes('game over') || html.includes('结束');
   const hasStartScreen = html.includes('start') || html.includes('开始') || html.includes('play') || html.includes('click to start');
 
-  // Score calculation
+  // Detect DOM game container (for non-canvas games like word puzzles, card games, etc.)
+  const hasDomGameContainer = html.includes('id="game"') || html.includes('class="game"') || html.includes('id="board"') || html.includes('class="board"');
+
+  // Score calculation — fair for all game types
   let score = 0;
-  if (result.details.hasCanvas) score += 20;
+  if (result.details.hasCanvas) {
+    score += 20; // Canvas game
+  } else if (hasDomGameContainer) {
+    score += 20; // DOM/SVG game gets equal points
+  }
   if (result.details.hasGameLoop) score += 25;
   if (result.details.hasInputHandler) score += 20;
   if (jsErrors.length === 0) score += 25;
@@ -378,7 +385,9 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
   if (hasStartScreen) score += 1;
 
   result.score = Math.min(100, Math.max(0, score));
-  result.playable = score >= 60 && jsErrors.length === 0;
+  // DOM games have slightly lower threshold due to JSDOM limitations in detecting some interactions
+  const threshold = result.details.hasCanvas ? 60 : (hasDomGameContainer ? 55 : 60);
+  result.playable = score >= threshold && jsErrors.length === 0;
 
   if (!result.details.hasGameLoop) {
     result.errors.push('No game loop detected (requestAnimationFrame/setInterval/setTimeout)');

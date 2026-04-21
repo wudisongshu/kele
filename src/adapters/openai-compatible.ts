@@ -168,7 +168,7 @@ export class OpenAICompatibleAdapter implements AIAdapter {
         },
         { role: 'user', content: prompt },
       ],
-      temperature: this.config.temperature ?? 0.7,
+      temperature: this.config.temperature ?? 0.3,
     };
 
     if (this.config.maxTokens) {

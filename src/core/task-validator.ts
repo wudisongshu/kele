@@ -51,6 +51,15 @@ const STUB_PATTERNS = [
   /\([^)]*\)\s*=>\s*\{\s*\}/,
   // Constructor call with empty callback — e.g. new InputHandler(canvas, () => {})
   /new\s+\w+\([^)]*,\s*\(\s*\)\s*=>\s*\{\s*\}\s*\)/,
+  // Common AI placeholder comments and phrases
+  /\/\*\s*your\s+code\s+here\s*\*\//i,
+  /\/\*\s*implement\s+this\s*\*\//i,
+  /\/\/\s*Add\s+your\s+logic\s+here/i,
+  /\/\/\s*Write\s+your\s+implementation/i,
+  /\/\/\s*Fill\s+in\s+the\s+blanks/i,
+  /\{\s*\/\*\s*\.\.\.\s*\*\/\s*\}/,
+  /\{\s*\/\/\s*\.\.\.\s*\}/,
+  /\/\/\s*\.\.\.\s*\n/,
 ];
 
 /**
