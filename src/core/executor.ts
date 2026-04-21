@@ -230,7 +230,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 
     if (!fixed) {
       task.status = 'failed';
-      task.error = `Code validation failed after ${MAX_STATIC_FIX_ATTEMPTS} fix attempts: ${validation.issues.join('; ')}`;
+      task.error = `代码质量检查在 ${MAX_STATIC_FIX_ATTEMPTS} 次修复后仍失败：${validation.issues.join('；')}`;
       db.saveTask(task, project.id);
       throw new ValidationError(task.error);
     }
@@ -286,7 +286,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 
       if (!fixed) {
         task.status = 'failed';
-        task.error = `Runtime validation failed after ${MAX_RUNTIME_FIX_ATTEMPTS} fix attempts. ${runResult.stderr.slice(0, 200)}`;
+        task.error = `运行验证在 ${MAX_RUNTIME_FIX_ATTEMPTS} 次修复后仍失败。${runResult.stderr.slice(0, 200)}`;
         db.saveTask(task, project.id);
         throw new ValidationError(task.error);
       }
@@ -360,10 +360,10 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       if (!fixed) {
         // No mock fallback — user's idea must be honored. Report failure clearly.
         task.status = 'failed';
-        task.error = `Game generation failed after ${MAX_GAME_FIX_ATTEMPTS} fix attempts. Issues: ${browser.errors.join('; ')}. ` +
-          `The AI was unable to produce a playable game matching your idea "${project.idea.rawText}". ` +
-          `This may be due to API limitations, timeout, or the idea being too complex. ` +
-          `Suggestions: (1) try a simpler version of your idea, (2) use --mock for a quick test, or (3) check your API provider status.`;
+        task.error = `游戏生成在 ${MAX_GAME_FIX_ATTEMPTS} 次修复后仍失败。问题：${browser.errors.join('；')}。` +
+          `AI 无法生成与你想法 "${project.idea.rawText}" 匹配的可玩游戏。` +
+          `可能原因：API 限制、超时、或想法过于复杂。` +
+          `建议：(1) 尝试简化你的想法，(2) 使用 --mock 快速测试，(3) 检查 API provider 状态。`;
         db.saveTask(task, project.id);
         throw new ValidationError(task.error);
       }
@@ -600,7 +600,7 @@ export async function executeTask(
     debugLog('File processing start', JSON.stringify({ task: task.title, outputLength: output.length }));
     const writtenFiles = await processOutput(ctx, output, prompt, provider);
     if (writtenFiles.length === 0) {
-      throw new ValidationError('AI returned empty output — no files were generated. This usually means the API timed out or returned an empty response. Please retry the task.');
+      throw new ValidationError('AI 返回空输出，未生成任何文件。这通常是因为 API 超时或返回了空响应。请重试此任务。');
     }
 
     // Phase 3: Validation + runtime
