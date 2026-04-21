@@ -187,18 +187,69 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
   const provider = task.aiProvider;
 
   onProgress?.(`   🔍 Validating code quality...`);
-  const validation = validateTaskOutput(subProject.targetDir, task.title);
-  if (!validation.valid) {
+  let validation = validateTaskOutput(subProject.targetDir, task.title);
+
+  // Auto-fix loop for static validation failures (TODO/stub/empty functions)
+  if (!validation.valid && provider !== 'mock') {
     onProgress?.(`   ❌ Validation FAILED (score: ${validation.score}/100)`);
     for (const issue of validation.issues.slice(0, 5)) {
       onProgress?.(`      • ${issue}`);
     }
-    task.status = 'failed';
-    task.error = `Code validation failed: ${validation.issues.join('; ')}`;
-    db.saveTask(task, project.id);
-    throw new ValidationError(task.error);
+
+    let fixed = false;
+    for (let fixAttempt = 1; fixAttempt <= 2; fixAttempt++) {
+      onProgress?.(`   🔄 第 ${fixAttempt}/2 次修复代码质量问题...`);
+      const fixPrompt = prompt + `\n\n` +
+        `⚠️ CODE QUALITY VALIDATION FAILED. The generated code has critical issues:\n\n` +
+        `${validation.issues.map((i) => `- ${i}`).join('\n')}\n\n` +
+        `CRITICAL REQUIREMENTS:\n` +
+        `1. Remove ALL TODO, FIXME, STUB, HACK comments — they are NOT allowed.\n` +
+        `2. Remove ALL empty or minimal function bodies (functions that do nothing).\n` +
+        `3. ALL functions MUST have complete, working logic.\n` +
+        `4. Do NOT use placeholder values or "coming soon" text.\n` +
+        `5. Return the COMPLETE corrected output with ALL files.\n`;
+
+      try {
+        const route = ctx.registry.route(task.complexity);
+        const fixOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
+        const fixWritten = applyAIOutput(subProject.targetDir, fixOutput);
+        if (fixWritten.length > 0) {
+          onProgress?.(`   📝 修复后写入: ${fixWritten.join(', ')}`);
+        }
+        task.result = fixOutput;
+        db.saveTask(task, project.id);
+
+        validation = validateTaskOutput(subProject.targetDir, task.title);
+        if (validation.valid) {
+          onProgress?.(`   ✅ 修复后静态检查通过 (${validation.score}/100)`);
+          fixed = true;
+          break;
+        }
+        onProgress?.(`   ❌ 修复后仍有问题 (score: ${validation.score}/100)`);
+        for (const issue of validation.issues.slice(0, 3)) {
+          onProgress?.(`      • ${issue}`);
+        }
+      } catch (fixErr) {
+        const fixErrMsg = fixErr instanceof Error ? fixErr.message : String(fixErr);
+        onProgress?.(`   ⚠️  修复请求失败: ${fixErrMsg.slice(0, 120)}`);
+      }
+    }
+
+    if (!fixed) {
+      task.status = 'failed';
+      task.error = `Code validation failed after 2 fix attempts: ${validation.issues.join('; ')}`;
+      db.saveTask(task, project.id);
+      throw new ValidationError(task.error);
+    }
+  } else if (!validation.valid && provider === 'mock') {
+    // Mock mode: warn but don't fail on validation issues
+    onProgress?.(`   ⚠️  Mock 模式静态检查警告 (score: ${validation.score}/100)`);
+    for (const issue of validation.issues.slice(0, 3)) {
+      onProgress?.(`      • ${issue}`);
+    }
+  } else {
+    onProgress?.(`   ✅ Validation passed (${validation.score}/100)`);
   }
-  onProgress?.(`   ✅ Validation passed (${validation.score}/100)`);
 
   let runtimePassed = true;
   if (isCodingTask && provider !== 'mock') {
