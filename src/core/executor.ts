@@ -559,6 +559,7 @@ export async function executeTask(
     let step = 0;
     const totalSteps = subProject.type === 'setup' ? 4 : 6;
     const nextStep = () => { step++; return `[${step}/${totalSteps}]`; };
+    debugLog('Task start', JSON.stringify({ task: task.title, subProject: subProject.name, type: subProject.type, totalSteps }));
 
     // Route to AI provider
     const route = registry.route(task.complexity);
@@ -581,6 +582,7 @@ export async function executeTask(
 
     // Phase 1: AI generation
     onProgress?.(`   ${nextStep()} ✍️  Generating code...`);
+    debugLog('AI generation start', JSON.stringify({ task: task.title, provider: route.provider }));
     const aiResult = await callAI(ctx, prompt);
     const output = aiResult.output;
     const provider = aiResult.provider;
@@ -600,10 +602,13 @@ export async function executeTask(
     db.saveTask(task, project.id);
 
     // Phase 2: File processing
+    debugLog('File processing start', JSON.stringify({ task: task.title, outputLength: output.length }));
     await processOutput(ctx, output, prompt, provider);
 
     // Phase 3: Validation + runtime
+    debugLog('Validation start', JSON.stringify({ task: task.title }));
     const { validation, runtimePassed } = await validateAndFixRuntime(ctx, prompt);
+    debugLog('Validation result', JSON.stringify({ task: task.title, valid: validation.valid, runtimePassed }));
 
     // Phase 4: Acceptance criteria
     const hasAcceptanceCriteria = (subProject.acceptanceCriteria?.length || 0) > 0;
@@ -615,6 +620,7 @@ export async function executeTask(
     }
 
     const duration = Date.now() - taskStartTime;
+    debugLog('Task complete', JSON.stringify({ task: task.title, duration, provider: task.aiProvider }));
     trackTaskComplete(project.id, task.id, task.aiProvider || 'unknown', duration);
     onProgress?.(`   ✅ Completed`);
     return { success: true, output };
