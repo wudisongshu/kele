@@ -75,6 +75,13 @@ export function findSourceFiles(dir: string): string[] {
 }
 
 /**
+ * Find all JSON files under a directory.
+ */
+export function findJsonFiles(dir: string): string[] {
+  return findFilesByExt(dir, '.json');
+}
+
+/**
  * Check if a path is a file (not a directory).
  */
 export function isFile(path: string): boolean {
