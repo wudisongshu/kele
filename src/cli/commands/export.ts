@@ -6,7 +6,7 @@ import { existsSync, cpSync, mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { KeleDatabase } from '../../db/index.js';
 
-export function runExport(projectId: string, targetDir?: string, format?: 'dir' | 'markdown' | 'zip'): void {
+export function runExport(projectId: string, targetDir?: string, format?: 'dir' | 'markdown' | 'zip' | 'json'): void {
   const db = new KeleDatabase();
   const project = db.getProject(projectId);
 
@@ -26,6 +26,38 @@ export function runExport(projectId: string, targetDir?: string, format?: 'dir' 
 
   if (!existsSync(destDir)) {
     mkdirSync(destDir, { recursive: true });
+  }
+
+  if (format === 'json') {
+    const subProjects = db.getSubProjects(projectId);
+    const tasks = db.getTasks(projectId);
+    const payload = {
+      project: {
+        id: project.id,
+        name: project.name,
+        idea: project.idea,
+        createdAt: project.createdAt,
+      },
+      subProjects: subProjects.map(sp => ({
+        id: sp.id,
+        name: sp.name,
+        type: sp.type,
+        targetDir: sp.targetDir,
+        status: sp.status,
+      })),
+      tasks: tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        aiProvider: t.aiProvider,
+        complexity: t.complexity,
+      })),
+      exportedAt: new Date().toISOString(),
+    };
+    const jsonPath = join(destDir, `${project.name}.json`);
+    writeFileSync(jsonPath, JSON.stringify(payload, null, 2), 'utf-8');
+    console.log(`✅ JSON 元数据已导出: ${jsonPath}`);
+    return;
   }
 
   if (format === 'markdown') {

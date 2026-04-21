@@ -1316,9 +1316,10 @@ program
   .argument('<project-id>', 'Project ID to export')
   .argument('[target-dir]', 'Target directory (default: ./<project-name>-export)')
   .description('Export a project to a directory')
-  .option('--format <type>', 'Export format: dir (default) or markdown')
+  .option('--format <type>', 'Export format: dir (default), markdown, zip, or json')
   .action((projectId: string, targetDir?: string, opts?: { format?: string }) => {
-    const format = opts?.format === 'markdown' ? 'markdown' : 'dir';
+    const validFormats = ['dir', 'markdown', 'zip', 'json'];
+    const format = validFormats.includes(opts?.format || '') ? (opts?.format as 'dir' | 'markdown' | 'zip' | 'json') : 'dir';
     runExport(projectId, targetDir, format);
   });
 
