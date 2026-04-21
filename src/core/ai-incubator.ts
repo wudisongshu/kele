@@ -5,6 +5,10 @@ import { safeJsonParse } from './json-utils.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
 import { IncubationResponseSchema } from './schemas.js';
 
+const MAX_LOCAL_FIX_ATTEMPTS = 3;
+const MAX_AI_REVIEW_ATTEMPTS = 2;
+const MAX_STRUCT_FIX_ATTEMPTS = 3;
+
 
 /**
  * AI-Driven Incubator — lets the AI decide what sub-projects are needed.
@@ -201,7 +205,7 @@ export async function incubateWithAI(
   validationMeta.localWarnings = localValidation.warnings;
 
   let fixAttempt = 1;
-  while (!localValidation.valid) {
+  while (!localValidation.valid && fixAttempt <= MAX_LOCAL_FIX_ATTEMPTS) {
     try {
       const fixed = await tryFixIncubator(
         idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? ''
@@ -227,7 +231,7 @@ export async function incubateWithAI(
 
   if (needsAiReview) {
     let reviewAttempt = 1;
-    while (true) {
+    while (reviewAttempt <= MAX_AI_REVIEW_ATTEMPTS) {
       try {
         const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea);
         validationMeta.aiApproved = review.approved;
@@ -255,7 +259,7 @@ export async function incubateWithAI(
           }
           // If AI fix broke structure, fix structure first then continue review
           let structFixAttempt = 1;
-          while (!validationMeta.localValid) {
+          while (!validationMeta.localValid && structFixAttempt <= MAX_STRUCT_FIX_ATTEMPTS) {
             const structFixed = await tryFixIncubator(
               idea, rootDir, adapter, result.subProjects!, validationMeta.localErrors, validationMeta.localWarnings, result.reasoning ?? '', result.monetizationPath ?? ''
             );
