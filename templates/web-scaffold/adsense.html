@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdSense Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; }
+    .ad-container { margin: 20px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>🥤 Kele Project — AdSense 测试页</h1>
+  <p>将此页面用于验证 AdSense 广告展示。部署后替换下方的 publisher ID。</p>
+
+  <!-- REPLACE WITH YOUR PUBLISHER ID -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+    crossorigin="anonymous"></script>
+
+  <div class="ad-container">
+    <ins class="adsbygoogle"
+      style="display:block"
+      data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+      data-ad-slot="XXXXXXXXXX"
+      data-ad-format="auto"
+      data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
+
+  <h2>💰 变现步骤</h2>
+  <ol>
+    <li>访问 <a href="https://www.google.com/adsense/start" target="_blank">Google AdSense</a> 注册账号</li>
+    <li>获取你的 Publisher ID（格式：pub-XXXXXXXXXXXXXXXX）</li>
+    <li>替换本文件和 ads.txt 中的 <code>pub-XXXXXXXXXXXXXXXX</code></li>
+    <li>将 ads.txt 放在域名根目录</li>
+    <li>重新部署项目</li>
+  </ol>
+</body>
+</html>
