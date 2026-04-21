@@ -118,9 +118,9 @@ const MONETIZATION_KEYWORDS: Record<MonetizationChannel, Array<{ word: string; w
 };
 
 const COMPLEXITY_KEYWORDS: Record<Complexity, string[]> = {
-  simple: ['简单', '小游戏', '单页面', '轻量', '迷你', 'mini', '极简', '基础', '入门'],
-  complex: ['复杂', '大型', '多人', '联网', '3d', 'mmo', '开放世界', '重度', '硬核', '高品质', '高清', '元宇宙', 'vr', 'ar'],
-  medium: [],
+  simple: ['简单', '小游戏', '单页面', '轻量', '迷你', 'mini', '极简', '基础', '入门', '初级', 'easy', 'basic', 'starter'],
+  complex: ['复杂', '大型', '多人', '联网', '3d', 'mmo', '开放世界', '重度', '硬核', '高品质', '高清', '元宇宙', 'vr', 'ar', 'advanced', 'hardcore', 'massive'],
+  medium: ['中等', '一般', '普通', '标准', 'moderate', 'standard', 'normal'],
 };
 
 const STOP_WORDS = new Set([
