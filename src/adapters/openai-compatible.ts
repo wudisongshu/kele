@@ -26,6 +26,13 @@ export class OpenAICompatibleAdapter implements AIAdapter {
     return !!this.config.apiKey && this.config.apiKey.length > 0;
   }
 
+  getModelInfo(): { name: string; maxTokens?: number } {
+    return {
+      name: this.config.model,
+      maxTokens: this.config.maxTokens,
+    };
+  }
+
   /**
    * Test if the API connection actually works by sending a minimal request.
    * Returns { ok: true } on success, { ok: false, error: string } on failure.
