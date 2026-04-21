@@ -1231,8 +1231,9 @@ program
 program
   .command('clean')
   .description('List failed/abandoned projects for cleanup')
-  .action(() => {
-    runClean();
+  .option('--delete', 'Auto-delete failed/abandoned projects')
+  .action((opts: { delete?: boolean }) => {
+    runClean(opts.delete);
   });
 
 // --- Export command: kele export <project-id> [target-dir] ---

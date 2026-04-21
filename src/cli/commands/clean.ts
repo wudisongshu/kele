@@ -3,8 +3,9 @@
  */
 
 import { KeleDatabase } from '../../db/index.js';
+import { rmSync } from 'fs';
 
-export function runClean(): void {
+export function runClean(autoDelete = false): void {
   const db = new KeleDatabase();
   const projects = db.listProjects();
 
@@ -38,6 +39,21 @@ export function runClean(): void {
     console.log(`      任务: ${item.completed}/${item.total} 完成, ${item.failed} 失败`);
     console.log(`      目录: ${item.project.rootDir}`);
     console.log();
+  }
+
+  if (autoDelete) {
+    console.log('🗑️ 自动删除模式 — 正在清理...');
+    for (const item of toClean) {
+      try {
+        rmSync(item.project.rootDir, { recursive: true, force: true });
+        db.deleteProject(item.project.id);
+        console.log(`   ✅ 已删除: ${item.project.name}`);
+      } catch {
+        console.log(`   ❌ 删除失败: ${item.project.name}`);
+      }
+    }
+    console.log('\n✅ 清理完成');
+    return;
   }
 
   console.log('💡 使用 kele delete <project-id> 删除指定项目');
