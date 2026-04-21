@@ -600,7 +600,7 @@ export async function executeTask(
     debugLog('File processing start', JSON.stringify({ task: task.title, outputLength: output.length }));
     const writtenFiles = await processOutput(ctx, output, prompt, provider);
     if (writtenFiles.length === 0) {
-      throw new ValidationError('AI 返回空输出，未生成任何文件。这通常是因为 API 超时或返回了空响应。请重试此任务。');
+      throw new ValidationError('AI 返回空输出，未生成任何文件。这通常是因为 API 超时或返回了空响应。建议：(1) 检查网络连接和 API provider 状态，(2) 运行 kele retry 重试此任务，(3) 使用 kele --mock 快速测试。');
     }
 
     // Phase 3: Validation + runtime
