@@ -6,7 +6,7 @@ import { existsSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export type TemplateType = 'game-web' | 'web-scaffold' | 'wechat-miniprogram' | 'douyin-game' | 'generic';
+export type TemplateType = 'game-web' | 'web-scaffold' | 'wechat-miniprogram' | 'douyin-game' | 'pwa-game' | 'generic';
 
 /**
  * Map monetization channel to template type.
@@ -20,7 +20,7 @@ export function getTemplateType(monetization: string): TemplateType {
     case 'web':
     case 'unknown':
     default:
-      return 'game-web';
+      return 'pwa-game';
   }
 }
 
@@ -104,6 +104,8 @@ export function getTemplateDescription(type: TemplateType): string {
       return 'HTML5 Canvas game template (index.html + canvas.js)';
     case 'web-scaffold':
       return 'Standard Web Project (package.json + Vite + index.html)';
+    case 'pwa-game':
+      return 'PWA Game template (index.html + manifest.json + sw.js + Canvas)';
     default:
       return 'Generic web project template';
   }
