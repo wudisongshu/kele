@@ -23,6 +23,33 @@ export interface ParsedOutput {
 }
 
 /**
+ * Extract file definitions from notes.md markdown content.
+ * Looks for ```json code blocks containing { files: [...] }.
+ */
+function extractFilesFromNotes(notes: string): GeneratedFile[] {
+  const files: GeneratedFile[] = [];
+  // Match json code blocks
+  const jsonBlocks = notes.match(/```json\n?([\s\S]*?)\n?```/g);
+  if (!jsonBlocks) return files;
+  for (const block of jsonBlocks) {
+    const jsonText = block.replace(/```json\n?/, '').replace(/\n?```/, '').trim();
+    try {
+      const parsed = JSON.parse(jsonText);
+      if (parsed.files && Array.isArray(parsed.files)) {
+        for (const f of parsed.files) {
+          if (f.path && typeof f.content === 'string') {
+            files.push({ path: f.path, content: f.content });
+          }
+        }
+      }
+    } catch {
+      // Not valid JSON, skip
+    }
+  }
+  return files;
+}
+
+/**
  * Extract JSON from text, handling markdown code blocks.
  * Uses shared json-utils for consistency, with validation.
  */
@@ -130,9 +157,27 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (
     if (!existsSync(baseDir)) {
       mkdirSync(baseDir, { recursive: true });
     }
+
+    // If only notes.md was written, try to extract code files from it
+    if (written.length === 0 || (written.length === 1 && written[0] === 'notes.md')) {
+      const extracted = extractFilesFromNotes(parsed.notes);
+      if (extracted.length > 0) {
+        onProgress?.(`      📝 Extracted ${extracted.length} files from notes.md`);
+        for (const file of extracted) {
+          const filePath = join(baseDir, file.path);
+          const dir = dirname(filePath);
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          writeFileSync(filePath, file.content, 'utf-8');
+          written.push(file.path);
+        }
+      }
+    }
+
     const notesPath = join(baseDir, 'notes.md');
     writeFileSync(notesPath, parsed.notes, 'utf-8');
-    written.push('notes.md');
+    if (!written.includes('notes.md')) {
+      written.push('notes.md');
+    }
   }
 
   // Auto-generate .gitignore if missing
