@@ -19,6 +19,7 @@ Assess:
 2. Does the completed work provide a solid foundation for remaining tasks?
 3. Are there any gaps or missing critical pieces?
 4. Should the scope of remaining tasks be adjusted (cut features, add missing pieces, reorder priorities)?
+5. For web projects: does the project have PWA support (manifest.json, Service Worker) for better user retention?
 
 Return ONLY a JSON object:
 {
