@@ -58,6 +58,26 @@ describe('Monetization Readiness', () => {
     cleanup(dir);
   });
 
+  it('checks steam project files', () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, 'package.json'), '{}', 'utf-8');
+    writeFileSync(join(dir, 'main.js'), 'require("electron")', 'utf-8');
+    writeFileSync(join(dir, 'index.html'), '<html></html>', 'utf-8');
+
+    const result = checkMonetizationReadiness(dir, 'steam');
+    expect(result.monetizable).toBe(true);
+    cleanup(dir);
+  });
+
+  it('checks github-sponsors README', () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, 'README.md'), '# Project\n\nSponsor us!', 'utf-8');
+
+    const result = checkMonetizationReadiness(dir, 'github-sponsors');
+    expect(result.monetizable).toBe(true);
+    cleanup(dir);
+  });
+
   it('returns generic message for unknown platforms', () => {
     const dir = createTempDir();
     const result = checkMonetizationReadiness(dir, 'unknown-platform');
