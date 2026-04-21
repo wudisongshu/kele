@@ -100,6 +100,14 @@ How should we build something similar but differentiated? Suggest:
 ## 5. Suggested Keywords
 Extract 5-10 relevant keywords for this project.
 
+## 6. Genre-Specific Insights
+If this is a game, analyze:
+- Core loop: what keeps players coming back?
+- Session length: how long should a single play session be?
+- Difficulty curve: how should difficulty progress?
+- Social features: what multiplayer/leaderboard/sharing mechanics work best?
+- Retention hooks: daily rewards, streaks, achievements, etc.
+
 Respond in Chinese. Be concise but insightful.`;
 }
 
