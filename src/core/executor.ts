@@ -598,7 +598,10 @@ export async function executeTask(
 
     // Phase 2: File processing
     debugLog('File processing start', JSON.stringify({ task: task.title, outputLength: output.length }));
-    await processOutput(ctx, output, prompt, provider);
+    const writtenFiles = await processOutput(ctx, output, prompt, provider);
+    if (writtenFiles.length === 0) {
+      throw new ValidationError('AI returned empty output — no files were generated. This usually means the API timed out or returned an empty response. Please retry the task.');
+    }
 
     // Phase 3: Validation + runtime
     debugLog('Validation start', JSON.stringify({ task: task.title }));
