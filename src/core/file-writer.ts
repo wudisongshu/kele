@@ -171,6 +171,15 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (
       }
     }
 
+    // Basic HTML validation
+    if (relativePath.endsWith('.html')) {
+      const hasHtml = content.includes('<html') && content.includes('</html>');
+      const hasBody = content.includes('<body') && content.includes('</body>');
+      if (!hasHtml || !hasBody) {
+        console.warn(`[WARNING] HTML file "${relativePath}" missing essential tags (<html>, <body>) — writing anyway`);
+      }
+    }
+
     writeFileSync(filePath, content, 'utf-8');
     const sizeKb = (content.length / 1024).toFixed(1);
     const lines = content.split('\n').length;
