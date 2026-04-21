@@ -188,6 +188,7 @@ export function getConfigSummary(): string {
     `Output dir: ${outputDir}`,
     config.autoYes ? 'Auto-yes: enabled' : null,
     config.telemetry === false ? 'Telemetry: disabled' : null,
+    config.defaultPlatform ? `Default platform: ${config.defaultPlatform}` : null,
   ].filter(Boolean);
 
   return `Providers (${providers.length}):\n${providers.join('\n')}\n\nDefault: ${config.defaultProvider ?? '(none)'}\n${extras.join('\n')}`;
