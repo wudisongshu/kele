@@ -43,6 +43,27 @@ describe('mock adapter', () => {
     expect(tetrisResult).toContain('tetris');
   });
 
+  it('returns tower defense game for tower keywords', async () => {
+    const mock = new MockAdapter();
+    const result = await mock.execute('build a tower defense game core feature');
+    const parsed = JSON.parse(result);
+    expect(parsed.files[0].content).toContain('塔防');
+  });
+
+  it('returns platformer game for platform/jump keywords', async () => {
+    const mock = new MockAdapter();
+    const result = await mock.execute('build a platform jumping game core feature');
+    const parsed = JSON.parse(result);
+    expect(parsed.files[0].content).toContain('平台');
+  });
+
+  it('returns racing game for car/race keywords', async () => {
+    const mock = new MockAdapter();
+    const result = await mock.execute('build a racing car game core feature');
+    const parsed = JSON.parse(result);
+    expect(parsed.files[0].content).toContain('赛车');
+  });
+
   it('returns genre-aware research', async () => {
     const mock = new MockAdapter();
     const result = await mock.execute('research snake game 分析');

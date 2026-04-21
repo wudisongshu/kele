@@ -51,7 +51,7 @@ export class MockAdapter implements AIAdapter {
       let gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' | 'memory' | 'shooter' | 'tower' | 'platformer' | 'racing' = 'match3';
       if (lower.includes('snake') || lower.includes('贪吃蛇')) gameType = 'snake';
       else if (lower.includes('breakout') || lower.includes('brick') || lower.includes('打砖块')) gameType = 'breakout';
-      else if (lower.includes('pong') || lower.includes('ping')) gameType = 'pong';
+      else if (lower.includes('pong') || lower.includes('ping pong') || lower.includes('ping-pong')) gameType = 'pong';
       else if (lower.includes('tetris') || lower.includes('俄罗斯方块') || lower.includes('方块')) gameType = 'tetris';
       else if (lower.includes('flappy') || lower.includes('像素鸟') || lower.includes('飞')) gameType = 'flappy';
       else if (lower.includes('memory') || lower.includes('记忆') || lower.includes('翻牌') || lower.includes('card')) gameType = 'memory';
