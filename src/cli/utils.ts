@@ -67,6 +67,17 @@ export function generateProjectSlug(ideaText: string, type: string): string {
 }
 
 /**
+ * Format a duration in milliseconds to human-readable string.
+ */
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const mins = Math.floor(ms / 60000);
+  const secs = ((ms % 60000) / 1000).toFixed(0);
+  return `${mins}m ${secs}s`;
+}
+
+/**
  * Print help when no AI provider is configured.
  */
 export function printNoProviderHelp(): void {
