@@ -11,6 +11,7 @@ import {
   setAutoYes,
   setTelemetryEnabled,
   setOutputDir,
+  setDefaultPlatform,
 } from '../../config/index.js';
 import { collectHeaders, parseTimeout } from '../utils.js';
 
@@ -44,6 +45,7 @@ export function setupConfigCommand(program: Command): void {
       autoYes?: boolean;
       telemetry?: boolean;
       outputDir?: string;
+      platform?: string;
       list?: boolean;
     }) => {
       if (options.list) {
@@ -77,6 +79,12 @@ export function setupConfigCommand(program: Command): void {
       if (options.outputDir) {
         setOutputDir(options.outputDir);
         console.log(`✅ 默认输出目录已设为: ${options.outputDir}`);
+        return;
+      }
+
+      if (options.platform) {
+        setDefaultPlatform(options.platform);
+        console.log(`✅ 默认变现平台已设为: ${options.platform}`);
         return;
       }
 

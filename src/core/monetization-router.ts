@@ -1,5 +1,6 @@
 import type { Idea, MonetizationRoute } from '../types/index.js';
 import { hasPlatformCredentials } from '../platform-credentials.js';
+import { getDefaultPlatform } from '../config/index.js';
 
 /**
  * Monetization Router — recommends the best monetization path for an idea.
@@ -175,9 +176,15 @@ const PLATFORM_RULES: PlatformRule[] = [
 export function routeMonetization(idea: Idea): MonetizationRoute[] {
   const routes: MonetizationRoute[] = [];
   const lowerText = idea.rawText.toLowerCase();
+  const defaultPlatform = getDefaultPlatform();
 
   for (const rule of PLATFORM_RULES) {
     let score = rule.baseScore;
+
+    // 0. Default platform from config → big boost (user's preferred platform)
+    if (defaultPlatform && rule.id === defaultPlatform) {
+      score += 35;
+    }
 
     // 1. Explicit platform mention → big boost
     const explicitMatch = rule.keywordMatches.some((kw) => lowerText.includes(kw.toLowerCase()));

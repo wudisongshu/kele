@@ -38,6 +38,8 @@ export interface KeleConfig {
   telemetry?: boolean;
   /** Preferred output directory */
   outputDir?: string;
+  /** Default monetization platform (e.g. 'web', 'wechat-miniprogram', 'steam') */
+  defaultPlatform?: string;
 }
 
 const CONFIG_DIR = join(homedir(), '.kele');
@@ -144,6 +146,16 @@ export function setOutputDir(dir: string): void {
   const config = loadConfig();
   config.outputDir = dir;
   saveConfig(config);
+}
+
+export function setDefaultPlatform(platform: string): void {
+  const config = loadConfig();
+  config.defaultPlatform = platform;
+  saveConfig(config);
+}
+
+export function getDefaultPlatform(): string | undefined {
+  return loadConfig().defaultPlatform;
 }
 
 /**
