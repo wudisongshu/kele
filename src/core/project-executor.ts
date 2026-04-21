@@ -3,6 +3,7 @@ import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { sortSubProjects, executeTask } from './executor.js';
 import { reviewProjectHealth } from './project-reviewer.js';
+import { formatDuration } from '../cli/utils.js';
 
 export interface ProjectExecutorOptions {
   registry: ProviderRegistry;
@@ -195,4 +196,18 @@ export async function executeProject(
 
   onProgress?.(`\n🏁 Execution complete: ${completed} completed, ${failed} failed`);
   return { completed, failed, aborted: false };
+}
+
+/**
+ * Execute a project with timing statistics.
+ */
+export async function executeProjectWithStats(
+  project: Project,
+  options: ProjectExecutorOptions
+): Promise<{ completed: number; failed: number; aborted: boolean; durationMs: number }> {
+  const start = Date.now();
+  const result = await executeProject(project, options);
+  const durationMs = Date.now() - start;
+  options.onProgress?.(`⏱️  Total execution time: ${formatDuration(durationMs)}`);
+  return { ...result, durationMs };
 }
