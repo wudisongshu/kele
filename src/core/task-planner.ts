@@ -198,6 +198,7 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
             'This includes: CI/CD workflow files (.github/workflows/deploy.yml), ' +
             'platform config files (project.config.json, game.json), ' +
             'deployment scripts (deploy.sh), and ad integration code (adsense.html). ' +
+            'For web deployment, ALSO generate PWA files: manifest.json and sw.js (Service Worker). ' +
             'The user should be able to deploy with minimal manual steps — ideally just ' +
             'running a single command or pushing to git. ' +
             'If credentials exist, embed them in the config files. ' +
