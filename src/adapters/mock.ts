@@ -63,8 +63,27 @@ export class MockAdapter implements AIAdapter {
             path: 'index.html',
             content: generateGameByType(gameType),
           },
+          {
+            path: 'manifest.json',
+            content: JSON.stringify({
+              name: `Kele ${gameType} Game`,
+              short_name: gameType,
+              start_url: '/',
+              display: 'standalone',
+              background_color: '#1a1a2e',
+              theme_color: '#1a1a2e',
+              icons: [{ src: 'icon-192.png', sizes: '192x192' }, { src: 'icon-512.png', sizes: '512x512' }],
+            }, null, 2),
+          },
+          {
+            path: 'sw.js',
+            content: `const CACHE_NAME = 'kele-game-v1';
+const urlsToCache = ['/', '/index.html'];
+self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache))));
+self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));`,
+          },
         ],
-        notes: `Complete playable single-file ${gameType} game (mock mode). Open index.html directly in browser.`,
+        notes: `Complete playable single-file ${gameType} game with PWA support (mock mode). Open index.html directly in browser.`,
       });
     }
 
