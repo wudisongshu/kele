@@ -107,6 +107,12 @@ If this is a game, analyze:
 - Difficulty curve: how should difficulty progress?
 - Social features: what multiplayer/leaderboard/sharing mechanics work best?
 - Retention hooks: daily rewards, streaks, achievements, etc.
+- PWA potential: should this game support offline play and "Add to Home Screen"?
+
+## 7. Technical Recommendations
+- Best tech stack for the target platform
+- Should the game be a PWA (Progressive Web App) for better retention?
+- Estimated development time and team size
 
 Respond in Chinese. Be concise but insightful.`;
 }
