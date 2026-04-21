@@ -18,7 +18,11 @@ function isRetryableError(err: unknown): boolean {
     msg.includes('429') ||
     msg.includes('503') ||
     msg.includes('502') ||
-    msg.includes('504')
+    msg.includes('504') ||
+    msg.includes('500') ||
+    msg.includes('internal server error') ||
+    msg.includes('bad gateway') ||
+    msg.includes('service unavailable')
   );
 }
 
