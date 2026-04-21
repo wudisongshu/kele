@@ -58,6 +58,7 @@ export function needsResearch(rawText: string, _keywords: string[]): boolean {
   const vaguePatterns = [
     '随便', '什么都行', '看着办', '你决定', '随便做',
     'fast', 'quick', '随便一个', '简单的', '随便什么',
+    '大概', '差不多', '类似', '类似这样', '类似这种',
   ];
 
   for (const word of vaguePatterns) {
