@@ -21,7 +21,7 @@ export interface ProviderConfig {
   model: string;
   /** Optional extra headers (e.g. User-Agent for Kimi Code) */
   headers?: Record<string, string>;
-  /** Request timeout in seconds (default: 300) */
+  /** Request timeout in seconds (default: 3000 = 50 minutes) */
   timeout?: number;
   /** Max tokens for response (default: 4096) */
   maxTokens?: number;

@@ -1,5 +1,6 @@
 import type { AIAdapter } from './base.js';
 import type { ProviderConfig } from '../config/index.js';
+import { Agent } from 'undici';
 
 /**
  * OpenAI-Compatible AI Adapter
@@ -16,10 +17,17 @@ import type { ProviderConfig } from '../config/index.js';
 export class OpenAICompatibleAdapter implements AIAdapter {
   readonly name: string;
   private config: ProviderConfig;
+  private agent: Agent;
 
   constructor(name: string, config: ProviderConfig) {
     this.name = name;
     this.config = config;
+    const timeoutSeconds = config.timeout ?? 3000;
+    const timeoutMs = timeoutSeconds * 1000;
+    this.agent = new Agent({
+      bodyTimeout: timeoutMs,
+      headersTimeout: timeoutMs,
+    });
   }
 
   isAvailable(): boolean {
@@ -134,7 +142,7 @@ export class OpenAICompatibleAdapter implements AIAdapter {
   }
 
   private async executeOnce(prompt: string, onToken?: (token: string) => void): Promise<string> {
-    // kele principle: no timeouts. Wait indefinitely for AI to respond.
+    // kele principle: wait as long as the user configures. Default 50 min to avoid 5-min Node.js fetch cutoff.
     const controller = new AbortController();
 
     // Auto-inject Kimi Code User-Agent if baseURL matches
@@ -178,7 +186,8 @@ export class OpenAICompatibleAdapter implements AIAdapter {
       headers,
       body: JSON.stringify(body),
       signal: controller.signal,
-    });
+      dispatcher: this.agent,
+    } as RequestInit);
 
     if (!response.ok) {
       const errorText = await response.text();
