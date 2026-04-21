@@ -40,7 +40,7 @@ function rotateLogIfNeeded(filePath: string): void {
 /**
  * Write a structured log entry.
  */
-export function logEvent(level: 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>): void {
+export function logEvent(level: 'info' | 'warn' | 'error' | 'debug', message: string, meta?: Record<string, unknown>): void {
   ensureLogDir();
   const filePath = getLogFileName();
   rotateLogIfNeeded(filePath);
