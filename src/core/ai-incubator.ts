@@ -191,14 +191,14 @@ export async function incubateWithAI(
     return { ...result, validation: validationMeta };
   }
 
-  // --- Local validation (free, fast) ---
-  const localValidation = validateIncubatorOutput(result.subProjects!, idea);
+  // --- Local validation (free, fast) — infinite fix loop ---
+  let localValidation = validateIncubatorOutput(result.subProjects!, idea);
   validationMeta.localValid = localValidation.valid;
   validationMeta.localErrors = localValidation.errors;
   validationMeta.localWarnings = localValidation.warnings;
 
-  if (!localValidation.valid) {
-    // Structural errors — AI needs to fix them
+  let fixAttempt = 1;
+  while (!localValidation.valid) {
     try {
       const fixed = await tryFixIncubator(
         idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? ''
@@ -206,24 +206,16 @@ export async function incubateWithAI(
       if (fixed.success && fixed.subProjects) {
         result = fixed;
         validationMeta.revisions++;
-        // Re-validate after fix
-        const reValidation = validateIncubatorOutput(result.subProjects!, idea);
-        validationMeta.localValid = reValidation.valid;
-        validationMeta.localErrors = reValidation.errors;
-        validationMeta.localWarnings = reValidation.warnings;
+        localValidation = validateIncubatorOutput(result.subProjects!, idea);
+        validationMeta.localValid = localValidation.valid;
+        validationMeta.localErrors = localValidation.errors;
+        validationMeta.localWarnings = localValidation.warnings;
+        if (localValidation.valid) break;
       }
     } catch {
-      // Fix attempt failed — continue with current result
+      // Fix attempt failed — keep looping
     }
-  }
-
-  // If still structurally invalid after fix attempt, return with error
-  if (!validationMeta.localValid) {
-    return {
-      success: false,
-      error: `孵化器输出验证失败: ${validationMeta.localErrors.join('; ')}`,
-      validation: validationMeta,
-    };
+    fixAttempt++;
   }
 
   // --- AI review (only if local validation passed but has warnings, or for complex ideas) ---
@@ -231,13 +223,16 @@ export async function incubateWithAI(
     localValidation.warnings.length > 0 || idea.complexity === 'complex';
 
   if (needsAiReview) {
-    try {
-      const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea);
-      validationMeta.aiApproved = review.approved;
-      validationMeta.aiIssues = review.issues;
+    let reviewAttempt = 1;
+    while (true) {
+      try {
+        const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea);
+        validationMeta.aiApproved = review.approved;
+        validationMeta.aiIssues = review.issues;
 
-      if (!review.approved && review.suggestions.length > 0) {
-        // Try to fix based on AI review
+        if (review.approved || review.suggestions.length === 0) break;
+
+        // Try to fix based on AI review — infinite loop until approved
         const fixed = await tryFixIncubator(
           idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? ''
         );
@@ -250,19 +245,35 @@ export async function incubateWithAI(
           validationMeta.localErrors = reValidation.errors;
           validationMeta.localWarnings = reValidation.warnings;
 
-          // If AI fix introduced structural errors, fail fast
-          if (!validationMeta.localValid) {
-            return {
-              success: false,
-              error: `AI review fix broke structure: ${validationMeta.localErrors.join('; ')}`,
-              validation: validationMeta,
-            };
+          // If still structurally valid, re-run review loop
+          if (validationMeta.localValid) {
+            reviewAttempt++;
+            continue;
           }
+          // If AI fix broke structure, fix structure first then continue review
+          let structFixAttempt = 1;
+          while (!validationMeta.localValid) {
+            const structFixed = await tryFixIncubator(
+              idea, rootDir, adapter, result.subProjects!, validationMeta.localErrors, validationMeta.localWarnings, result.reasoning ?? '', result.monetizationPath ?? ''
+            );
+            if (structFixed.success && structFixed.subProjects) {
+              result = structFixed;
+              validationMeta.revisions++;
+              const sv = validateIncubatorOutput(result.subProjects!, idea);
+              validationMeta.localValid = sv.valid;
+              validationMeta.localErrors = sv.errors;
+              validationMeta.localWarnings = sv.warnings;
+              if (sv.valid) break;
+            }
+            structFixAttempt++;
+          }
+          reviewAttempt++;
         }
+      } catch {
+        // Review or fix failed — continue with current result
+        validationMeta.aiApproved = true;
+        break;
       }
-    } catch {
-      // Review or fix timed out — continue with current result
-      validationMeta.aiApproved = true;
     }
   } else {
     validationMeta.aiApproved = true;
