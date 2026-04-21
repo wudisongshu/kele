@@ -1202,8 +1202,9 @@ program
 program
   .command('doctor')
   .description('Diagnose environment and configuration issues')
-  .action(() => {
-    runDoctor();
+  .option('--fix', 'Auto-fix common issues (create directories, default config)')
+  .action((opts: { fix?: boolean }) => {
+    runDoctor(opts.fix);
   });
 
 // --- Clean command: kele clean ---

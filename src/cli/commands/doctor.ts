@@ -2,12 +2,12 @@
  * kele doctor — diagnose common issues with the environment.
  */
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
-export function runDoctor(): void {
-  const issues: string[] = [];
+export function runDoctor(fix = false): void {
+  let issues: string[] = [];
   const checks: string[] = [];
 
   // Check 1: Node.js version
@@ -54,6 +54,9 @@ export function runDoctor(): void {
   const dbPath = join(homedir(), '.kele', 'kele.db');
   if (existsSync(dbPath)) {
     checks.push(`Database: ${dbPath} exists`);
+  } else if (fix) {
+    mkdirSync(join(homedir(), '.kele'), { recursive: true });
+    checks.push(`Database: ${dbPath} directory created`);
   } else {
     checks.push(`Database: ${dbPath} will be created on first run`);
   }
@@ -62,12 +65,27 @@ export function runDoctor(): void {
   const outputDir = join(homedir(), 'kele-projects');
   if (existsSync(outputDir)) {
     checks.push(`Output dir: ${outputDir} exists`);
+  } else if (fix) {
+    mkdirSync(outputDir, { recursive: true });
+    checks.push(`Output dir: ${outputDir} created`);
   } else {
     checks.push(`Output dir: ${outputDir} will be created on first run`);
   }
 
+  if (fix && issues.length > 0) {
+    const autoFixable = issues.filter(i => i.includes('Config missing') || i.includes('No providers configured'));
+    if (autoFixable.length > 0) {
+      const configDir = join(homedir(), '.kele');
+      mkdirSync(configDir, { recursive: true });
+      const defaultConfig = { providers: {}, defaultProvider: '', telemetry: true };
+      writeFileSync(join(configDir, 'config.json'), JSON.stringify(defaultConfig, null, 2) + '\n');
+      checks.push('Auto-fix: created default config.json');
+      issues = issues.filter(i => !autoFixable.includes(i));
+    }
+  }
+
   // Report
-  console.log('🔬 kele doctor\n');
+  console.log(fix ? '🔬 kele doctor --fix\n' : '🔬 kele doctor\n');
   for (const check of checks) {
     console.log(`   ✅ ${check}`);
   }

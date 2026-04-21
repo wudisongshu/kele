@@ -48,12 +48,14 @@ export class MockAdapter implements AIAdapter {
     // Game tasks: return a COMPLETE, PLAYABLE single-file game
     if (lower.includes('game') || lower.includes('游戏') || lower.includes('消消乐') || lower.includes('match') || lower.includes('core feature')) {
       // Select game type based on user input
-      let gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' = 'match3';
+      let gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' | 'memory' | 'shooter' = 'match3';
       if (lower.includes('snake') || lower.includes('贪吃蛇')) gameType = 'snake';
       else if (lower.includes('breakout') || lower.includes('brick') || lower.includes('打砖块')) gameType = 'breakout';
       else if (lower.includes('pong') || lower.includes('ping')) gameType = 'pong';
       else if (lower.includes('tetris') || lower.includes('俄罗斯方块') || lower.includes('方块')) gameType = 'tetris';
       else if (lower.includes('flappy') || lower.includes('像素鸟') || lower.includes('飞')) gameType = 'flappy';
+      else if (lower.includes('memory') || lower.includes('记忆') || lower.includes('翻牌') || lower.includes('card')) gameType = 'memory';
+      else if (lower.includes('shooter') || lower.includes('射击') || lower.includes('space') || lower.includes('太空')) gameType = 'shooter';
 
       return JSON.stringify({
         files: [
@@ -223,12 +225,14 @@ function generateResearchReport(lower: string): string {
 消除游戏、三消、休闲、微信、小程序、广告变现、内购、排行榜`;
 }
 
-function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy'): string {
+function generateGameByType(gameType: 'match3' | 'snake' | 'breakout' | 'pong' | 'tetris' | 'flappy' | 'memory' | 'shooter'): string {
   if (gameType === 'snake') return generateSnakeGameHtml();
   if (gameType === 'breakout') return generateBreakoutGameHtml();
   if (gameType === 'pong') return generatePongGameHtml();
   if (gameType === 'tetris') return generateTetrisGameHtml();
   if (gameType === 'flappy') return generateFlappyGameHtml();
+  if (gameType === 'memory') return generateMemoryGameHtml();
+  if (gameType === 'shooter') return generateShooterGameHtml();
   return generateMatch3GameHtml();
 }
 
@@ -601,4 +605,93 @@ function generateMockIncubation(lower: string): string {
     reasoning: 'Standard web product pipeline',
     selfReviewNotes: 'Kept lean, 5 sub-projects max',
   });
+}
+
+
+function generateMemoryGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记忆翻牌</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#2d1b4e;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif}
+#h{color:#fff;margin-bottom:12px;text-align:center}
+#h h1{font-size:22px}#stats{color:#ffd700;font-size:14px;margin-top:4px}
+#board{display:grid;grid-template-columns:repeat(4,72px);gap:10px}
+.card{width:72px;height:72px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;transition:transform .25s,background .25s;user-select:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.card.flipped{background:#fff;transform:rotateY(180deg)}
+.card.matched{background:#4ade80;pointer-events:none;opacity:.7}
+#msg{color:#fff;margin-top:14px;font-size:14px;min-height:20px}
+#btn{margin-top:10px;padding:8px 18px;border:none;border-radius:6px;background:#ffd700;color:#2d1b4e;font-weight:bold;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="h"><h1>🧠 记忆翻牌</h1><div id="stats">步数: 0 | 时间: 0s</div></div>
+<div id="board"></div>
+<div id="msg"></div>
+<button id="btn" onclick="init()">重新开始</button>
+<script>
+const emojis=['🍎','🍌','🍇','🍉','🍒','🍓','🍍','🥝'];
+let cards=[],flipped=[],matched=0,steps=0,sec=0,timer=null;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function init(){matched=0;steps=0;sec=0;flipped=[];clearInterval(timer);timer=setInterval(()=>{sec++;document.getElementById('stats').textContent='步数: '+steps+' | 时间: '+sec+'s'},1000);document.getElementById('msg').textContent='';const pairs=[...emojis,...emojis];shuffle(pairs);const b=document.getElementById('board');b.innerHTML='';cards=pairs.map((e,i)=>{const d=document.createElement('div');d.className='card';d.dataset.emoji=e;d.dataset.idx=i;d.onclick=()=>onClick(d);return d});cards.forEach(c=>b.appendChild(c))}
+function onClick(c){if(c.classList.contains('flipped')||c.classList.contains('matched')||flipped.length>=2)return;c.classList.add('flipped');c.textContent=c.dataset.emoji;flipped.push(c);if(flipped.length===2){steps++;document.getElementById('stats').textContent='步数: '+steps+' | 时间: '+sec+'s';setTimeout(checkMatch,500)}}
+function checkMatch(){const[a,b]=flipped;if(a.dataset.emoji===b.dataset.emoji){a.classList.add('matched');b.classList.add('matched');matched+=2;if(matched===cards.length){clearInterval(timer);document.getElementById('msg').textContent='🎉 恭喜通关! 用时'+sec+'秒, '+steps+'步'}}else{a.classList.remove('flipped');b.classList.remove('flipped');a.textContent='';b.textContent=''}flipped=[]}
+init();
+</script>
+</body>
+</html>`;
+}
+
+function generateShooterGameHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>太空射击</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;display:flex;flex-direction:column;align-items:center;font-family:sans-serif}
+#h{color:#fff;text-align:center;padding:6px}
+#h h1{font-size:20px}#s{color:#ffd700;font-size:14px}
+canvas{display:block;background:#0a0a1a;border:1px solid #333}
+#msg{color:#fff;margin-top:6px;font-size:14px;min-height:20px}
+#btn{margin-top:6px;padding:6px 16px;border:none;border-radius:6px;background:#ff4757;color:#fff;font-weight:bold;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="h"><h1>🚀 太空射击</h1><div id="s">得分: 0 | 生命: ❤️❤️❤️</div></div>
+<canvas id="c" width="360" height="520"></canvas>
+<div id="msg"></div>
+<button id="btn" onclick="start()">开始游戏</button>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');
+let ship,bullets=[],enemies=[],score=0,lives=3,over=false,frame=0,playing=false;
+function start(){ship={x:160,y:460,w:40,h:30};bullets=[];enemies=[];score=0;lives=3;over=false;frame=0;playing=true;document.getElementById('msg').textContent='';document.getElementById('btn').style.display='none';loop()}
+function loop(){if(!playing)return;frame++;x.fillStyle='#0a0a1a';x.fillRect(0,0,c.width,c.height);
+// stars
+for(let i=0;i<30;i++){x.fillStyle='rgba(255,255,255,'+(0.3+Math.random()*0.5)+')';x.fillRect(((i*37+frame*0.5)%c.width),((i*53+frame)%c.height),1,1)}
+// ship
+x.fillStyle='#00d2ff';x.fillRect(ship.x,ship.y,ship.w,ship.h);x.fillStyle='#ff0';x.fillRect(ship.x+15,ship.y-6,10,6);
+// bullets
+x.fillStyle='#ffeb3b';for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.y-=6;x.fillRect(b.x,b.y,4,10);if(b.y<0)bullets.splice(i,1)}
+// enemies
+if(frame%40===0){const sz=30;enemies.push({x:Math.random()*(c.width-sz),y:-sz,w:sz,h:sz,speed:1.5+Math.random()*1.5})}
+for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];e.y+=e.speed;x.fillStyle='#ff4757';x.fillRect(e.x,e.y,e.w,e.h);x.fillStyle='#fff';x.font='16px sans-serif';x.fillText('👾',e.x+4,e.y+22);if(e.y>c.height){enemies.splice(i,1);lives--;if(lives<=0)endGame()}}
+// collisions
+for(let i=bullets.length-1;i>=0;i--){for(let j=enemies.length-1;j>=0;j--){const b=bullets[i],e=enemies[j];if(b&&e&&b.x<e.x+e.w&&b.x+4>e.x&&b.y<e.y+e.h&&b.y+10>e.y){bullets.splice(i,1);enemies.splice(j,1);score+=10;break}}}
+document.getElementById('s').textContent='得分: '+score+' | 生命: '+Array(lives).fill('❤️').join('');
+if(!over)requestAnimationFrame(loop)}
+function endGame(){over=true;playing=false;document.getElementById('msg').textContent='💥 游戏结束! 最终得分: '+score;document.getElementById('btn').style.display='inline-block';document.getElementById('btn').textContent='再玩一次'}
+// controls
+c.addEventListener('touchmove',e=>{e.preventDefault();const r=c.getBoundingClientRect();const t=e.touches[0];ship.x=t.clientX-r.left-ship.w/2;if(ship.x<0)ship.x=0;if(ship.x>c.width-ship.w)ship.x=c.width-ship.w},{passive:false});
+c.addEventListener('click',()=>{if(playing)bullets.push({x:ship.x+ship.w/2-2,y:ship.y})});
+document.addEventListener('keydown',e=>{if(!playing)return;if(e.key==='ArrowLeft')ship.x-=15;if(e.key==='ArrowRight')ship.x+=15;if(e.key===' '||e.key==='ArrowUp')bullets.push({x:ship.x+ship.w/2-2,y:ship.y});if(ship.x<0)ship.x=0;if(ship.x>c.width-ship.w)ship.x=c.width-ship.w});
+</script>
+</body>
+</html>`;
 }
