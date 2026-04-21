@@ -32,6 +32,7 @@ import {
   getConfigSummary,
   hasAnyProvider,
   setAutoYes,
+  setTelemetryEnabled,
 } from '../config/index.js';
 import {
   setPlatformCredentials,
@@ -779,6 +780,8 @@ program
   .option('--remove <name>', 'Remove a provider')
   .option('--auto-yes', 'Enable auto-confirm (skip all checkpoints)')
   .option('--no-auto-yes', 'Disable auto-confirm')
+  .option('--telemetry', 'Enable telemetry collection')
+  .option('--no-telemetry', 'Disable telemetry collection')
   .option('--list', 'List all configured providers')
   .action((options: {
     provider?: string;
@@ -789,6 +792,7 @@ program
     default?: string;
     remove?: string;
     autoYes?: boolean;
+    telemetry?: boolean;
     list?: boolean;
   }) => {
     if (options.list) {
@@ -805,6 +809,17 @@ program
     if (options.autoYes === false) {
       setAutoYes(false);
       console.log('✅ 已关闭免确认模式');
+      return;
+    }
+
+    if (options.telemetry === true) {
+      setTelemetryEnabled(true);
+      console.log('✅ 已开启遥测数据收集');
+      return;
+    }
+    if (options.telemetry === false) {
+      setTelemetryEnabled(false);
+      console.log('✅ 已关闭遥测数据收集');
       return;
     }
 
