@@ -35,6 +35,10 @@ export function runStats(): void {
   console.log(`   总任务数: ${totalTasks}`);
   console.log(`   完成任务: ${completedTasks}`);
   console.log(`   失败任务: ${failedTasks}`);
+  if (totalTasks > 0) {
+    const rate = Math.round((completedTasks / totalTasks) * 100);
+    console.log(`   完成率: ${rate}%`);
+  }
   console.log();
 
   if (types.size > 0) {
