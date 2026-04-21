@@ -3,10 +3,10 @@
  */
 
 import { existsSync, cpSync, mkdirSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { KeleDatabase } from '../../db/index.js';
 
-export function runExport(projectId: string, targetDir?: string, format?: 'dir' | 'markdown'): void {
+export function runExport(projectId: string, targetDir?: string, format?: 'dir' | 'markdown' | 'zip'): void {
   const db = new KeleDatabase();
   const project = db.getProject(projectId);
 
@@ -45,6 +45,20 @@ export function runExport(projectId: string, targetDir?: string, format?: 'dir' 
     const mdPath = join(destDir, `${project.name}-report.md`);
     writeFileSync(mdPath, md, 'utf-8');
     console.log(`✅ Markdown 报告已导出: ${mdPath}`);
+    return;
+  }
+
+  if (format === 'zip') {
+    // Use shell tar command for zip-like archive
+    const { execSync } = require('child_process');
+    const archivePath = join(destDir, `${project.name}.tar.gz`);
+    try {
+      execSync(`tar -czf "${archivePath}" -C "${dirname(sourceDir)}" "${project.name}"`, { stdio: 'ignore' });
+      console.log(`✅ 项目已打包: ${archivePath}`);
+    } catch {
+      console.error(`❌ 打包失败，请确保系统支持 tar 命令`);
+      process.exit(1);
+    }
     return;
   }
 
