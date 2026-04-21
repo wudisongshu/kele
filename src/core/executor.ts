@@ -555,12 +555,17 @@ export async function executeTask(
     db.saveTask(task, project.id);
     onProgress?.(`🔄 [${subProject.name}] ${task.title}`);
 
+    // Progress step tracker
+    let step = 0;
+    const totalSteps = subProject.type === 'setup' ? 4 : 6;
+    const nextStep = () => { step++; return `[${step}/${totalSteps}]`; };
+
     // Route to AI provider
     const route = registry.route(task.complexity);
     task.aiProvider = route.provider;
     const modelInfo = route.adapter.getModelInfo?.();
     const modelLabel = modelInfo ? ` (${modelInfo.name})` : '';
-    onProgress?.(`   🤖 Using ${route.provider}${modelLabel}`);
+    onProgress?.(`   ${nextStep()} 🤖 Using ${route.provider}${modelLabel}`);
 
     // For setup tasks, copy the appropriate template based on monetization channel
     if (subProject.type === 'setup') {
@@ -575,6 +580,7 @@ export async function executeTask(
     debugLog(`Executor Prompt [${subProject.name} / ${task.title}]`, prompt);
 
     // Phase 1: AI generation
+    onProgress?.(`   ${nextStep()} ✍️  Generating code...`);
     const aiResult = await callAI(ctx, prompt);
     const output = aiResult.output;
     const provider = aiResult.provider;
