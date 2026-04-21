@@ -6,7 +6,7 @@ import { existsSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export type TemplateType = 'game-web' | 'web-scaffold' | 'wechat-miniprogram' | 'douyin-game' | 'pwa-game' | 'generic';
+export type TemplateType = 'game-web' | 'web-scaffold' | 'wechat-miniprogram' | 'douyin-game' | 'pwa-game' | 'discord-bot' | 'telegram-bot' | 'generic';
 
 /**
  * Map monetization channel to template type.
@@ -17,6 +17,10 @@ export function getTemplateType(monetization: string): TemplateType {
       return 'wechat-miniprogram';
     case 'douyin':
       return 'douyin-game';
+    case 'discord-bot':
+      return 'discord-bot';
+    case 'telegram-bot':
+      return 'telegram-bot';
     case 'web':
     case 'unknown':
     default:
@@ -106,6 +110,10 @@ export function getTemplateDescription(type: TemplateType): string {
       return 'Standard Web Project (package.json + Vite + index.html)';
     case 'pwa-game':
       return 'PWA Game template (index.html + manifest.json + sw.js + Canvas)';
+    case 'discord-bot':
+      return 'Discord Bot template (Node.js + discord.js)';
+    case 'telegram-bot':
+      return 'Telegram Bot template (Node.js + node-telegram-bot-api)';
     default:
       return 'Generic web project template';
   }

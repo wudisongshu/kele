@@ -33,7 +33,7 @@ DEATH LINE: If you output code with empty functions, TODO comments, or stub impl
  */
 export function buildTaskPrompt(task: Task, subProject: SubProject, project: Project): string {
   const isSetup = subProject.type === 'setup';
-  const templateType = isSetup ? 'web-scaffold' : getTemplateType(project.idea.monetization);
+  const templateType = getTemplateType(project.idea.monetization);
   const templateDesc = getTemplateDescription(templateType);
   const isCodingTask = ['setup', 'development', 'production', 'creation', 'build', 'testing', 'deployment', 'monetization'].includes(subProject.type);
 
