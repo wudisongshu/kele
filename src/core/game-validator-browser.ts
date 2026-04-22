@@ -212,6 +212,60 @@ function validateMiniProgramGame(targetDir: string, result: BrowserValidationRes
   return result;
 }
 
+/**
+ * Extract all script content from an HTML file for static analysis.
+ * Includes inline <script> blocks and external <script src="..."> files.
+ * Supports one level of depth for dynamically referenced JS files.
+ */
+function extractHtmlScripts(html: string, targetDir: string): string {
+  let combined = html;
+
+  // 1. Extract inline <script>...</script> content (already in html, but keep for clarity)
+  const inlineScripts = html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const tag of inlineScripts) {
+    const content = tag.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+    combined += '\n' + content;
+  }
+
+  // 2. Read external <script src="..."> files
+  const srcRegex = /<script[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let match: RegExpExecArray | null;
+  const loadedPaths = new Set<string>();
+  while ((match = srcRegex.exec(html)) !== null) {
+    const src = match[1];
+    if (src && !src.startsWith('http') && !src.startsWith('//')) {
+      const cleanSrc = src.replace(/^\.\//, '').replace(/^\//, '');
+      const jsPath = join(targetDir, cleanSrc);
+      if (existsSync(jsPath) && !loadedPaths.has(jsPath)) {
+        loadedPaths.add(jsPath);
+        try {
+          const jsContent = readFileSync(jsPath, 'utf-8');
+          combined += '\n' + jsContent;
+
+          // 3. One-level deep: detect dynamically loaded JS files inside the loaded script
+          const dynamicJsRegex = /["']([^"']+\.js)["']/g;
+          let dynMatch: RegExpExecArray | null;
+          while ((dynMatch = dynamicJsRegex.exec(jsContent)) !== null) {
+            const dynSrc = dynMatch[1];
+            if (dynSrc && !dynSrc.startsWith('http') && !dynSrc.startsWith('//')) {
+              const dynCleanSrc = dynSrc.replace(/^\.\//, '').replace(/^\//, '');
+              const dynPath = join(targetDir, dynCleanSrc);
+              if (existsSync(dynPath) && !loadedPaths.has(dynPath)) {
+                loadedPaths.add(dynPath);
+                try {
+                  combined += '\n' + readFileSync(dynPath, 'utf-8');
+                } catch { /* skip unreadable */ }
+              }
+            }
+          }
+        } catch { /* skip unreadable */ }
+      }
+    }
+  }
+
+  return combined;
+}
+
 async function validateHtmlGame(targetDir: string, result: BrowserValidationResult): Promise<BrowserValidationResult> {
   const htmlPath = join(targetDir, 'index.html');
   if (!existsSync(htmlPath)) {
@@ -238,16 +292,19 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
     result.details.hasCanvas = true;
   }
 
-  // Check for game loop indicators in raw HTML/JS
-  const hasRAF = html.includes('requestAnimationFrame');
-  const hasInterval = /setInterval\s*\(/.test(html);
-  const hasTimeoutLoop = /setTimeout\s*\([^,]+,\s*\d+\s*\)/.test(html);
+  // Combine HTML with all inline and external script content for static analysis
+  const allScriptContent = extractHtmlScripts(html, targetDir);
+
+  // Check for game loop indicators in combined HTML + JS content
+  const hasRAF = allScriptContent.includes('requestAnimationFrame');
+  const hasInterval = /setInterval\s*\(/.test(allScriptContent);
+  const hasTimeoutLoop = /setTimeout\s*\([^,]+,\s*\d+\s*\)/.test(allScriptContent);
   result.details.hasGameLoop = hasRAF || hasInterval || hasTimeoutLoop;
 
-  // Check for input handlers
-  const hasClick = html.includes('click') || html.includes('pointerdown') || html.includes('mousedown');
-  const hasTouch = html.includes('touchstart') || html.includes('touchend');
-  const hasKey = html.includes('keydown') || html.includes('keyup') || html.includes('keypress');
+  // Check for input handlers in combined HTML + JS content
+  const hasClick = allScriptContent.includes('click') || allScriptContent.includes('pointerdown') || allScriptContent.includes('mousedown');
+  const hasTouch = allScriptContent.includes('touchstart') || allScriptContent.includes('touchend');
+  const hasKey = allScriptContent.includes('keydown') || allScriptContent.includes('keyup') || allScriptContent.includes('keypress');
   result.details.hasInputHandler = hasClick || hasTouch || hasKey;
 
   // Run in JSDOM to catch runtime errors
@@ -366,8 +423,8 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
       jsErrors.push(`[window.error] ${msg}`);
     });
 
-    // Wait briefly for scripts to initialize and register loops / listeners
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Wait for scripts to initialize and register loops / listeners
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Check if canvas element exists
     const canvas = doc.getElementById('c') as HTMLCanvasElement | null;
@@ -386,10 +443,18 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
       const clickEvent = new window.MouseEvent('click', { bubbles: true, cancelable: true });
       targetCanvas.dispatchEvent(clickEvent);
     }
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Dispatch a simulated keydown on the document to test keyboard input
     const keyEvent = new window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
     doc.dispatchEvent(keyEvent);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Dispatch a simulated touchstart on the canvas to test touch input
+    if (targetCanvas) {
+      const touchEvent = new window.Event('touchstart', { bubbles: true, cancelable: true });
+      targetCanvas.dispatchEvent(touchEvent);
+    }
 
     // Set canvasDrawn based on actual draw calls
     result.details.canvasDrawn = drawCalls > 0;

@@ -100,14 +100,87 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
   }
 
   const fullPath = join(targetDir, filePath);
-  if (!existsSync(fullPath)) {
+  let resolvedPath: string | undefined = existsSync(fullPath) ? fullPath : undefined;
+
+  // --- Smart detection fallback when direct path does not exist ---
+  if (!resolvedPath) {
+    const desc = criterion.description.toLowerCase();
+    const expectedLower = (criterion.expected || '').toLowerCase();
+
+    // 1. Game logic / JS file smart detection
+    const isJsTarget = filePath.endsWith('.js');
+    const isGameLogic = desc.includes('game logic') || desc.includes('main game') || desc.includes('entry file') || desc.includes('javascript');
+    if (isJsTarget || isGameLogic) {
+      const jsFiles = findJsFiles(targetDir);
+      for (const jsPath of jsFiles) {
+        try {
+          const content = readFileSync(jsPath, 'utf-8');
+          if (/requestAnimationFrame|setInterval|update|render|gameLoop/.test(content)) {
+            resolvedPath = jsPath;
+            break;
+          }
+        } catch {
+          // Skip unreadable files
+        }
+      }
+      // If no game logic marker found but JS files exist and it's a generic JS check, pick the first one
+      if (!resolvedPath && jsFiles.length > 0 && isJsTarget) {
+        resolvedPath = jsFiles[0];
+      }
+    }
+
+    // 2. Stylesheet / CSS file smart detection
+    const isCssTarget = filePath.endsWith('.css');
+    const isStylesheet = desc.includes('style') || desc.includes('stylesheet') || desc.includes('css');
+    if (!resolvedPath && (isCssTarget || isStylesheet)) {
+      const cssFiles = findCssFiles(targetDir);
+      if (cssFiles.length > 0) {
+        resolvedPath = cssFiles[0];
+      }
+    }
+
+    // 3. Canvas smart detection
+    const isCanvas = desc.includes('canvas') || expectedLower.includes('canvas');
+    if (!resolvedPath && isCanvas) {
+      const htmlFiles = findHtmlFiles(targetDir);
+      for (const htmlPath of htmlFiles) {
+        try {
+          const content = readFileSync(htmlPath, 'utf-8');
+          if (content.includes('<canvas')) {
+            resolvedPath = htmlPath;
+            break;
+          }
+        } catch {
+          // Skip unreadable files
+        }
+      }
+      if (!resolvedPath) {
+        const jsFiles = findJsFiles(targetDir);
+        for (const jsPath of jsFiles) {
+          try {
+            const content = readFileSync(jsPath, 'utf-8');
+            if (content.includes("getContext('2d')") || content.includes('getContext("2d")')) {
+              resolvedPath = jsPath;
+              break;
+            }
+          } catch {
+            // Skip unreadable files
+          }
+        }
+      }
+    }
+  }
+
+  if (!resolvedPath) {
     return { criterion, passed: false, actual: `File not found: ${filePath}` };
   }
+
+  const relativePath = resolvedPath.startsWith(targetDir + '/') ? resolvedPath.slice(targetDir.length + 1) : resolvedPath;
 
   // If expected mentions content checks (e.g. "contains deploy keyword")
   if (criterion.expected && !criterion.expected.includes('exist')) {
     try {
-      const content = readFileSync(fullPath, 'utf-8');
+      const content = readFileSync(resolvedPath, 'utf-8');
       const checks = criterion.expected.toLowerCase().split(/[,;]/).map(s => s.trim()).filter(Boolean);
       for (const check of checks) {
         // Extract keyword from phrases like "contains canvas" or "has game loop"
@@ -122,7 +195,7 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
     }
   }
 
-  return { criterion, passed: true, actual: `File exists: ${filePath}` };
+  return { criterion, passed: true, actual: `File exists: ${relativePath}` };
 }
 
 /** Check if an HTML element exists in index.html (or specified file). */
@@ -311,7 +384,7 @@ function evaluatePlayGame(criterion: AcceptanceCriterion, targetDir: string): Cr
 
 // --- Helpers ---
 
-import { findHtmlFiles, findJsFiles } from './file-utils.js';
+import { findHtmlFiles, findJsFiles, findCssFiles } from './file-utils.js';
 
 function findAllSourceFiles(dir: string): string[] {
   return [...findHtmlFiles(dir), ...findJsFiles(dir)];

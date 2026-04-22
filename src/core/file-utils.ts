@@ -82,6 +82,13 @@ export function findJsonFiles(dir: string): string[] {
 }
 
 /**
+ * Find all CSS files under a directory.
+ */
+export function findCssFiles(dir: string): string[] {
+  return findFilesByExt(dir, '.css');
+}
+
+/**
  * Check if a path is a file (not a directory).
  */
 export function isFile(path: string): boolean {

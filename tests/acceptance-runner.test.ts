@@ -160,4 +160,81 @@ describe('AcceptanceRunner', () => {
     expect(result.passed).toBe(false);
     expect(result.score).toBeLessThan(70);
   });
+
+  it('should smart-detect game logic JS file when hardcoded path is missing', () => {
+    mkdirSync(join(tmpDir, 'src'));
+    writeFileSync(join(tmpDir, 'src', 'app.js'), 'function gameLoop() { requestAnimationFrame(gameLoop); }');
+    subProject.acceptanceCriteria = [
+      {
+        description: 'Main game logic file exists',
+        type: 'functional',
+        action: 'verify-file',
+        target: 'js/game.js',
+        expected: 'file exists',
+        critical: true,
+      },
+    ];
+
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
+    expect(result.results[0].passed).toBe(true);
+    expect(result.results[0].actual).toContain('src/app.js');
+  });
+
+  it('should smart-detect stylesheet when hardcoded path is missing', () => {
+    writeFileSync(join(tmpDir, 'styles.css'), 'body { margin: 0; }');
+    subProject.acceptanceCriteria = [
+      {
+        description: 'Stylesheet exists',
+        type: 'functional',
+        action: 'verify-file',
+        target: 'css/style.css',
+        expected: 'file exists',
+        critical: true,
+      },
+    ];
+
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
+    expect(result.results[0].passed).toBe(true);
+    expect(result.results[0].actual).toContain('styles.css');
+  });
+
+  it('should smart-detect canvas in index.html', () => {
+    writeFileSync(join(tmpDir, 'index.html'), '<!DOCTYPE html><html><body><canvas id="game"></canvas></body></html>');
+    subProject.acceptanceCriteria = [
+      {
+        description: 'Canvas element exists',
+        type: 'visual',
+        action: 'verify-file',
+        target: 'index.html',
+        expected: 'has canvas',
+        critical: true,
+      },
+    ];
+
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
+    expect(result.results[0].passed).toBe(true);
+    expect(result.results[0].actual).toContain('index.html');
+  });
+
+  it('should smart-detect canvas via getContext in JS', () => {
+    writeFileSync(join(tmpDir, 'script.js'), 'const ctx = canvas.getContext("2d");');
+    subProject.acceptanceCriteria = [
+      {
+        description: 'Canvas 2D context initialized',
+        type: 'functional',
+        action: 'verify-file',
+        target: 'game.js',
+        expected: 'contains getContext',
+        critical: true,
+      },
+    ];
+
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
+    expect(result.results[0].passed).toBe(true);
+    expect(result.results[0].actual).toContain('script.js');
+  });
 });
