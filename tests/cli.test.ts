@@ -1,22 +1,53 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { validateTaskOutput } from '../src/core/task-validator.js';
 import { validateGameInBrowser } from '../src/core/game-validator-browser.js';
-import { printNoProviderHelp } from '../src/cli/utils.js';
+import { generateProjectSlug, formatDuration, collectHeaders, parseTimeout, version } from '../src/cli/utils.js';
 import { MockAdapter } from '../src/adapters/mock.js';
 
-/**
- * CLI integration and validation tests.
- */
-
 describe('kele CLI', () => {
-  it('should have a version', () => {
-    expect(true).toBe(true);
+  it('has a version string', () => {
+    expect(typeof version).toBe('string');
+    expect(version.length).toBeGreaterThan(0);
   });
 
-  it('should parse idea text', () => {
-    const ideaText = '我要做一个塔防游戏并部署到微信小程序';
-    expect(ideaText).toContain('塔防');
-    expect(ideaText).toContain('微信');
+  it('generateProjectSlug creates slug from english words', () => {
+    expect(generateProjectSlug('build a snake game', 'game')).toBe('build-snake-game');
+    expect(generateProjectSlug('tower defense', 'game')).toBe('tower-defense');
+  });
+
+  it('generateProjectSlug falls back to type + random suffix for non-english', () => {
+    const slug = generateProjectSlug('塔防游戏', 'game');
+    expect(slug.startsWith('game-')).toBe(true);
+    expect(slug.length).toBeGreaterThan(10);
+  });
+
+  it('formatDuration formats milliseconds', () => {
+    expect(formatDuration(500)).toBe('500ms');
+    expect(formatDuration(1500)).toBe('1.5s');
+    expect(formatDuration(65000)).toBe('1m 5s');
+    expect(formatDuration(125000)).toBe('2m 5s');
+  });
+
+  it('collectHeaders accumulates headers', () => {
+    const result = collectHeaders('Authorization: Bearer xxx', {});
+    expect(result).toEqual({ Authorization: 'Bearer xxx' });
+
+    const result2 = collectHeaders('X-Custom: value', result);
+    expect(result2).toEqual({ Authorization: 'Bearer xxx', 'X-Custom': 'value' });
+  });
+
+  it('parseTimeout parses valid numbers', () => {
+    expect(parseTimeout('30')).toBe(30);
+    expect(parseTimeout('100')).toBe(100);
+  });
+
+  it('parseTimeout warns and returns default for invalid input', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(parseTimeout('invalid')).toBe(3000);
+    expect(parseTimeout('-1')).toBe(3000);
+    expect(parseTimeout('0')).toBe(3000);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });
 
