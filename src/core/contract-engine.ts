@@ -10,6 +10,7 @@ import { readFileSync, existsSync, readdirSync, writeFileSync, mkdirSync } from 
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { findJsFiles, findHtmlFiles } from './file-utils.js';
+import { debugLog } from '../debug.js';
 
 export interface ContractMechanic {
   id: string;
@@ -49,7 +50,9 @@ export function loadContracts(): Contract[] {
         const content = readFileSync(join(dir, file), 'utf-8');
         const contract = JSON.parse(content) as Contract;
         contracts.push(contract);
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`Contract engine malformed contract: ${file}`, msg);
         // Skip malformed contract files
       }
     }
@@ -213,12 +216,18 @@ export function validateContractCompliance(
   for (const htmlPath of findHtmlFiles(gameDir)) {
     try {
       allContent += readFileSync(htmlPath, 'utf-8') + '\n';
-    } catch { /* skip */ }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Contract engine HTML read failed: ${htmlPath}`, msg);
+    }
   }
   for (const jsPath of findJsFiles(gameDir)) {
     try {
       allContent += readFileSync(jsPath, 'utf-8') + '\n';
-    } catch { /* skip */ }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Contract engine HTML read failed: ${htmlPath}`, msg);
+    }
   }
 
   const contentLower = allContent.toLowerCase();
@@ -236,7 +245,9 @@ export function validateContractCompliance(
           found = true;
           break;
         }
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`Contract engine invalid regex pattern: ${pattern}`, msg);
         // Fallback to simple includes if regex is invalid
         if (contentLower.includes(pattern.toLowerCase())) {
           found = true;
