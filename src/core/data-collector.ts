@@ -145,7 +145,9 @@ export function collectAdRevenue(projectDir: string): { revenue: number; impress
       const totalImpressions = records.reduce((sum, r) => sum + r.impressions, 0);
       const totalClicks = records.reduce((sum, r) => sum + r.clicks, 0);
       return { revenue: totalRevenue, impressions: totalImpressions, clicks: totalClicks, records };
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Ad revenue read failed: ${filename}`, msg);
       continue;
     }
   }
@@ -219,7 +221,9 @@ export function collectUserMetrics(projectDir: string): { dau: number; retention
         avg_session: latest.avg_session_minutes,
         records,
       };
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`User metrics read failed: ${filename}`, msg);
       continue;
     }
   }
@@ -276,7 +280,9 @@ export function collectStoreMetrics(platform: string, projectDir: string): Store
     try {
       const data = JSON.parse(readFileSync(filepath, 'utf-8'));
       return parseStoreMetrics(data, platform);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Store metrics read failed: ${filename}`, msg);
       continue;
     }
   }
