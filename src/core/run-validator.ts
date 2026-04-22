@@ -28,7 +28,7 @@ interface RunConfig {
 /**
  * Detect how to run/validate a project based on its files.
  */
-function detectRunConfig(targetDir: string): RunConfig | null {
+async function detectRunConfig(targetDir: string): Promise<RunConfig | null> {
   const pkgPath = join(targetDir, 'package.json');
   if (existsSync(pkgPath)) {
     try {
@@ -187,7 +187,7 @@ function runCommand(config: RunConfig): Promise<RunResult> {
  * For npm projects, first installs deps if node_modules is missing.
  */
 export async function runProject(targetDir: string): Promise<RunResult> {
-  const config = detectRunConfig(targetDir);
+  const config = await detectRunConfig(targetDir);
   if (!config) {
     return {
       success: true,
