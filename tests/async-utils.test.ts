@@ -47,4 +47,17 @@ describe('withRetry', () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'fail 1' }), 1);
   });
+
+  it('succeeds immediately with maxAttempts 1', async () => {
+    const fn = vi.fn().mockResolvedValue('ok');
+    const result = await withRetry(fn, { maxAttempts: 1, delayMs: 10 });
+    expect(result).toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws immediately when maxAttempts is 1 and fn fails', async () => {
+    const fn = vi.fn().mockRejectedValue(new Error('fail'));
+    await expect(withRetry(fn, { maxAttempts: 1, delayMs: 10 })).rejects.toThrow('fail');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });
