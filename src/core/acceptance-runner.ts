@@ -9,6 +9,7 @@
 import type { AcceptanceCriterion, SubProject } from '../types/index.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { debugLog } from '../debug.js';
 
 export interface AcceptanceResult {
   /** Overall pass/fail */
@@ -200,7 +201,9 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
             resolvedPath = jsPath;
             break;
           }
-        } catch {
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          debugLog(`Acceptance runner JS read failed: ${jsPath}`, msg);
           // Skip unreadable files
         }
       }
@@ -231,7 +234,9 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
             resolvedPath = htmlPath;
             break;
           }
-        } catch {
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          debugLog(`Acceptance runner HTML read failed: ${htmlPath}`, msg);
           // Skip unreadable files
         }
       }
@@ -244,7 +249,9 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
               resolvedPath = jsPath;
               break;
             }
-          } catch {
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            debugLog(`Acceptance runner JS read failed: ${jsPath}`, msg);
             // Skip unreadable files
           }
         }
@@ -266,7 +273,9 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
       if (!checkResult.ok) {
         return { criterion, passed: false, actual: `File exists but missing "${checkResult.missing}"` };
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Acceptance runner content read failed: ${resolvedPath}`, msg);
       return { criterion, passed: false, actual: 'Unable to read file content' };
     }
   }
@@ -314,7 +323,9 @@ function evaluateCheckElement(criterion: AcceptanceCriterion, targetDir: string)
       if (found) {
         return { criterion, passed: true, actual: `Found "${selector}" in ${htmlPath}` };
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Acceptance runner element check failed: ${htmlPath}`, msg);
       // Continue to next file
     }
   }
@@ -344,7 +355,9 @@ function evaluateCheckText(criterion: AcceptanceCriterion, targetDir: string): C
       if (allFound) {
         return { criterion, passed: true, actual: `Found all keywords in ${filePath}` };
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Acceptance runner text check failed: ${filePath}`, msg);
       // Continue
     }
   }
@@ -392,7 +405,9 @@ function evaluatePlayGame(criterion: AcceptanceCriterion, targetDir: string): Cr
   for (const jsPath of jsFiles) {
     try {
       allJsContent += readFileSync(jsPath, 'utf-8') + '\n';
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Acceptance runner game JS read failed: ${jsPath}`, msg);
       // Skip unreadable files
     }
   }
@@ -404,7 +419,11 @@ function evaluatePlayGame(criterion: AcceptanceCriterion, targetDir: string): Cr
     const hasCanvas = htmlFiles.some(f => {
       try {
         return readFileSync(f, 'utf-8').includes('<canvas');
-      } catch { return false; }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`Acceptance runner canvas check failed: ${f}`, msg);
+        return false;
+      }
     });
     const hasDraw = /\.fillRect|\.drawImage|\.fillText|render|drawGrid/i.test(allJsContent);
     if (!hasCanvas && !hasDraw) {
