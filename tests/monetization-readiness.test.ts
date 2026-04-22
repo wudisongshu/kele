@@ -85,4 +85,116 @@ describe('Monetization Readiness', () => {
     expect(result.checks[0].name).toBe('platform_support');
     cleanup(dir);
   });
+
+  describe('Ad Revenue Optimizer checks', () => {
+    it('detects ad containers in HTML', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'ads.txt'), 'google.com, pub-xxx, DIRECT', 'utf-8');
+      writeFileSync(join(dir, 'manifest.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'sw.js'), '', 'utf-8');
+      writeFileSync(join(dir, 'index.html'), '<div id="ad-banner-bottom"></div><div id="ad-interstitial"></div><link rel="manifest">', 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'web');
+      const containerCheck = result.checks.find((c) => c.name === 'ad_containers');
+      expect(containerCheck?.passed).toBe(true);
+      cleanup(dir);
+    });
+
+    it('fails ad container check when missing', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'ads.txt'), 'google.com, pub-xxx, DIRECT', 'utf-8');
+      writeFileSync(join(dir, 'manifest.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'sw.js'), '', 'utf-8');
+      writeFileSync(join(dir, 'index.html'), '<link rel="manifest">', 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'web');
+      const containerCheck = result.checks.find((c) => c.name === 'ad_containers');
+      expect(containerCheck?.passed).toBe(false);
+      cleanup(dir);
+    });
+
+    it('detects ad trigger functions', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'ads.txt'), 'google.com, pub-xxx, DIRECT', 'utf-8');
+      writeFileSync(join(dir, 'manifest.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'sw.js'), '', 'utf-8');
+      writeFileSync(join(dir, 'index.html'), `
+        <div id="ad-banner-bottom"></div>
+        <link rel="manifest">
+        <script>
+          function showBannerAd() {}
+          function showInterstitialAd() {}
+          function showRewardedAd() {}
+        </script>
+      `, 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'web');
+      const triggerCheck = result.checks.find((c) => c.name === 'ad_trigger_functions');
+      expect(triggerCheck?.passed).toBe(true);
+      cleanup(dir);
+    });
+
+    it('fails ad trigger check with only 1 function', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'ads.txt'), 'google.com, pub-xxx, DIRECT', 'utf-8');
+      writeFileSync(join(dir, 'manifest.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'sw.js'), '', 'utf-8');
+      writeFileSync(join(dir, 'index.html'), '<link rel="manifest"><script>function showBannerAd() {}</script>', 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'web');
+      const triggerCheck = result.checks.find((c) => c.name === 'ad_trigger_functions');
+      expect(triggerCheck?.passed).toBe(false);
+      cleanup(dir);
+    });
+
+    it('detects ad frequency cap (lastAdTime)', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'ads.txt'), 'google.com, pub-xxx, DIRECT', 'utf-8');
+      writeFileSync(join(dir, 'manifest.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'sw.js'), '', 'utf-8');
+      writeFileSync(join(dir, 'index.html'), `
+        <link rel="manifest">
+        <script>
+          let lastAdTime = 0;
+          function showInterstitialAd() {
+            if (Date.now() - lastAdTime >= 30000) { lastAdTime = Date.now(); }
+          }
+        </script>
+      `, 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'web');
+      const freqCheck = result.checks.find((c) => c.name === 'ad_frequency_cap');
+      expect(freqCheck?.passed).toBe(true);
+      cleanup(dir);
+    });
+
+    it('fails ad frequency cap when missing', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'ads.txt'), 'google.com, pub-xxx, DIRECT', 'utf-8');
+      writeFileSync(join(dir, 'manifest.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'sw.js'), '', 'utf-8');
+      writeFileSync(join(dir, 'index.html'), '<link rel="manifest"><script>function showAd() {}</script>', 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'web');
+      const freqCheck = result.checks.find((c) => c.name === 'ad_frequency_cap');
+      expect(freqCheck?.passed).toBe(false);
+      cleanup(dir);
+    });
+
+    it('detects mini-program ad triggers and frequency', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'game.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'project.config.json'), '{}', 'utf-8');
+      writeFileSync(join(dir, 'index.js'), `
+        let lastAdTime = 0;
+        function showBannerAd() { wx.createBannerAd({}); }
+        function showRewardedAd() { wx.createRewardedVideoAd({}); }
+      `, 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'wechat-miniprogram');
+      expect(result.checks.some((c) => c.name === 'ad_trigger_functions' && c.passed)).toBe(true);
+      expect(result.checks.some((c) => c.name === 'ad_frequency_cap' && c.passed)).toBe(true);
+      cleanup(dir);
+    });
+  });
 });

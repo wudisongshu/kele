@@ -102,7 +102,23 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${fileTreeSect
       - WeChat Mini Games: Include wx.createRewardedVideoAd() or similar ad SDK calls.
       - Douyin Mini Games: Include tt.createRewardedVideoAd() or similar ad SDK calls.
       - If no ad credentials are available, use placeholder IDs and clearly mark them with comments like /* REPLACE_WITH_YOUR_AD_UNIT_ID */.
-      - The game MUST remain fully playable even with placeholder ads — do NOT block gameplay on ad loading.`
+      - The game MUST remain fully playable even with placeholder ads — do NOT block gameplay on ad loading.
+   i) AD REVENUE OPTIMIZATION (MANDATORY):
+      - Insert ad container DOM elements with EXACT IDs so kele can verify them:
+        * Web/PWA: <div id="ad-banner-bottom"></div> and <div id="ad-interstitial"></div>
+        * WeChat Mini Games: banner ad via wx.createBannerAd({ adUnitId: '...' })
+        * Douyin Mini Games: banner ad via tt.createBannerAd({ adUnitId: '...' })
+      - Implement ad trigger functions with these exact names:
+        * showBannerAd() — show/hide banner
+        * showInterstitialAd() — show full-screen ad
+        * showRewardedAd(onReward) — show rewarded video, call onReward() when user completes watching
+      - Trigger ads at these game events:
+        * Game over → showInterstitialAd()
+        * Level complete → showRewardedAd(() => { /* give bonus */ })
+        * Player death → showRewardedAd(() => { /* revive */ })
+        * Pause menu → showBannerAd()
+      - Ad frequency cap: minimum 30 seconds between interstitial ads. Implement a lastAdTime check.
+      - Ad code MUST be "runnable placeholder": use test mode or fake unit IDs, never crash if ad fails to load.`
       : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'

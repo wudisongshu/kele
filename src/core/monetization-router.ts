@@ -264,6 +264,69 @@ export function getTopRoute(idea: Idea): MonetizationRoute {
 }
 
 /**
+ * Ad placement strategy for a given platform and game type.
+ */
+export interface AdPlacement {
+  type: 'banner' | 'interstitial' | 'rewarded';
+  position?: string;
+  trigger: string;
+  frequency?: string;
+}
+
+export interface AdStrategy {
+  platform: string;
+  gameType: string;
+  placements: AdPlacement[];
+  estimatedCpm: string;
+}
+
+/**
+ * Get the optimal ad strategy for a platform and game type.
+ * Returns specific placement, trigger, and frequency recommendations.
+ */
+export function getAdStrategy(platform: string, _gameType: string = 'game'): AdStrategy {
+  switch (platform) {
+    case 'wechat-miniprogram':
+      return {
+        platform,
+        gameType: _gameType,
+        placements: [
+          { type: 'banner', position: '结算页底部', trigger: '关卡结束/游戏结束', frequency: '每局显示' },
+          { type: 'rewarded', position: '复活按钮', trigger: '玩家死亡后', frequency: '每次死亡最多1次' },
+          { type: 'interstitial', position: '全屏', trigger: '关卡切换间', frequency: '每3关1次' },
+        ],
+        estimatedCpm: '¥80-200（微信广告 eCPM 较高）',
+      };
+
+    case 'douyin':
+      return {
+        platform,
+        gameType: _gameType,
+        placements: [
+          { type: 'interstitial', position: '开屏', trigger: '游戏启动', frequency: '每次启动' },
+          { type: 'rewarded', position: '双倍金币', trigger: '关卡结算', frequency: '每次结算可观看' },
+          { type: 'banner', position: '底部', trigger: '游戏进行中', frequency: '持续展示' },
+        ],
+        estimatedCpm: '¥100-300（抖音 eCPM 业内最高）',
+      };
+
+    case 'web':
+    case 'unknown':
+    default:
+      return {
+        platform: platform || 'web',
+        gameType: _gameType,
+        placements: [
+          { type: 'banner', position: '页面底部', trigger: '游戏进行中', frequency: '持续展示' },
+          { type: 'interstitial', position: '全屏覆盖', trigger: '游戏结束', frequency: '每局1次' },
+          { type: 'rewarded', position: '弹窗', trigger: '每3关完成', frequency: '每3关1次' },
+        ],
+        estimatedCpm: '$1-5（AdSense 横幅）/ $5-15（激励视频）',
+      };
+  }
+}
+
+/**
  * Format routes for terminal display.
  */
 export function formatRouteRecommendations(routes: MonetizationRoute[]): string {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { routeMonetization, getTopRoute } from '../src/core/monetization-router.js';
+import { routeMonetization, getTopRoute, getAdStrategy } from '../src/core/monetization-router.js';
 import type { Idea } from '../src/types/index.js';
 
 function makeIdea(rawText: string, monetization: string = 'unknown'): Idea {
@@ -69,5 +69,44 @@ describe('monetization-router', () => {
     expect(platforms).toContain('wechat-miniprogram');
     expect(platforms).toContain('douyin');
     expect(routes.length).toBe(10);
+  });
+
+  describe('getAdStrategy', () => {
+    it('returns web strategy with 3 placements', () => {
+      const strategy = getAdStrategy('web', 'game');
+      expect(strategy.platform).toBe('web');
+      expect(strategy.placements.length).toBe(3);
+      expect(strategy.placements.some((p) => p.type === 'banner')).toBe(true);
+      expect(strategy.placements.some((p) => p.type === 'interstitial')).toBe(true);
+      expect(strategy.placements.some((p) => p.type === 'rewarded')).toBe(true);
+      expect(strategy.estimatedCpm).toBeTruthy();
+    });
+
+    it('returns wechat strategy with banner on result page', () => {
+      const strategy = getAdStrategy('wechat-miniprogram', 'game');
+      expect(strategy.platform).toBe('wechat-miniprogram');
+      expect(strategy.placements.length).toBe(3);
+      const banner = strategy.placements.find((p) => p.type === 'banner');
+      expect(banner).toBeDefined();
+      expect(banner?.position).toContain('结算页');
+      const rewarded = strategy.placements.find((p) => p.type === 'rewarded');
+      expect(rewarded?.trigger).toContain('死亡');
+    });
+
+    it('returns douyin strategy with splash and rewarded', () => {
+      const strategy = getAdStrategy('douyin', 'game');
+      expect(strategy.platform).toBe('douyin');
+      expect(strategy.placements.length).toBe(3);
+      const splash = strategy.placements.find((p) => p.type === 'interstitial');
+      expect(splash?.trigger).toContain('启动');
+      const rewarded = strategy.placements.find((p) => p.type === 'rewarded');
+      expect(rewarded?.trigger).toContain('关卡结算');
+    });
+
+    it('defaults to web for unknown platform', () => {
+      const strategy = getAdStrategy('unknown', 'game');
+      expect(strategy.platform).toBe('unknown');
+      expect(strategy.placements.length).toBe(3);
+    });
   });
 });
