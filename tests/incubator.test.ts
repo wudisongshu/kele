@@ -23,7 +23,7 @@ describe('Incubator', () => {
     expect(result.success).toBe(true);
     expect(result.subProjects!.length).toBeGreaterThan(0);
     expect(result.subProjects![0].id).toBe('project-setup');
-    expect(result.subProjects![0].targetDir).toBe('/tmp/test-game/project-setup');
+    expect(result.subProjects![0].targetDir).toBe('/tmp/test-game');
   });
 
   it('simple: should generate only setup + dev when no platform specified', () => {

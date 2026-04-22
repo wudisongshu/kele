@@ -239,6 +239,19 @@ export function writeFiles(
       }
     }
 
+    // Incremental merge for HTML/CSS when file already exists and writer is not setup/dev
+    if (existsSync(filePath) && relativePath.endsWith('.html') && subProjectType && subProjectType !== 'setup' && subProjectType !== 'development' && subProjectType !== 'production' && subProjectType !== 'creation') {
+      const existing = readFileSync(filePath, 'utf-8');
+      const merged = mergeHtml(existing, content);
+      if (merged !== existing) {
+        onProgress?.(`      🔄 Merged ${relativePath} (incremental update)`);
+        content = merged;
+      } else {
+        onProgress?.(`      ⏭️  Skipped ${relativePath} (no new elements to merge)`);
+        continue;
+      }
+    }
+
     // File ownership check (skip if no registry provided — e.g. mock mode)
     if (registry && subProjectId && subProjectType) {
       const check = registry.checkWrite(filePath, subProjectId, subProjectType);
@@ -304,6 +317,52 @@ export function writeFiles(
   }
 
   return written;
+}
+
+/**
+ * Merge two HTML files incrementally.
+ * - Appends new <head> tags (script/link/meta) that don't already exist
+ * - Appends new <body> top-level elements that don't already exist (by id)
+ * Returns the merged HTML string.
+ */
+function mergeHtml(existing: string, incoming: string): string {
+  let result = existing;
+
+  // Merge <head>: add new script/link/meta tags
+  const incomingHead = incoming.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (incomingHead) {
+    const newTags = (incomingHead[1].match(/<(script|link|meta)[^>]*>/gi) || [])
+      .map((t) => t.trim().toLowerCase().replace(/\s+/g, ' '));
+    const existingTags = new Set(
+      (existing.match(/<(script|link|meta)[^>]*>/gi) || [])
+        .map((t) => t.trim().toLowerCase().replace(/\s+/g, ' ')),
+    );
+    const toAdd = newTags.filter((t) => !existingTags.has(t));
+    if (toAdd.length > 0) {
+      result = result.replace(/<\/head>/i, toAdd.join('\n') + '\n</head>');
+    }
+  }
+
+  // Merge <body>: add new top-level div/script elements by id
+  const incomingBody = incoming.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (incomingBody) {
+    const existingIds = new Set(
+      (existing.match(/id=["']([^"']+)["']/g) || []),
+    );
+    const newElements = incomingBody[1].match(/<(div|script)[^>]*>[\s\S]*?<\/\1>/gi) || [];
+    const toAppend = newElements.filter((el) => {
+      const idMatch = el.match(/id=["']([^"']+)["']/);
+      if (!idMatch) return false; // only add identifiable elements
+      const idAttr = `id="${idMatch[1]}"`;
+      const idAttr2 = `id='${idMatch[1]}'`;
+      return !existingIds.has(idAttr) && !existingIds.has(idAttr2);
+    });
+    if (toAppend.length > 0) {
+      result = result.replace(/<\/body>/i, toAppend.join('\n') + '\n</body>');
+    }
+  }
+
+  return result;
 }
 
 /**

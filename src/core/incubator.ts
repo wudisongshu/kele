@@ -174,7 +174,7 @@ export function incubate(idea: Idea, rootDir: string): IncubateResult {
       name: tpl.name,
       description: tpl.description,
       type: tpl.type,
-      targetDir: `${rootDir}/${tpl.id}`,
+      targetDir: rootDir,
       dependencies: tpl.dependencies,
       status: 'pending',
       createdAt: now,

@@ -659,7 +659,23 @@ export async function executeTask(
       templateType = getTemplateType(project.idea.monetization);
     }
 
-    const prompt = buildTaskPrompt(task, subProject, project);
+    // Build existing file tree for shared-root awareness (shallow read for speed)
+    let existingFileTree = '';
+    try {
+      if (existsSync(subProject.targetDir)) {
+        const entries = readdirSync(subProject.targetDir, { withFileTypes: true });
+        const files = entries
+          .filter((e) => e.isFile() && !e.name.startsWith('.') && e.name !== 'node_modules')
+          .map((e) => e.name);
+        if (files.length > 0) {
+          existingFileTree = files.slice(0, 30).join('\n') + (files.length > 30 ? `\n... and ${files.length - 30} more files` : '');
+        }
+      }
+    } catch {
+      // Ignore read errors (e.g. dir does not exist)
+    }
+
+    const prompt = buildTaskPrompt(task, subProject, project, existingFileTree || undefined);
     debugLog(`Executor Prompt [${subProject.name} / ${task.title}]`, prompt);
 
     // Phase 1: AI generation

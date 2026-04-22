@@ -73,7 +73,7 @@ describe('parseIncubationResponse', () => {
     });
     const result = parseIncubationResponse(json, '/tmp/proj');
     expect(result.success).toBe(true);
-    expect(result.subProjects![0].targetDir).toBe('/tmp/proj/sp1');
+    expect(result.subProjects![0].targetDir).toBe('/tmp/proj');
   });
 
   it('rejects invalid JSON', () => {

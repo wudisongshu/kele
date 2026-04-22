@@ -59,7 +59,7 @@ function getProjectFileTree(targetDir: string, maxDepth = 2): string {
   return lines.length > 0 ? lines.join('\n') : '';
 }
 
-export function buildTaskPrompt(task: Task, subProject: SubProject, project: Project): string {
+export function buildTaskPrompt(task: Task, subProject: SubProject, project: Project, existingFileTree?: string): string {
   const isSetup = subProject.type === 'setup';
   const templateType = getTemplateType(project.idea.monetization);
   const templateDesc = getTemplateDescription(templateType);
@@ -92,15 +92,51 @@ export function buildTaskPrompt(task: Task, subProject: SubProject, project: Pro
     contextSection = `\nAll sub-projects:\n${allSubProjects}\n${fileTreeSection}`;
   }
 
-  // Deployment / monetization isolation prompt
-  const isolationWarning =
-    subProject.type === 'deployment' || subProject.type === 'monetization'
-      ? `\n⚠️ CRITICAL ISOLATION RULES:\n` +
-        `1. You MUST NOT write any game logic, HTML game structure, or JavaScript game code.\n` +
-        `2. You MUST NOT overwrite index.html, js/*.js, css/style.css, or any existing game files.\n` +
-        `3. Only write ${subProject.type === 'deployment' ? 'deployment-specific files: .github/workflows/*.yml, CNAME, SETUP.md' : 'monetization-specific files: ads.txt, adsense.html, js/ads.js, MONETIZATION.md'}.\n` +
-        `4. The game code already exists in the project. Your job is ONLY to add ${subProject.type} infrastructure.\n`
-      : '';
+  // Existing files in the shared project root (so AI knows what's already there)
+  const existingFilesSection = existingFileTree
+    ? `\n--- EXISTING FILES IN PROJECT (DO NOT overwrite unless your scope allows) ---\n${existingFileTree}\n--- END EXISTING FILES ---\n`
+    : '';
+
+  // Sub-project scope isolation — prevents each sub-project from generating a full project
+  let isolationWarning = '';
+  switch (subProject.type) {
+    case 'setup':
+      isolationWarning = `\n⚠️ SUB-PROJECT SCOPE (SETUP):\n` +
+        `1. Generate ONLY project scaffolding files: package.json, index.html (basic skeleton with <canvas id="game">), public/manifest.json, public/sw.js, .gitignore.\n` +
+        `2. index.html MUST reference external JS files (e.g., <script src="js/game.js"></script>) — do NOT inline game logic.\n` +
+        `3. Do NOT write any game logic, game loop, or application code.\n` +
+        `4. All files will be written to the SHARED project root. Other sub-projects will add their files here.\n`;
+      break;
+    case 'development':
+    case 'production':
+    case 'creation':
+      isolationWarning = `\n⚠️ SUB-PROJECT SCOPE (CORE DEV):\n` +
+        `1. Generate ONLY core game/application code files (e.g., js/game.js, js/*.js, css/style.css).\n` +
+        `2. Do NOT regenerate package.json, manifest.json, sw.js, or .gitignore — these were already created by setup.\n` +
+        `3. If index.html already exists, do NOT overwrite it. Instead, ensure your JS files are referenced by the existing index.html.\n` +
+        `4. All files will be written to the SHARED project root alongside files from other sub-projects.\n`;
+      break;
+    case 'testing':
+      isolationWarning = `\n⚠️ SUB-PROJECT SCOPE (TESTING):\n` +
+        `1. Generate ONLY test files (e.g., tests/*.test.js, test-utils.js).\n` +
+        `2. Do NOT write application code, game logic, or configuration files.\n` +
+        `3. All files will be written to the SHARED project root.\n`;
+      break;
+    case 'deployment':
+      isolationWarning = `\n⚠️ SUB-PROJECT SCOPE (DEPLOYMENT):\n` +
+        `1. Generate ONLY deployment configuration files: .github/workflows/*.yml, CNAME, SETUP.md.\n` +
+        `2. You MUST NOT write any game logic, HTML game structure, or JavaScript game code.\n` +
+        `3. You MUST NOT overwrite index.html, js/*.js, css/style.css, or any existing game files.\n` +
+        `4. The game code already exists in the project. Your job is ONLY to add deployment infrastructure.\n`;
+      break;
+    case 'monetization':
+      isolationWarning = `\n⚠️ SUB-PROJECT SCOPE (MONETIZATION):\n` +
+        `1. Generate ONLY monetization files: ads.txt, adsense.html, js/ads.js, MONETIZATION.md.\n` +
+        `2. You MUST NOT write game core logic or overwrite existing game files.\n` +
+        `3. If you need to modify index.html, ONLY add ad container divs and script references — do NOT remove or change existing elements.\n` +
+        `4. The game already exists. Your job is ONLY to add monetization infrastructure.\n`;
+      break;
+  }
 
   const baseContext = `You are a senior software engineer working on the project "${escapePromptInput(project.name)}".
 
@@ -108,7 +144,7 @@ Sub-project: ${escapePromptInput(subProject.name)}
 Description: ${escapePromptInput(subProject.description)}
 Target directory: ${subProject.targetDir}
 Platform template: ${effectiveTemplateDesc}
-User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSection}${platformSection}${isolationWarning}`;
+User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSection}${platformSection}${existingFilesSection}${isolationWarning}`;
 
   if (isCodingTask) {
     // Inject gameplay contract if matched
