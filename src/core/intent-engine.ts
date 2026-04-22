@@ -22,7 +22,11 @@ export type UserIntent =
   | { type: 'RUN'; projectQuery?: string }
   | { type: 'RESUME'; projectQuery?: string }
   | { type: 'DELETE'; projectQuery: string }
-  | { type: 'CHAT'; message: string };
+  | { type: 'CHAT'; message: string }
+  | { type: 'MODIFY'; request: string }
+  | { type: 'ADD'; request: string }
+  | { type: 'QUESTION'; question: string }
+  | { type: 'DEPLOY'; platform?: string };
 
 const INTENT_PROMPT = `You are an intent classification assistant for "kele" — an AI tool that turns ideas into products.
 
@@ -36,6 +40,10 @@ Intent types:
 - RUN: User wants to run or preview a project locally (mentions "run", "start", "preview", "launch", "启动", "运行", "打开", "预览")
 - RESUME: User wants to continue/resume an interrupted project (mentions "continue", "resume", "接着", "继续", "接着干", "接着做", "go on", "resume")
 - DELETE: User wants to delete a project (mentions "delete", "remove", "删掉", "删除", "移除")
+- MODIFY: User wants to modify/change an existing feature in the CURRENT project (mentions "change", "改成", "换成", "改", "修改", "调整", "优化", "fix", "修复", "rename", "重命名"). This is for the active project in chat mode.
+- ADD: User wants to add a new feature to the CURRENT project (mentions "add", "加", "新增", "加一个", "加個", "append", "insert"). This is for the active project in chat mode.
+- QUESTION: User asks a technical or monetization question without wanting code changes (mentions "how to", "怎么", "如何", "why", "什么是", "?", "？"). Pure Q&A.
+- DEPLOY: User wants to deploy the current project (mentions "deploy", "发布", "部署", "上线", "publish", "push to")
 - CHAT: General conversation, questions, or casual chat
 
 Rules:
@@ -47,7 +55,7 @@ Rules:
 
 Return JSON:
 {
-  "intent": "CREATE|UPGRADE|QUERY|CONFIG|RUN|RESUME|CHAT",
+  "intent": "CREATE|UPGRADE|QUERY|CONFIG|RUN|RESUME|DELETE|MODIFY|ADD|QUESTION|DEPLOY|CHAT",
   "projectName": "project name if referenced, else null",
   "details": "the specific request or idea"
 }`;
@@ -105,6 +113,18 @@ export async function parseIntent(userInput: string, adapter: AIAdapter): Promis
       case 'RUN':
         return { type: 'RUN', projectQuery: parsed.projectName || undefined };
 
+      case 'MODIFY':
+        return { type: 'MODIFY', request: details };
+
+      case 'ADD':
+        return { type: 'ADD', request: details };
+
+      case 'QUESTION':
+        return { type: 'QUESTION', question: details };
+
+      case 'DEPLOY':
+        return { type: 'DEPLOY', platform: parsed.projectName || undefined };
+
       case 'RESUME':
         return { type: 'RESUME', projectQuery: parsed.projectName || undefined };
 
@@ -138,36 +158,55 @@ function detectConfigType(action: string): 'provider' | 'secrets' | 'unknown' {
 function heuristicParse(input: string): UserIntent {
   const lower = input.toLowerCase();
 
-  // UPGRADE signals
-  const upgradeSignals = ['上次', '之前的', 'existing', 'previous', 'last time', 'my', 'the', '改成', '改成', 'add', 'modify', 'upgrade', '改', '加', '换成', '变成'];
-  const isUpgrade = upgradeSignals.some((s) => lower.includes(s.toLowerCase()));
-
-  // RESUME signals
-  const resumeSignals = ['continue', 'resume', '接着', '继续', '接着干', '接着做', 'go on', 'resume', '恢复', '继续执行'];
-  const isResume = resumeSignals.some((s) => lower.includes(s.toLowerCase()));
-
-  // RUN signals
-  const runSignals = ['run', 'start', 'preview', 'launch', '启动', '运行', '打开', '预览', '怎么运行', '怎么启动'];
-  const isRun = runSignals.some((s) => lower.includes(s.toLowerCase()));
-
-  // QUERY signals
-  const querySignals = ['progress', 'status', 'list', 'show', 'how is', 'where is', '进度', '状态', '怎么样', '在哪', '列表'];
-  const isQuery = querySignals.some((s) => lower.includes(s.toLowerCase()));
-
-  // CONFIG signals
-  const configSignals = ['config', 'setup', 'key', 'provider', 'secret', '配置', '设置', 'key'];
-  const isConfig = configSignals.some((s) => lower.includes(s.toLowerCase()));
-
   // DELETE signals
   const deleteSignals = ['delete', 'remove', '删掉', '删除', '移除'];
   const isDelete = deleteSignals.some((s) => lower.includes(s.toLowerCase()));
 
+  // RESUME signals
+  const resumeSignals = ['continue', 'resume', '接着', '继续', '接着干', '接着做', 'go on', '恢复', '继续执行'];
+  const isResume = resumeSignals.some((s) => lower.includes(s.toLowerCase()));
+
+  // DEPLOY signals
+  const deploySignals = ['deploy', '发布', '部署', '上线', 'publish', 'push to', '推送到'];
+  const isDeploy = deploySignals.some((s) => lower.includes(s.toLowerCase()));
+
+  // RUN signals
+  const runSignals = ['run', 'start', 'preview', 'launch', '启动', '运行', '打开', '预览'];
+  const isRun = runSignals.some((s) => lower.includes(s.toLowerCase()));
+
+  // QUERY signals
+  const querySignals = ['progress', 'status', 'list', 'show', 'how is', 'where is', '进度', '状态', '在哪', '列表'];
+  const isQuery = querySignals.some((s) => lower.includes(s.toLowerCase()));
+
+  // CONFIG signals
+  const configSignals = ['config', 'setup', 'key', 'provider', 'secret', '配置', '设置'];
+  const isConfig = configSignals.some((s) => lower.includes(s.toLowerCase()));
+
+  // UPGRADE signals (references to existing work + general change words)
+  const upgradeSignals = ['上次', '之前的', 'existing', 'previous', 'last time', 'my', 'the', '改成', 'add', 'modify', 'upgrade', '改', '加', '换成', '变成'];
+  const isUpgrade = upgradeSignals.some((s) => lower.includes(s.toLowerCase()));
+
   if (isDelete) return { type: 'DELETE', projectQuery: input };
+  if (isDeploy) return { type: 'DEPLOY' };
   if (isResume) return { type: 'RESUME', projectQuery: input };
   if (isRun) return { type: 'RUN', projectQuery: input };
   if (isQuery) return { type: 'QUERY', query: input };
   if (isConfig) return { type: 'CONFIG', configType: 'unknown', action: input };
   if (isUpgrade) return { type: 'UPGRADE', projectQuery: input, taskQuery: null, request: input };
+
+  // Chat-mode specific intents (no project reference, explicit signals)
+  const modifySignals = ['change', '修改', '调整', '优化', 'fix', '修复', 'rename', '重命名', '改为'];
+  const isModify = modifySignals.some((s) => lower.includes(s.toLowerCase()));
+
+  const addSignals = ['新增', 'append', 'insert', '添加', '加入'];
+  const isAdd = addSignals.some((s) => lower.includes(s.toLowerCase()));
+
+  const questionSignals = ['how to', '怎么', '如何', 'why', '什么是', '为什么', 'explain'];
+  const isQuestion = questionSignals.some((s) => lower.includes(s.toLowerCase()));
+
+  if (isModify) return { type: 'MODIFY', request: input };
+  if (isAdd) return { type: 'ADD', request: input };
+  if (isQuestion) return { type: 'QUESTION', question: input };
 
   // Default to CREATE for anything that looks like an idea
   return { type: 'CREATE', idea: input };
