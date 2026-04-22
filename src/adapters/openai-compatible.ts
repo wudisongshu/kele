@@ -1,6 +1,7 @@
 import type { AIAdapter } from './base.js';
 import type { ProviderConfig } from '../config/index.js';
 import { Agent } from 'undici';
+import { debugLog } from '../debug.js';
 
 /**
  * OpenAI-Compatible AI Adapter
@@ -293,7 +294,9 @@ export class OpenAICompatibleAdapter implements AIAdapter {
               tokenCount++;
               onToken(delta);
             }
-          } catch {
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            debugLog('OpenAI adapter chunk parse failed', msg);
             // Ignore
           }
         }

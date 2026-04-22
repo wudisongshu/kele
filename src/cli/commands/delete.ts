@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import { rmSync } from 'fs';
 import { KeleDatabase } from '../../db/index.js';
+import { debugLog } from '../../debug.js';
 
 export function setupDeleteCommand(program: Command): void {
   program
@@ -35,7 +36,9 @@ export function setupDeleteCommand(program: Command): void {
         try {
           rmSync(project.rootDir, { recursive: true, force: true });
           console.log(`✅ 项目已彻底删除: ${project.name}`);
-        } catch {
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          debugLog(`Delete rm failed: ${project.rootDir}`, msg);
           console.log(`✅ 数据库记录已删除，但文件清理失败: ${project.rootDir}`);
         }
       } else {
