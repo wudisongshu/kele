@@ -1,6 +1,10 @@
 import { randomUUID } from 'crypto';
 import type { AIAdapter } from '../adapters/base.js';
 import { debugLog } from '../debug.js';
+import { MOCK_COMPETITORS, type CompetitorProfile } from './product-partner.js';
+
+export { MOCK_COMPETITORS };
+export type { CompetitorProfile };
 
 /**
  * ResearchEngine — analyzes vague or competitor-based ideas before incubation.

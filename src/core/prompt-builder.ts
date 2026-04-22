@@ -141,14 +141,31 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSecti
         // 波次系统：每 5 关增加一种敌人
         // 防御塔类型：箭塔（单体）、炮塔（范围）
         // 收集品：金币、宝石
-        // 升级商店：消耗金币提升塔等级`
-      : '';
+        // 升级商店：消耗金币提升塔等级
+   k) BUSINESS ANALYSIS INTEGRATION (MANDATORY — kele Product Partner requirements):
+      - The game MUST include share/viral mechanics appropriate for the target platform:
+        * WeChat: wx.shareAppMessage() with title/imageUrl for score/achievement sharing
+        * Douyin: tt.shareAppMessage() with video recording capability for gameplay clips
+        * Web: Web Share API navigator.share() fallback + copy-to-clipboard for scores
+      - Include a "share trigger" function with this exact signature: triggerShare(shareType, data)
+      - Design at least ONE social proof mechanic: leaderboard, friend progress comparison, or achievement showcase
+      - Monetization hooks MUST be naturally integrated into gameplay loops, never intrusive:
+        * Ad triggers at natural breakpoints (level complete, game over, pause)
+        * IAP offerings at moments of player desire (new unlock, customization, convenience)
+        * Never show ads during active gameplay — only at state transitions
+      - Add inline comments marking business/viral features:
+        // 分享触发：通关后弹出分享按钮
+        // 社交证明：好友排行榜对比
+        // 变现钩子：死亡后展示复活激励视频
+        // 病毒循环：分享后双方获得金币奖励
+      ` : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'
       : '';
 
-    return `${baseContext}\n\nTask: ${escapePromptInput(task.title)}\n${task.description}\n\n${CODE_QUALITY_RULES}\n\nCRITICAL: Return your response as a JSON object in this exact format (no markdown, no explanations outside the JSON):\n{\n  "files": [\n    { "path": "relative/path/to/file", "content": "file content here" }\n  ],\n  "notes": "optional notes about the implementation"\n}\n\nMANDATORY CONSTRAINTS:\n1. Every acceptance criterion listed in the task description MUST be fully implemented. If any criterion is missing, the task will be REJECTED.\n2. Each file MUST be complete and functional. NO stubs, NO TODOs, NO placeholder code.\n3. If the project already has existing files, preserve them and only modify what this specific task requires.
-4. The files array MUST contain at least one actual code file. Returning ONLY notes.md is NOT acceptable.${gameConstraint}${setupConstraint}`;
+    const constraints = `MANDATORY CONSTRAINTS:\n1. Every acceptance criterion listed in the task description MUST be fully implemented. If any criterion is missing, the task will be REJECTED.\n2. Each file MUST be complete and functional. NO stubs, NO TODOs, NO placeholder code.\n3. If the project already has existing files, preserve them and only modify what this specific task requires.\n4. The files array MUST contain at least one actual code file. Returning ONLY notes.md is NOT acceptable.`;
+    const jsonFormat = `CRITICAL: Return your response as a JSON object in this exact format (no markdown, no explanations outside the JSON):\n{\n  "files": [\n    { "path": "relative/path/to/file", "content": "file content here" }\n  ],\n  "notes": "optional notes about the implementation"\n}\n\n`;
+    return `${baseContext}\n\nTask: ${escapePromptInput(task.title)}\n${task.description}\n\n${CODE_QUALITY_RULES}\n\n${jsonFormat}${constraints}${gameConstraint}${setupConstraint}`;
   }
 
   return `${baseContext}\n\nTask: ${escapePromptInput(task.title)}\n${task.description}\n\nPlease provide clear step-by-step instructions. Return as JSON:\n{\n  "files": [],\n  "notes": "your detailed instructions here"\n}`;

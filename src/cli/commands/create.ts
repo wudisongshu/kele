@@ -15,6 +15,7 @@ import { createRegistryFromConfig } from '../../adapters/index.js';
 import { createProgressLogger } from '../../core/logger.js';
 import { needsResearch, research } from '../../core/research-engine.js';
 import { routeMonetization, formatRouteRecommendations } from '../../core/monetization-router.js';
+import { generateProductPartnerReport, formatProductPartnerReport } from '../../core/product-partner.js';
 import { formatReleaseInsightForUser, getDeployCommandGuide } from '../../platform-knowledge.js';
 import { printLocalRunGuide } from '../run-guide.js';
 import { confirmCheckpoint, generateProjectSlug, printNoProviderHelp, parseTimeout, printUsage } from '../utils.js';
@@ -35,8 +36,9 @@ export function setupCreateCommand(program: Command): void {
     .option('--json', 'Output structured JSON instead of human-readable text (for CI/CD)', false)
     .option('--dry-run', 'Show what would be done without executing AI calls', false)
     .option('--recovery-mode <mode>', 'Failure recovery: auto, skip, interactive (default)', 'interactive')
+    .option('--skip-partner', 'Skip Product Partner analysis (competitor + monetization + virality)', false)
     .option('--quiet', 'Suppress non-error output', false)
-    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean; recoveryMode?: string }) => {
+    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean; recoveryMode?: string; skipPartner?: boolean }) => {
       if (options.quiet) {
         const originalLog = console.log;
         console.log = () => {};
@@ -105,7 +107,7 @@ export function setupCreateCommand(program: Command): void {
 
 async function handleCreateIntent(
   ideaText: string,
-  options: { output?: string; yes: boolean; timeout?: number; json?: boolean },
+  options: { output?: string; yes: boolean; timeout?: number; json?: boolean; skipPartner?: boolean },
   db: KeleDatabase,
   useMock: boolean = false,
 ) {
@@ -235,6 +237,17 @@ async function handleCreateIntent(
       }
     } else {
       console.log('   ⚠️  研究未返回有效内容，跳过此步骤\n');
+    }
+  }
+
+  // Step 2.5: Product Partner Analysis (always runs unless --skip-partner)
+  if (!options.skipPartner) {
+    printStep('产品经理分析');
+    const partnerReport = generateProductPartnerReport(ideaText, idea.type, idea.monetization);
+    console.log(formatProductPartnerReport(partnerReport));
+
+    if (!options.yes && !(await confirmCheckpoint('确认产品经理分析方向？'))) {
+      return;
     }
   }
 
