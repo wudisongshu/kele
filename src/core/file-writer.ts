@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync, existsSync, renameSync, rmSync, readdirSync, 
 import { dirname, join, basename } from 'path';
 import { sanitizeFilePath } from './security.js';
 import { extractJson as extractJsonFromUtils } from './json-utils.js';
+import { debugLog } from '../debug.js';
 
 /**
  * FileWriter — parses AI output and writes files to disk.
@@ -439,8 +440,9 @@ function walkForSummary(dir: string, depth = 0, maxDepth = 3): { path: string; s
         results.push({ path: rel, size: stat.size, isDir: false });
       }
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('File writer walkForSummary error', msg);
   }
   return results;
 }
@@ -466,7 +468,9 @@ function extractInterfaceSnippet(filePath: string, maxLines = 30): string {
       if (snippets.length >= maxLines) break;
     }
     return snippets.join('\n');
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`File writer interface snippet read failed: ${filePath}`, msg);
     return '';
   }
 }
@@ -539,8 +543,9 @@ export function generateProjectSummary(targetDir: string, subProjectName?: strin
   const summaryPath = join(targetDir, 'PROJECT_SUMMARY.md');
   try {
     writeFileSync(summaryPath, summary, 'utf-8');
-  } catch {
-    // ignore write errors
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`File writer summary write failed: ${summaryPath}`, msg);
   }
 
   return summary;
