@@ -21,6 +21,7 @@ import { setupStatsCommand } from './commands/stats.js';
 import { setupChatCommand } from './commands/chat.js';
 import { setupDeployCommand } from './commands/deploy.js';
 import { setupOptimizeCommand } from './commands/optimize.js';
+import { setupPromoteCommand } from './commands/promote.js';
 
 const program = new Command();
 
@@ -61,5 +62,6 @@ setupStatsCommand(program);
 setupDeployCommand(program);
 setupChatCommand(program);
 setupOptimizeCommand(program);
+setupPromoteCommand(program);
 
 program.parse();
