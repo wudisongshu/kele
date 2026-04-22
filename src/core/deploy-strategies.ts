@@ -86,7 +86,9 @@ function hasCliTool(command: string): boolean {
   try {
     execSync(`${command} --version`, { stdio: 'ignore' });
     return true;
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`CLI tool check failed: ${command}`, msg);
     return false;
   }
 }
@@ -108,7 +110,9 @@ function runBuildStep(projectDir: string): ValidationCheck {
       }
     }
     return { name: 'build_step', passed: true, message: 'No build script (static project)' };
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Build step package.json parse error', msg);
     return { name: 'build_step', passed: true, message: 'No build step (static project)' };
   }
 }
