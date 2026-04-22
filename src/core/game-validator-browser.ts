@@ -59,7 +59,7 @@ export function detectGameProjectType(targetDir: string): GameProjectType {
  * - Missing game loops or input handlers
  * - Files that reference non-existent resources
  */
-export async function validateGameInBrowser(targetDir: string, contract?: Contract): Promise<BrowserValidationResult> {
+export async function validateGameInBrowser(targetDir: string, contract?: Contract, subProjectType?: string): Promise<BrowserValidationResult> {
   const result: BrowserValidationResult = {
     playable: false,
     score: 0,
@@ -73,6 +73,13 @@ export async function validateGameInBrowser(targetDir: string, contract?: Contra
       consoleLogs: [],
     },
   };
+
+  // --- Skip game validation for non-game sub-projects ---
+  if (subProjectType === 'deployment' || subProjectType === 'monetization' || subProjectType === 'setup') {
+    result.playable = true;
+    result.score = 100;
+    return result;
+  }
 
   // --- Contract compliance check (before expensive JSDOM) ---
   if (contract) {
@@ -100,7 +107,21 @@ export async function validateGameInBrowser(targetDir: string, contract?: Contra
   }
 
   // For HTML games (canvas or DOM), run JSDOM validation
-  return validateHtmlGame(targetDir, result);
+  const htmlResult = await validateHtmlGame(targetDir, result);
+
+  // ui-polish: relax game-loop requirement (focus on styling/audio)
+  if (subProjectType === 'ui-polish') {
+    htmlResult.playable = htmlResult.details.hasCanvas || htmlResult.details.hasInputHandler;
+    if (!htmlResult.playable) {
+      htmlResult.errors.push('UI polish requires existing canvas or input handlers to enhance');
+    }
+    // Remove game-loop-specific errors for ui-polish
+    htmlResult.errors = htmlResult.errors.filter(
+      (e) => !e.includes('game loop') && !e.includes('No input handler'),
+    );
+  }
+
+  return htmlResult;
 }
 
 function validateFrameworkGame(targetDir: string, result: BrowserValidationResult): BrowserValidationResult {

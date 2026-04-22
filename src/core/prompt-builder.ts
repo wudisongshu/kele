@@ -92,13 +92,23 @@ export function buildTaskPrompt(task: Task, subProject: SubProject, project: Pro
     contextSection = `\nAll sub-projects:\n${allSubProjects}\n${fileTreeSection}`;
   }
 
+  // Deployment / monetization isolation prompt
+  const isolationWarning =
+    subProject.type === 'deployment' || subProject.type === 'monetization'
+      ? `\n⚠️ CRITICAL ISOLATION RULES:\n` +
+        `1. You MUST NOT write any game logic, HTML game structure, or JavaScript game code.\n` +
+        `2. You MUST NOT overwrite index.html, js/*.js, css/style.css, or any existing game files.\n` +
+        `3. Only write ${subProject.type === 'deployment' ? 'deployment-specific files: .github/workflows/*.yml, CNAME, SETUP.md' : 'monetization-specific files: ads.txt, adsense.html, js/ads.js, MONETIZATION.md'}.\n` +
+        `4. The game code already exists in the project. Your job is ONLY to add ${subProject.type} infrastructure.\n`
+      : '';
+
   const baseContext = `You are a senior software engineer working on the project "${escapePromptInput(project.name)}".
 
 Sub-project: ${escapePromptInput(subProject.name)}
 Description: ${escapePromptInput(subProject.description)}
 Target directory: ${subProject.targetDir}
 Platform template: ${effectiveTemplateDesc}
-User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSection}${platformSection}`;
+User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSection}${platformSection}${isolationWarning}`;
 
   if (isCodingTask) {
     // Inject gameplay contract if matched

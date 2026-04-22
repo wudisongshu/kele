@@ -23,6 +23,58 @@ export interface ParsedOutput {
 }
 
 /**
+ * SubProjectFileRegistry — tracks which sub-project owns which file.
+ * Prevents late-stage sub-projects from overwriting core game files.
+ */
+export class SubProjectFileRegistry {
+  private ownership = new Map<string, { subProjectId: string; subProjectType: string }>();
+
+  constructor(public readonly projectDir: string) {}
+
+  register(filePath: string, subProjectId: string, subProjectType: string): void {
+    this.ownership.set(filePath, { subProjectId, subProjectType });
+  }
+
+  getOwner(filePath: string): { subProjectId: string; subProjectType: string } | undefined {
+    return this.ownership.get(filePath);
+  }
+
+  /** Check if a write operation is allowed, returning the decision and optional warning. */
+  checkWrite(
+    filePath: string,
+    subProjectId: string,
+    subProjectType: string,
+  ): { allowed: boolean; warning?: string } {
+    const owner = this.getOwner(filePath);
+    if (!owner || owner.subProjectId === subProjectId) {
+      // No owner yet, or same sub-project overwriting its own file
+      return { allowed: true };
+    }
+
+    const isSetupOwner = owner.subProjectType === 'setup';
+    const isSameType = owner.subProjectType === subProjectType;
+    const isUiPolishOverride =
+      subProjectType === 'ui-polish' &&
+      (filePath.endsWith('.css') || filePath.includes('/assets/'));
+
+    if (isSetupOwner) {
+      return { allowed: true, warning: `Note: ${subProjectType} is overwriting setup scaffolding ${filePath}` };
+    }
+    if (isSameType) {
+      return { allowed: true, warning: `Note: ${subProjectType} is overwriting file from same-type sub-project ${owner.subProjectId}` };
+    }
+    if (isUiPolishOverride) {
+      return { allowed: true, warning: `Note: ui-polish is enhancing ${filePath}` };
+    }
+
+    return {
+      allowed: false,
+      warning: `BLOCKED: ${subProjectType}(${subProjectId}) tried to overwrite ${filePath} owned by ${owner.subProjectType}(${owner.subProjectId})`,
+    };
+  }
+}
+
+/**
  * Extract file definitions from notes.md markdown content.
  * Looks for ```json code blocks containing { files: [...] }.
  */
@@ -106,7 +158,14 @@ export function parseAIOutput(output: string): ParsedOutput {
  * as a prefix (e.g. "game-dev/index.html" when baseDir already ends with
  * "game-dev"), strip the duplicate prefix to avoid nested directories.
  */
-export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (msg: string) => void): string[] {
+export function writeFiles(
+  baseDir: string,
+  parsed: ParsedOutput,
+  onProgress?: (msg: string) => void,
+  registry?: SubProjectFileRegistry,
+  subProjectId?: string,
+  subProjectType?: string,
+): string[] {
   const written: string[] = [];
   const baseName = basename(baseDir);
 
@@ -178,6 +237,19 @@ export function writeFiles(baseDir: string, parsed: ParsedOutput, onProgress?: (
       if (!hasHtml || !hasBody) {
         console.warn(`[WARNING] HTML file "${relativePath}" missing essential tags (<html>, <body>) — writing anyway`);
       }
+    }
+
+    // File ownership check (skip if no registry provided — e.g. mock mode)
+    if (registry && subProjectId && subProjectType) {
+      const check = registry.checkWrite(filePath, subProjectId, subProjectType);
+      if (!check.allowed) {
+        console.warn(`[FILE-CONFLICT] ${check.warning}`);
+        continue;
+      }
+      if (check.warning) {
+        onProgress?.(`      ⚠️  ${check.warning}`);
+      }
+      registry.register(filePath, subProjectId, subProjectType);
     }
 
     // Atomic write: write to temp file then rename
@@ -293,9 +365,16 @@ function fixHtmlForLocal(html: string): string {
  * High-level function: parse AI output and write all files.
  * Returns list of written file paths (relative to baseDir).
  */
-export function applyAIOutput(baseDir: string, output: string, onProgress?: (msg: string) => void): string[] {
+export function applyAIOutput(
+  baseDir: string,
+  output: string,
+  onProgress?: (msg: string) => void,
+  registry?: SubProjectFileRegistry,
+  subProjectId?: string,
+  subProjectType?: string,
+): string[] {
   const parsed = parseAIOutput(output);
-  return writeFiles(baseDir, parsed, onProgress);
+  return writeFiles(baseDir, parsed, onProgress, registry, subProjectId, subProjectType);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

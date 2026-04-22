@@ -165,7 +165,19 @@ function runCommand(config: RunConfig): Promise<RunResult> {
  * Run the project and return the result.
  * For npm projects, first installs deps if node_modules is missing.
  */
-export async function runProject(targetDir: string): Promise<RunResult> {
+export async function runProject(targetDir: string, subProjectType?: string): Promise<RunResult> {
+  // --- Sub-project-type-specific validation strategies ---
+  if (subProjectType === 'deployment') {
+    return validateDeploymentProject(targetDir);
+  }
+  if (subProjectType === 'monetization') {
+    return validateMonetizationProject(targetDir);
+  }
+  if (subProjectType === 'setup') {
+    return validateSetupProject(targetDir);
+  }
+
+  // Core game dev / creation / ui-polish fall through to full validation
   const config = await detectRunConfig(targetDir);
   if (!config) {
     return {
@@ -220,5 +232,136 @@ export async function runProject(targetDir: string): Promise<RunResult> {
   }
 
   return result;
+}
+
+/** Validate setup sub-project: package.json parseable, npm install works. */
+function validateSetupProject(targetDir: string): Promise<RunResult> {
+  const pkgPath = join(targetDir, 'package.json');
+  if (!existsSync(pkgPath)) {
+    return Promise.resolve({
+      success: false,
+      command: 'check',
+      stdout: '',
+      stderr: 'Setup project missing package.json',
+      exitCode: 1,
+    });
+  }
+  try {
+    JSON.parse(readFileSync(pkgPath, 'utf-8'));
+  } catch {
+    return Promise.resolve({
+      success: false,
+      command: 'check',
+      stdout: '',
+      stderr: 'package.json has invalid JSON',
+      exitCode: 1,
+    });
+  }
+  return runCommand({ command: 'npm', args: ['install'], cwd: targetDir });
+}
+
+/** Validate deployment sub-project: workflow files, CNAME, SETUP.md. */
+function validateDeploymentProject(targetDir: string): Promise<RunResult> {
+  const issues: string[] = [];
+
+  const workflowDir = join(targetDir, '.github', 'workflows');
+  if (!existsSync(workflowDir)) {
+    issues.push('Missing .github/workflows/ directory');
+  } else {
+    const ymlFiles = readdirSync(workflowDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+    if (ymlFiles.length === 0) {
+      issues.push('No workflow YAML files found in .github/workflows/');
+    }
+    for (const f of ymlFiles) {
+      const content = readFileSync(join(workflowDir, f), 'utf-8');
+      const steps = parseWorkflowSteps(content);
+      const hasCheckout = steps.some((s) => s.uses && /actions\/checkout/.test(s.uses));
+      const hasDeploy = steps.some((s) => s.uses && /deploy-pages|gh-pages/.test(s.uses));
+      if (!hasCheckout) issues.push(`${f}: missing actions/checkout step`);
+      if (!hasDeploy) issues.push(`${f}: missing deploy step`);
+    }
+  }
+
+  const cnamePath = join(targetDir, 'CNAME');
+  if (existsSync(cnamePath)) {
+    const cname = readFileSync(cnamePath, 'utf-8').trim();
+    if (!cname.includes('.') || cname.includes(' ')) {
+      issues.push('CNAME format invalid');
+    }
+  }
+
+  if (issues.length > 0) {
+    return Promise.resolve({
+      success: false,
+      command: 'check',
+      stdout: '',
+      stderr: issues.join('\n'),
+      exitCode: 1,
+    });
+  }
+
+  return Promise.resolve({
+    success: true,
+    command: 'check',
+    stdout: 'Deployment config valid',
+    stderr: '',
+    exitCode: 0,
+  });
+}
+
+/** Parse workflow steps from YAML text (lightweight, no external parser). */
+function parseWorkflowSteps(content: string): Array<{ uses?: string; name?: string }> {
+  const steps: Array<{ uses?: string; name?: string }> = [];
+  const stepBlocks = content.match(/-\s+name:[^\n]*(?:\n(?:\s+[^\n]*))*/g) || [];
+  for (const block of stepBlocks) {
+    const nameMatch = block.match(/-\s+name:\s*([^\n]*)/);
+    const usesMatch = block.match(/uses:\s*([^\n]*)/);
+    steps.push({
+      name: nameMatch ? nameMatch[1].trim() : undefined,
+      uses: usesMatch ? usesMatch[1].trim() : undefined,
+    });
+  }
+  return steps;
+}
+
+/** Validate monetization sub-project: ads.txt, ad placeholders, MONETIZATION.md. */
+function validateMonetizationProject(targetDir: string): Promise<RunResult> {
+  const issues: string[] = [];
+
+  const adsTxtPath = join(targetDir, 'ads.txt');
+  if (!existsSync(adsTxtPath)) {
+    issues.push('Missing ads.txt');
+  }
+
+  const adsensePath = join(targetDir, 'adsense.html');
+  if (existsSync(adsensePath)) {
+    const content = readFileSync(adsensePath, 'utf-8');
+    if (!content.includes('adsbygoogle') && !content.includes('googlesyndication')) {
+      issues.push('adsense.html missing ad placeholder code');
+    }
+  }
+
+  const monetizePath = join(targetDir, 'MONETIZATION.md');
+  if (!existsSync(monetizePath)) {
+    issues.push('Missing MONETIZATION.md');
+  }
+
+  if (issues.length > 0) {
+    return Promise.resolve({
+      success: false,
+      command: 'check',
+      stdout: '',
+      stderr: issues.join('\n'),
+      exitCode: 1,
+    });
+  }
+
+  return Promise.resolve({
+    success: true,
+    command: 'check',
+    stdout: 'Monetization config valid',
+    stderr: '',
+    exitCode: 0,
+  });
 }
 

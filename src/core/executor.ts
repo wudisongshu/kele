@@ -1,7 +1,7 @@
 import type { Project, Task, SubProject, ExecuteResult } from '../types/index.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
-import { applyAIOutput, parseAIOutput } from './file-writer.js';
+import { applyAIOutput, parseAIOutput, SubProjectFileRegistry } from './file-writer.js';
 import { validateTaskOutput } from './task-validator.js';
 import { copyTemplate, getTemplateType } from './template-loader.js';
 import { debugLog } from '../debug.js';
@@ -126,12 +126,13 @@ async function processOutput(
   ctx: ExecutionContext,
   output: string,
   _prompt: string,
-  provider: string
+  provider: string,
+  registry?: SubProjectFileRegistry,
 ): Promise<string[]> {
   const { subProject, onProgress } = ctx;
   const targetDir = subProject.targetDir;
 
-  let writtenFiles = applyAIOutput(targetDir, output, onProgress);
+  let writtenFiles = applyAIOutput(targetDir, output, onProgress, registry, subProject.id, subProject.type);
 
   if (writtenFiles.length > 0 && !(writtenFiles.length === 1 && writtenFiles[0] === 'notes.md')) {
     onProgress?.(`   📝 Written: ${writtenFiles.join(', ')}`);
@@ -142,7 +143,7 @@ async function processOutput(
       const notesContent = readFileSync(notesPath, 'utf-8');
       const parsedFromNotes = parseAIOutput(notesContent);
       if (parsedFromNotes.files.length > 0) {
-        const extractedFiles = applyAIOutput(targetDir, notesContent);
+        const extractedFiles = applyAIOutput(targetDir, notesContent, onProgress, registry, subProject.id, subProject.type);
         if (extractedFiles.length > 1 || (extractedFiles.length === 1 && extractedFiles[0] !== 'notes.md')) {
           onProgress?.(`   📝 二次提取成功: ${extractedFiles.filter(f => f !== 'notes.md').join(', ')}`);
           writtenFiles = extractedFiles;
@@ -156,7 +157,7 @@ async function processOutput(
       try {
         const route = ctx.registry.route(ctx.task.complexity);
         const reformatOutput = await route.adapter.execute(reformatPrompt);
-        const reformatFiles = applyAIOutput(targetDir, reformatOutput);
+        const reformatFiles = applyAIOutput(targetDir, reformatOutput, onProgress, registry, subProject.id, subProject.type);
         if (reformatFiles.length > 1 || (reformatFiles.length === 1 && reformatFiles[0] !== 'notes.md')) {
           onProgress?.(`   📝 重新格式化后写入: ${reformatFiles.filter(f => f !== 'notes.md').join(', ')}`);
           writtenFiles = reformatFiles;
@@ -180,7 +181,11 @@ async function processOutput(
  * Phase 3: Static validation + runtime validation with auto-fix loop.
  * Returns { validation, runtimePassed }. Throws on fatal error.
  */
-async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Promise<{ validation: { valid: boolean; score: number }; runtimePassed: boolean }> {
+async function validateAndFixRuntime(
+  ctx: ExecutionContext,
+  prompt: string,
+  registry?: SubProjectFileRegistry,
+): Promise<{ validation: { valid: boolean; score: number }; runtimePassed: boolean }> {
   const { subProject, onProgress, task, project, db } = ctx;
   const isCodingTask = CODING_TYPES.includes(subProject.type);
   const provider = task.aiProvider;
@@ -214,7 +219,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       try {
         const route = ctx.registry.route(task.complexity);
         const fixOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
-        const fixWritten = applyAIOutput(subProject.targetDir, fixOutput);
+        const fixWritten = applyAIOutput(subProject.targetDir, fixOutput, onProgress, registry, subProject.id, subProject.type);
         if (fixWritten.length > 0) {
           onProgress?.(`   📝 修复后写入: ${fixWritten.join(', ')}`);
         }
@@ -258,7 +263,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
   let runtimePassed = true;
   if (isCodingTask && provider !== 'mock') {
     onProgress?.(`   🚀 正在本地运行验证...`);
-    const runResult = await runProject(subProject.targetDir);
+    const runResult = await runProject(subProject.targetDir, subProject.type);
     if (!runResult.success) {
       onProgress?.(`   ❌ 运行失败: ${runResult.stderr.slice(0, 200)}`);
       runtimePassed = false;
@@ -279,7 +284,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
           task.result = fixOutput;
           db.saveTask(task, project.id);
 
-          const reRun = await runProject(subProject.targetDir);
+          const reRun = await runProject(subProject.targetDir, subProject.type);
           if (reRun.success) {
             onProgress?.(`   ✅ 修复后运行通过`);
             runtimePassed = true;
@@ -316,7 +321,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
     }
 
     const contract = matchContract(project.idea.rawText);
-    const browser = await validateGameInBrowser(subProject.targetDir, contract || undefined);
+    const browser = await validateGameInBrowser(subProject.targetDir, contract || undefined, subProject.type);
 
     // Display playability score breakdown
     if (browser.playability) {
@@ -365,7 +370,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
           db.saveTask(task, project.id);
 
           // Re-validate after fix
-          const reBrowser = await validateGameInBrowser(subProject.targetDir, contract || undefined);
+          const reBrowser = await validateGameInBrowser(subProject.targetDir, contract || undefined, subProject.type);
           if (reBrowser.playability) {
             const { formatPlayabilityScore } = await import('./game-playability.js');
             const reMsg = formatPlayabilityScore(reBrowser.playability);
@@ -411,7 +416,8 @@ async function runAcceptanceValidation(
   ctx: ExecutionContext,
   prompt: string,
   _validationPassed: boolean,
-  _runtimePassed: boolean
+  _runtimePassed: boolean,
+  registry?: SubProjectFileRegistry,
 ): Promise<void> {
   const { subProject, onProgress, task, project, db } = ctx;
   const criteria = subProject.acceptanceCriteria || [];
@@ -449,7 +455,7 @@ async function runAcceptanceValidation(
     try {
       const route = ctx.registry.route(task.complexity);
       const retryOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
-      const retryWritten = applyAIOutput(subProject.targetDir, retryOutput);
+      const retryWritten = applyAIOutput(subProject.targetDir, retryOutput, onProgress, registry, subProject.id, subProject.type);
       if (retryWritten.length > 0) {
         onProgress?.(`   📝 修复后写入: ${retryWritten.join(', ')}`);
       }
@@ -679,7 +685,8 @@ export async function executeTask(
 
     // Phase 2: File processing
     debugLog('File processing start', JSON.stringify({ task: task.title, outputLength: output.length }));
-    const writtenFiles = await processOutput(ctx, output, prompt, provider);
+    const fileRegistry = new SubProjectFileRegistry(subProject.targetDir);
+    const writtenFiles = await processOutput(ctx, output, prompt, provider, fileRegistry);
     if (writtenFiles.length === 0) {
       throw new ValidationError('AI 返回空输出，未生成任何文件。这通常是因为 API 超时或返回了空响应。建议：(1) 检查网络连接和 API provider 状态，(2) 运行 kele retry 重试此任务，(3) 使用 kele --mock 快速测试。');
     }
@@ -695,13 +702,13 @@ export async function executeTask(
 
     // Phase 3: Validation + runtime
     debugLog('Validation start', JSON.stringify({ task: task.title }));
-    const { validation, runtimePassed } = await validateAndFixRuntime(ctx, prompt);
+    const { validation, runtimePassed } = await validateAndFixRuntime(ctx, prompt, fileRegistry);
     debugLog('Validation result', JSON.stringify({ task: task.title, valid: validation.valid, runtimePassed }));
 
     // Phase 4: Acceptance criteria
     const hasAcceptanceCriteria = (subProject.acceptanceCriteria?.length || 0) > 0;
     if (hasAcceptanceCriteria) {
-      await runAcceptanceValidation(ctx, prompt, validation.valid, runtimePassed);
+      await runAcceptanceValidation(ctx, prompt, validation.valid, runtimePassed, fileRegistry);
     } else {
       // Phase 5: Legacy AI review
       await runAIQualityReview(ctx, prompt, validation.valid, runtimePassed);

@@ -1,6 +1,7 @@
 import type { AIAdapter } from '../adapters/base.js';
 import type { Project } from '../types/index.js';
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, statSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { debugLog } from '../debug.js';
 import { safeJsonParse } from './json-utils.js';
 
@@ -10,6 +11,7 @@ export interface ProjectHealthResult {
   concerns: string[];
   recommendations: string[];
   scopeAdjustment?: string;
+  fileConflicts?: string[];
 }
 
 const HEALTH_PROMPT = `You are kele's Project Director. Evaluate the overall health of this project based on completed and remaining work.
@@ -43,6 +45,12 @@ export async function reviewProjectHealth(
     const failedTasks = project.tasks.filter((t) => t.status === 'failed');
 
     // Summarize what was actually built
+    // Detect file conflicts: late-stage sub-projects overwriting early-stage files
+    const fileConflicts = detectFileConflicts(project);
+    const conflictSection = fileConflicts.length > 0
+      ? `\n⚠️ FILE CONFLICTS DETECTED:\n${fileConflicts.map((c) => `- ${c}`).join('\n')}\n`
+      : '';
+
     const completedSummary = completedSPs.map((sp) => {
       const files = listFilesBrief(sp.targetDir);
       const spTasks = project.tasks.filter((t) => t.subProjectId === sp.id);
@@ -57,7 +65,8 @@ export async function reviewProjectHealth(
       `Monetization: ${project.idea.monetization}\n\n` +
       `Completed sub-projects (${completedSPs.length}/${project.subProjects.length}):\n${completedSummary || '(none yet)'}\n\n` +
       `Remaining sub-projects:\n${pendingSPs.map((sp) => `- ${sp.name} (${sp.type})`).join('\n') || '(none)'}\n\n` +
-      `Failed tasks: ${failedTasks.length > 0 ? failedTasks.map((t) => t.title).join(', ') : 'none'}\n\n` +
+      `Failed tasks: ${failedTasks.length > 0 ? failedTasks.map((t) => t.title).join(', ') : 'none'}\n` +
+      `${conflictSection}\n` +
       `Evaluate project health.`;
 
     debugLog('Project Health Review Prompt', prompt);
@@ -82,12 +91,18 @@ export async function reviewProjectHealth(
 
     const parsed = parsedResult.data;
 
+    const concerns = parsed.concerns ?? [];
+    if (fileConflicts.length > 0) {
+      concerns.push(`检测到 ${fileConflicts.length} 个文件冲突: ${fileConflicts[0]}${fileConflicts.length > 1 ? ' 等' : ''}`);
+    }
+
     return {
       healthy: parsed.healthy ?? true,
       progress: normalizeProgress(parsed.progress),
-      concerns: parsed.concerns ?? [],
+      concerns,
       recommendations: parsed.recommendations ?? [],
       scopeAdjustment: parsed.scopeAdjustment,
+      fileConflicts,
     };
   } catch (err) {
     return {
@@ -142,4 +157,64 @@ function normalizeProgress(p?: string): 'on-track' | 'behind' | 'ahead' {
   if (lower === 'behind' || lower === 'behind-schedule' || lower === 'delayed') return 'behind';
   if (lower === 'ahead' || lower === 'ahead-of-schedule') return 'ahead';
   return 'on-track';
+}
+
+/**
+ * Detect if late-stage sub-projects have overwritten files from early-stage ones.
+ * Returns list of conflict descriptions.
+ */
+function detectFileConflicts(project: Project): string[] {
+  const conflicts: string[] = [];
+  const typeOrder = ['setup', 'development', 'production', 'creation', 'testing', 'deployment', 'monetization'];
+
+  for (let i = 0; i < project.subProjects.length; i++) {
+    const later = project.subProjects[i];
+    const laterOrder = typeOrder.indexOf(later.type);
+    if (laterOrder < 0) continue;
+
+    // Only check completed sub-projects
+    if (later.status !== 'completed') continue;
+
+    const laterFiles = listFilesBrief(later.targetDir);
+    for (const file of laterFiles) {
+      // Skip directories
+      if (file.endsWith('/')) continue;
+
+      for (let j = 0; j < i; j++) {
+        const earlier = project.subProjects[j];
+        if (earlier.status !== 'completed') continue;
+        const earlierOrder = typeOrder.indexOf(earlier.type);
+        if (earlierOrder < 0 || earlierOrder >= laterOrder) continue;
+
+        const earlierFilePath = join(earlier.targetDir, file);
+        if (!existsSync(earlierFilePath)) continue;
+
+        const laterFilePath = join(later.targetDir, file);
+        if (!existsSync(laterFilePath)) continue;
+
+        // Compare content hashes (mtime + size heuristic)
+        try {
+          const earlierStat = statSync(earlierFilePath);
+          const laterStat = statSync(laterFilePath);
+          if (earlierStat.mtime.getTime() !== laterStat.mtime.getTime() || earlierStat.size !== laterStat.size) {
+            // If files differ, it's a potential overwrite
+            // But we need to check if the later file is actually "newer" in content
+            try {
+              const earlierContent = readFileSync(earlierFilePath, 'utf-8');
+              const laterContent = readFileSync(laterFilePath, 'utf-8');
+              if (earlierContent !== laterContent) {
+                conflicts.push(`${later.name}(${later.type}) 覆盖了 ${earlier.name}(${earlier.type}) 的 ${file}`);
+              }
+            } catch {
+              // Binary or unreadable file — skip content comparison
+            }
+          }
+        } catch {
+          // ignore stat errors
+        }
+      }
+    }
+  }
+
+  return conflicts;
 }

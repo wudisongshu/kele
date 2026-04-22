@@ -92,6 +92,87 @@ function evaluateCriterion(criterion: AcceptanceCriterion, targetDir: string): C
   }
 }
 
+/** Parse GitHub Actions workflow YAML steps for semantic checking. */
+function parseWorkflowSteps(content: string): Array<{ uses?: string; name?: string }> {
+  const steps: Array<{ uses?: string; name?: string }> = [];
+  const stepBlocks = content.match(/-\s+name:[^\n]*(?:\n(?:\s+[^\n]*))*/g) || [];
+  for (const block of stepBlocks) {
+    const nameMatch = block.match(/-\s+name:\s*([^\n]*)/);
+    const usesMatch = block.match(/uses:\s*([^\n]*)/);
+    steps.push({
+      name: nameMatch ? nameMatch[1].trim() : undefined,
+      uses: usesMatch ? usesMatch[1].trim() : undefined,
+    });
+  }
+  return steps;
+}
+
+/** Check semantic content based on file type. */
+function checkSemanticContent(filePath: string, content: string, expected: string): { ok: boolean; missing?: string } {
+  const lowerExpected = expected.toLowerCase();
+  const checks = lowerExpected.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+
+  for (const check of checks) {
+    const keywordMatch = check.match(/(?:contains|has|includes?)\s+(.+)/);
+    const keyword = keywordMatch ? keywordMatch[1] : check;
+
+    // YAML workflow semantic checks
+    if (filePath.endsWith('.yml') || filePath.endsWith('.yaml')) {
+      const steps = parseWorkflowSteps(content);
+      if (keyword.includes('actions/checkout')) {
+        const hasCheckout = steps.some((s) => s.uses && /actions\/checkout/.test(s.uses));
+        if (!hasCheckout) return { ok: false, missing: 'actions/checkout step' };
+        continue;
+      }
+      if (keyword.includes('actions/deploy-pages') || keyword.includes('deploy-pages')) {
+        const hasDeploy = steps.some((s) => s.uses && /deploy-pages/.test(s.uses));
+        if (!hasDeploy) return { ok: false, missing: 'actions/deploy-pages step' };
+        continue;
+      }
+      if (keyword.includes('upload-pages-artifact') || keyword.includes('upload-artifact')) {
+        const hasUpload = steps.some((s) => s.uses && /upload-pages-artifact/.test(s.uses));
+        if (!hasUpload) return { ok: false, missing: 'actions/upload-pages-artifact step' };
+        continue;
+      }
+      if (keyword.includes('configure-pages')) {
+        const hasConfig = steps.some((s) => s.uses && /configure-pages/.test(s.uses));
+        if (!hasConfig) return { ok: false, missing: 'actions/configure-pages step' };
+        continue;
+      }
+    }
+
+    // HTML semantic checks
+    if (filePath.endsWith('.html')) {
+      if (keyword.includes('viewport')) {
+        const hasViewport = /<meta[^>]+name=["']viewport["'][^>]*>/i.test(content);
+        if (!hasViewport) return { ok: false, missing: 'viewport meta tag' };
+        continue;
+      }
+      if (keyword.includes('canvas')) {
+        const hasCanvas = content.includes('<canvas');
+        if (!hasCanvas) return { ok: false, missing: '<canvas> element' };
+        continue;
+      }
+    }
+
+    // CSS semantic checks
+    if (filePath.endsWith('.css')) {
+      if (keyword.includes('media') || keyword.includes('responsive')) {
+        const hasMedia = /@media\s+/.test(content);
+        if (!hasMedia) return { ok: false, missing: '@media rule' };
+        continue;
+      }
+    }
+
+    // Default: simple text inclusion
+    if (!content.toLowerCase().includes(keyword.toLowerCase())) {
+      return { ok: false, missing: keyword };
+    }
+  }
+
+  return { ok: true };
+}
+
 /** Verify a file exists and optionally check its content. */
 function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
   const filePath = criterion.target;
@@ -181,14 +262,9 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
   if (criterion.expected && !criterion.expected.includes('exist')) {
     try {
       const content = readFileSync(resolvedPath, 'utf-8');
-      const checks = criterion.expected.toLowerCase().split(/[,;]/).map(s => s.trim()).filter(Boolean);
-      for (const check of checks) {
-        // Extract keyword from phrases like "contains canvas" or "has game loop"
-        const keywordMatch = check.match(/(?:contains|has|includes?)\s+(.+)/);
-        const keyword = keywordMatch ? keywordMatch[1] : check;
-        if (!content.toLowerCase().includes(keyword.toLowerCase())) {
-          return { criterion, passed: false, actual: `File exists but missing "${keyword}"` };
-        }
+      const checkResult = checkSemanticContent(resolvedPath, content, criterion.expected);
+      if (!checkResult.ok) {
+        return { criterion, passed: false, actual: `File exists but missing "${checkResult.missing}"` };
       }
     } catch {
       return { criterion, passed: false, actual: 'Unable to read file content' };
