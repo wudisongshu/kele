@@ -1,9 +1,8 @@
-// Steam Game — Steamworks IAP 和 DLC 配置示例
-// 使用 Greenworks 或 Steamworks.js 与 Steam API 交互
+// Steam Game — Steamworks monetization (renderer-safe via preload)
+// Replace '480' in preload.js with your real Steam App ID
 
-const STEAM_APP_ID = '480'; // 替换为你的 Steam App ID（480 是 Spacewar 测试 ID）
+const STEAM_APP_ID = '480';
 
-// Steamworks IAP 商品配置
 const STEAM_IAP_ITEMS = [
   { itemId: 'premium_upgrade', name: 'Premium Upgrade', priceUSD: 4.99 },
   { itemId: 'coin_pack_small', name: 'Small Coin Pack', priceUSD: 0.99 },
@@ -11,27 +10,35 @@ const STEAM_IAP_ITEMS = [
 ];
 
 function initSteamworks() {
-  try {
-    // 使用 steamworks.js (npm package)
-    const steam = require('steamworks.js');
-    const client = steam.init(STEAM_APP_ID);
-    console.log('Steamworks initialized, user:', client.localplayer.getName());
-    return client;
-  } catch (err) {
-    console.warn('Steamworks not available (running outside Steam):', err.message);
-    return null;
+  if (typeof window !== 'undefined' && window.steamworks) {
+    const available = window.steamworks.isAvailable();
+    console.log('[Steam] Steamworks available:', available);
+    return available ? window.steamworks : null;
   }
+  console.warn('[Steam] Steamworks preload not available');
+  return null;
 }
 
-function purchaseItem(client, itemId, onSuccess) {
-  if (!client) {
-    console.warn('Cannot purchase: Steamworks not initialized');
+function purchaseItem(steam, itemId, onSuccess) {
+  if (!steam) {
+    console.warn('[Steam] Cannot purchase: Steamworks not initialized');
     return;
   }
-  // Steam 微交易通过 Steam Overlay 触发
-  // 具体实现依赖于 Steamworks API 版本
-  console.log(`Initiating purchase for ${itemId}`);
+  steam.purchaseItem(itemId);
   if (onSuccess) onSuccess();
 }
 
-module.exports = { STEAM_APP_ID, STEAM_IAP_ITEMS, initSteamworks, purchaseItem };
+function unlockAchievement(steam, name) {
+  if (steam) {
+    steam.activateAchievement(name);
+  }
+}
+
+// Expose globally for inline scripts
+if (typeof window !== 'undefined') {
+  window.STEAM_APP_ID = STEAM_APP_ID;
+  window.STEAM_IAP_ITEMS = STEAM_IAP_ITEMS;
+  window.initSteamworks = initSteamworks;
+  window.purchaseItem = purchaseItem;
+  window.unlockAchievement = unlockAchievement;
+}
