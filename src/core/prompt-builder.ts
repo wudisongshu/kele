@@ -158,6 +158,23 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSecti
         // 社交证明：好友排行榜对比
         // 变现钩子：死亡后展示复活激励视频
         // 病毒循环：分享后双方获得金币奖励
+   l) PERFORMANCE REQUIREMENTS (MANDATORY — kele will analyze bundle size and performance after generation):
+      - ALL image assets MUST be under 100KB. If larger, use canvas procedural generation (e.g., draw shapes, gradients, patterns) instead of image files.
+      - ALL audio MUST use Web Audio API synthesis (oscillator, noise buffers) instead of loading MP3/WAV files. Exception: background music may be a single compressed file <200KB.
+      - First Contentful Paint (FCP) MUST be under 2 seconds. Achieve this by:
+        * Inlining critical CSS in <head>
+        * Deferring non-critical JS with defer/async or dynamic import()
+        * Using loading="lazy" for all below-fold images
+      - Total bundle size MUST stay under platform limits:
+        * WeChat Mini Program: main package ≤ 2MB, total ≤ 20MB
+        * PWA/Web: total ≤ 5MB, main JS ≤ 500KB
+        * Use code splitting (dynamic import) for level data, large configs, and non-core features
+      - For WeChat/Douyin mini-games: use subpackages (分包) for non-critical pages and resources
+      - Include inline comments marking performance optimizations:
+        // 性能优化：图片使用 canvas 程序化生成，避免加载外部文件
+        // 性能优化：音频使用 Web Audio API 合成
+        // 性能优化：非关键资源使用懒加载
+        // 性能优化：关卡数据使用动态导入分割
       ` : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'

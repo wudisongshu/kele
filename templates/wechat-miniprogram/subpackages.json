@@ -1,0 +1,29 @@
+{
+  "subpackages": [
+    {
+      "root": "pages/game/",
+      "pages": [
+        "pages/game/index",
+        "pages/game/level",
+        "pages/game/result"
+      ]
+    },
+    {
+      "root": "pages/shop/",
+      "pages": [
+        "pages/shop/index"
+      ]
+    },
+    {
+      "root": "assets/levels/",
+      "name": "levels",
+      "pages": []
+    }
+  ],
+  "preloadRule": {
+    "pages/index/index": {
+      "network": "all",
+      "packages": ["pages/game/"]
+    }
+  }
+}

@@ -705,6 +705,31 @@ export async function executeTask(
       await runAIQualityReview(ctx, prompt, validation.valid, runtimePassed);
     }
 
+    // Phase 6: Performance analysis and auto-optimization
+    if (CODING_TYPES.includes(subProject.type)) {
+      const platform = project.idea.monetization || 'web';
+      const { runPerformanceOptimization, formatPerformanceReport, shouldAutoOptimize } = await import('./performance-engine.js');
+      const perfReport = runPerformanceOptimization(subProject.targetDir, platform);
+      onProgress?.(formatPerformanceReport(perfReport));
+
+      if (shouldAutoOptimize(perfReport)) {
+        onProgress?.(`   ⚠️ 性能分 ${perfReport.metrics.score} < 70，已生成优化任务...`);
+        // Create a follow-up optimization task in the same sub-project
+        const optTask: Task = {
+          id: `perf-opt-${Date.now()}`,
+          subProjectId: subProject.id,
+          title: `自动性能优化（${platform}）`,
+          description: `基于性能分析自动优化：${perfReport.optimizations.map((o) => o.action).join('、')}`,
+          complexity: 'simple',
+          status: 'pending',
+          version: 1,
+          createdAt: new Date().toISOString(),
+        };
+        db.saveTask(optTask, project.id);
+        project.tasks.push(optTask);
+      }
+    }
+
     const duration = Date.now() - taskStartTime;
     debugLog('Task complete', JSON.stringify({ task: task.title, duration, provider: task.aiProvider }));
     trackTaskComplete(project.id, task.id, task.aiProvider || 'unknown', duration);
