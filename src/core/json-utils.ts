@@ -51,6 +51,7 @@ export function prettyJson(text: string): string {
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);
   } catch {
+    // JSON pretty-print failed, return raw extracted JSON
     return raw;
   }
 }

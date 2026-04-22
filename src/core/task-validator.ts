@@ -9,6 +9,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { findSourceFiles } from './file-utils.js';
 import { validateGamePlayability } from './game-validator.js';
+import { debugLog } from '../debug.js';
 
 export interface ValidationResult {
   valid: boolean;
@@ -203,8 +204,9 @@ function validateGameOutput(targetDir: string, _taskTitle: string): string[] {
               foundDraw = true;
               break;
             }
-          } catch {
-            // ignore
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            debugLog(`Task validator JS read failed: ${jsPath}`, msg);
           }
         }
       }
