@@ -7,6 +7,7 @@
 
 import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { debugLog } from '../debug.js';
 
 /**
  * Recursively find files with a given extension under a directory.
@@ -26,8 +27,9 @@ export function findFilesByExt(dir: string, ext: string, skipDirs: string[] = ['
         results.push(fullPath);
       }
     }
-  } catch {
-    // Directory doesn't exist or unreadable
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`File utils readdir failed: ${dir}`, msg);
   }
   return results;
 }
@@ -68,8 +70,9 @@ export function findSourceFiles(dir: string): string[] {
         results.push(fullPath);
       }
     }
-  } catch {
-    // Directory doesn't exist or unreadable
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`File utils readdir failed: ${dir}`, msg);
   }
   return results;
 }
@@ -94,7 +97,9 @@ export function findCssFiles(dir: string): string[] {
 export function isFile(path: string): boolean {
   try {
     return statSync(path).isFile();
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`File utils stat failed: ${path}`, msg);
     return false;
   }
 }
