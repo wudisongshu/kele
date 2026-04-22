@@ -78,7 +78,9 @@ export function runClean(autoDelete = false, debugLogs = false): void {
         rmSync(item.project.rootDir, { recursive: true, force: true });
         db.deleteProject(item.project.id);
         console.log(`   ✅ 已删除: ${item.project.name}`);
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`Clean delete failed: ${item.project.rootDir}`, msg);
         console.log(`   ❌ 删除失败: ${item.project.name}`);
       }
     }

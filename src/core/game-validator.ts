@@ -74,8 +74,9 @@ export function validateGamePlayability(targetDir: string): GameValidationResult
       for (const m of scriptMatches) {
         allCode += m[1] + '\n';
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Game validator HTML read failed: ${htmlPath}`, msg);
     }
   }
 

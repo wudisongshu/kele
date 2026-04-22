@@ -383,7 +383,9 @@ function evaluateOpen(criterion: AcceptanceCriterion, targetDir: string): Criter
       return { criterion, passed: false, actual: `File is empty: ${target}` };
     }
     return { criterion, passed: true, actual: `File readable: ${target} (${content.length} chars)` };
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`Acceptance runner open check failed: ${fullPath}`, msg);
     return { criterion, passed: false, actual: `Unable to read: ${target}` };
   }
 }

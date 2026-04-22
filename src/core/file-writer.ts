@@ -118,7 +118,9 @@ function extractFilesFromNotes(notes: string): GeneratedFile[] {
           }
         }
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('File writer markdown JSON parse failed', msg);
       // Not valid JSON, skip
     }
   }
@@ -137,7 +139,9 @@ function extractJson(text: string): string | null {
   try {
     JSON.parse(candidate);
     return candidate;
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('File writer extractJson validation failed', msg);
     return null;
   }
 }
@@ -163,7 +167,9 @@ export function parseAIOutput(output: string): ParsedOutput {
         const notes = typeof parsed.notes === 'string' ? parsed.notes : '';
         return { files, notes };
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('File writer parseAIOutput JSON parse failed', msg);
       // JSON parse failed, fall through to plain text
     }
   }
@@ -242,7 +248,9 @@ export function writeFiles(
     if (relativePath.endsWith('.json') || relativePath.endsWith('.webmanifest')) {
       try {
         JSON.parse(content);
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`File writer JSON validation failed: ${relativePath}`, msg);
         console.warn(`[WARNING] JSON file "${relativePath}" has syntax errors — writing anyway`);
       }
     }
@@ -298,7 +306,7 @@ export function writeFiles(
       renameSync(tmpPath, filePath);
     } catch (err) {
       // Clean up temp file on failure
-      try { rmSync(tmpPath); } catch { /* ignore */ }
+      try { rmSync(tmpPath); } catch (err) { debugLog(`File writer temp cleanup failed: ${tmpPath}`, err instanceof Error ? err.message : String(err)); }
       throw err;
     }
     const sizeKb = (content.length / 1024).toFixed(1);
