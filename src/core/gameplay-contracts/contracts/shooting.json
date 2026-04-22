@@ -1,0 +1,22 @@
+{
+  "id": "shooting",
+  "name": "射击",
+  "aliases": ["shooting", "shooter", "shoot", "bullet", "gun", "射击游戏", "space shooter", "弹幕"],
+  "coreMechanics": [
+    { "id": "aim", "description": "瞄准/移动准星/自机", "immutable": true, "evidencePatterns": ["aim", "target", "crosshair", "playerX", "playerY"] },
+    { "id": "shoot", "description": "发射子弹/ projectile", "immutable": true, "evidencePatterns": ["shoot", "bullet", "fire", "projectile", "spawnBullet"] },
+    { "id": "enemies", "description": "敌人出现并朝玩家移动/攻击", "immutable": true, "evidencePatterns": ["enemy", "spawn", "wave", "attack"] },
+    { "id": "collision", "description": "子弹击中敌人判定", "immutable": true, "evidencePatterns": ["collision", "hit", "intersect", "checkCollision", "distance"] },
+    { "id": "health", "description": "玩家/敌人血量系统", "immutable": true, "evidencePatterns": ["health", "hp", "life", "damage", "hitPoint"] }
+  ],
+  "optionalMechanics": [
+    { "id": "weaponTypes", "description": "多种武器（散弹/激光/导弹）", "immutable": false },
+    { "id": "powerUps", "description": "拾取强化道具", "immutable": false },
+    { "id": "boss", "description": "Boss 战", "immutable": false }
+  ],
+  "scoringSystem": {},
+  "platformDefaults": {
+    "web": { "controls": "keyboard-mouse", "screen": "landscape" },
+    "mobile": { "controls": "touch-joystick", "screen": "landscape" }
+  }
+}

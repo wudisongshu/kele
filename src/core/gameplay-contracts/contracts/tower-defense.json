@@ -1,0 +1,22 @@
+{
+  "id": "tower-defense",
+  "name": "塔防",
+  "aliases": ["tower defense", "TD", "塔防游戏", "防御塔", "tower defence", "td game"],
+  "coreMechanics": [
+    { "id": "path", "description": "敌人沿固定路径移动", "immutable": true, "evidencePatterns": ["path", "waypoint", "route", "enemyPath"] },
+    { "id": "towers", "description": "玩家在路径旁建造防御塔", "immutable": true, "evidencePatterns": ["tower", "buildTower", "placeTower", "defense"] },
+    { "id": "enemies", "description": "多波次敌人，血量/速度递增", "immutable": true, "evidencePatterns": ["wave", "enemy", "spawn", "round", "waveNumber"] },
+    { "id": "economy", "description": "击杀敌人获得金币，用于建塔/升级", "immutable": true, "evidencePatterns": ["gold", "coin", "money", "currency", "upgrade", "cost"] },
+    { "id": "lives", "description": "敌人到达终点扣除生命，生命归零游戏结束", "immutable": true, "evidencePatterns": ["life", "lives", "hp", "health", "end", "goal"] }
+  ],
+  "optionalMechanics": [
+    { "id": "towerTypes", "description": "多种塔类型（箭/法/炮）", "immutable": false },
+    { "id": "upgrade", "description": "塔可升级", "immutable": false },
+    { "id": "abilities", "description": "玩家主动技能（轰炸/减速）", "immutable": false }
+  ],
+  "scoringSystem": {},
+  "platformDefaults": {
+    "web": { "controls": "mouse", "screen": "landscape" },
+    "mobile": { "controls": "touch", "screen": "landscape" }
+  }
+}

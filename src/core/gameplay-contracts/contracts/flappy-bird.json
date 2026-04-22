@@ -1,0 +1,24 @@
+{
+  "id": "flappy-bird",
+  "name": "Flappy Bird",
+  "aliases": ["flappy bird", "flappy", "bird", "像素鸟", "飞扬的小鸟", "fly"],
+  "coreMechanics": [
+    { "id": "tapJump", "description": "点击/按键使角色向上飞跃", "immutable": true, "evidencePatterns": ["jump", "flap", "tap", "velocityY", "gravity"] },
+    { "id": "gravity", "description": "角色受重力持续下落", "immutable": true, "evidencePatterns": ["gravity", "fall", "velocityY"] },
+    { "id": "pipes", "description": "不断从右侧生成的管道障碍物，有上下间隙", "immutable": true, "evidencePatterns": ["pipe", "obstacle", "gap", "column"] },
+    { "id": "collision", "description": "碰到管道或地面时游戏结束", "immutable": true, "evidencePatterns": ["collision", "hit", "crash", "gameOver", "die"] },
+    { "id": "score", "description": "通过管道间隙得分", "immutable": true, "evidencePatterns": ["score", "pass", "point", "through"] }
+  ],
+  "optionalMechanics": [
+    { "id": "medals", "description": "分数奖章系统", "immutable": false },
+    { "id": "themes", "description": "不同皮肤/主题", "immutable": false },
+    { "id": "leaderboard", "description": "排行榜", "immutable": false }
+  ],
+  "scoringSystem": {
+    "perPipe": 1
+  },
+  "platformDefaults": {
+    "web": { "controls": "keyboard-space", "screen": "portrait" },
+    "mobile": { "controls": "touch", "screen": "portrait" }
+  }
+}

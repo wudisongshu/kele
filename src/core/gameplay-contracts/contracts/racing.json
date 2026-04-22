@@ -1,0 +1,22 @@
+{
+  "id": "racing",
+  "name": "赛车竞速",
+  "aliases": ["racing", "race", "car", "driving", "speed", "赛车", "竞速", "kart"],
+  "coreMechanics": [
+    { "id": "steering", "description": "转向控制（左/右）", "immutable": true, "evidencePatterns": ["steer", "turn", "left", "right", "angle"] },
+    { "id": "acceleration", "description": "加速/刹车", "immutable": true, "evidencePatterns": ["accelerate", "brake", "speed", "throttle"] },
+    { "id": "obstacles", "description": "赛道上的障碍物", "immutable": true, "evidencePatterns": ["obstacle", "barrier", "rock", "traffic"] },
+    { "id": "speedDisplay", "description": "速度显示", "immutable": true, "evidencePatterns": ["speed", "mph", "km/h", "velocity"] },
+    { "id": "highScore", "description": "最高分/计时记录", "immutable": true, "evidencePatterns": ["highScore", "bestTime", "record", "localStorage"] }
+  ],
+  "optionalMechanics": [
+    { "id": "powerUps", "description": "道具（加速/护盾）", "immutable": false },
+    { "id": "nitro", "description": "氮气加速", "immutable": false },
+    { "id": "multiplayer", "description": "多人竞速", "immutable": false }
+  ],
+  "scoringSystem": {},
+  "platformDefaults": {
+    "web": { "controls": "keyboard", "screen": "landscape" },
+    "mobile": { "controls": "touch-tilt", "screen": "landscape" }
+  }
+}

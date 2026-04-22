@@ -4,6 +4,7 @@ import { debugLog } from '../debug.js';
 import { safeJsonParse } from './json-utils.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
 import { IncubationResponseSchema } from './schemas.js';
+import { buildContractPrompt, type Contract } from './contract-engine.js';
 
 const MAX_LOCAL_FIX_ATTEMPTS = 3;
 const MAX_AI_REVIEW_ATTEMPTS = 2;
@@ -175,6 +176,7 @@ export async function incubateWithAI(
   rootDir: string,
   adapter: AIAdapter,
   onProgress?: (msg: string) => void,
+  contract?: Contract,
 ): Promise<AIIncubateResult> {
   const validationMeta = {
     localValid: false,
@@ -199,7 +201,7 @@ export async function incubateWithAI(
   // --- Attempt 1: Generate initial plan ---
   let result: AIIncubateResult;
   try {
-    result = await tryIncubate(idea, rootDir, adapter, onToken);
+    result = await tryIncubate(idea, rootDir, adapter, onToken, contract);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     return { success: false, error, validation: validationMeta };
@@ -219,7 +221,7 @@ export async function incubateWithAI(
     onProgress?.(`   🔄 孵化器自检发现问题，正在修正 (第 ${fixAttempt}/${MAX_LOCAL_FIX_ATTEMPTS} 次)...`);
     try {
       const fixed = await tryFixIncubator(
-        idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? '', onToken
+        idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? '', onToken, contract
       );
       if (fixed.success && fixed.subProjects) {
         result = fixed;
@@ -254,7 +256,7 @@ export async function incubateWithAI(
 
         // Try to fix based on AI review — infinite loop until approved
         const fixed = await tryFixIncubator(
-          idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? '', onToken
+          idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? '', onToken, contract
         );
         if (fixed.success && fixed.subProjects) {
           result = fixed;
@@ -274,7 +276,7 @@ export async function incubateWithAI(
           let structFixAttempt = 1;
           while (!validationMeta.localValid && structFixAttempt <= MAX_STRUCT_FIX_ATTEMPTS) {
             const structFixed = await tryFixIncubator(
-              idea, rootDir, adapter, result.subProjects!, validationMeta.localErrors, validationMeta.localWarnings, result.reasoning ?? '', result.monetizationPath ?? '', onToken
+              idea, rootDir, adapter, result.subProjects!, validationMeta.localErrors, validationMeta.localWarnings, result.reasoning ?? '', result.monetizationPath ?? '', onToken, contract
             );
             if (structFixed.success && structFixed.subProjects) {
               result = structFixed;
@@ -310,9 +312,16 @@ async function tryIncubate(
   rootDir: string,
   adapter: AIAdapter,
   onToken?: (token: string) => void,
+  contract?: Contract,
 ): Promise<AIIncubateResult> {
   try {
-    const prompt = `${INCUBATOR_PROMPT}\n\nUser idea: "${idea.rawText}"\nDetected type: ${idea.type}\nDetected complexity: ${idea.complexity}\nMonetization channel: ${idea.monetization}`;
+    let contractSection = '';
+    if (contract) {
+      contractSection = `\n\n## GAMEPLAY CONTRACT (MUST BE ENFORCED)\n${buildContractPrompt(contract, idea.rawText)}\n\n` +
+        `CRITICAL: The acceptance criteria for the core development sub-project MUST include verify-file or play-game checks for EACH of the following core mechanics:\n` +
+        contract.coreMechanics.filter((m) => m.immutable).map((m) => `- ${m.description}`).join('\n') + '\n';
+    }
+    const prompt = `${INCUBATOR_PROMPT}${contractSection}\n\nUser idea: "${idea.rawText}"\nDetected type: ${idea.type}\nDetected complexity: ${idea.complexity}\nMonetization channel: ${idea.monetization}`;
 
     debugLog('AI Incubator Prompt', prompt);
     const response = await adapter.execute(prompt, onToken);
@@ -340,9 +349,14 @@ async function tryFixIncubator(
   reasoning: string,
   monetizationPath: string,
   onToken?: (token: string) => void,
+  contract?: Contract,
 ): Promise<AIIncubateResult> {
   try {
-    const fixPrompt = `${INCUBATOR_PROMPT}\n\n` +
+    let contractSection = '';
+    if (contract) {
+      contractSection = `\n\n## GAMEPLAY CONTRACT (MUST BE ENFORCED)\n${buildContractPrompt(contract, _idea.rawText)}\n`;
+    }
+    const fixPrompt = `${INCUBATOR_PROMPT}${contractSection}\n\n` +
       `FIX REQUEST: The following project plan has issues that need correction.\n\n` +
       `Current plan:\n${JSON.stringify({ subProjects: currentSubProjects, reasoning, monetizationPath }, null, 2)}\n\n` +
       `Errors to fix:\n${errors.map((e) => `- ${e}`).join('\n')}\n\n` +

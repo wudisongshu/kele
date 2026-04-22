@@ -1,0 +1,23 @@
+{
+  "id": "platformer",
+  "name": "平台跳跃",
+  "aliases": ["platformer", "platform", "jump", "马里奥", "mario", "jump and run", "横版过关"],
+  "coreMechanics": [
+    { "id": "jump", "description": "玩家角色可以跳跃", "immutable": true, "evidencePatterns": ["jump", "velocityY", "gravity"] },
+    { "id": "platforms", "description": "多个可站立平台", "immutable": true, "evidencePatterns": ["platform", "ground", "floor", "tile"] },
+    { "id": "movement", "description": "左右移动控制", "immutable": true, "evidencePatterns": ["moveLeft", "moveRight", "velocityX", "left", "right"] },
+    { "id": "obstacles", "description": "至少一种敌人或障碍物", "immutable": true, "evidencePatterns": ["enemy", "obstacle", "spike", "trap", "damage"] },
+    { "id": "collectibles", "description": "收集品（金币/宝石/星星）", "immutable": true, "evidencePatterns": ["coin", "gem", "star", "collect", "score"] },
+    { "id": "deathRespawn", "description": "死亡/掉落/碰撞后重生或游戏结束", "immutable": true, "evidencePatterns": ["respawn", "death", "die", "gameOver", "restart"] }
+  ],
+  "optionalMechanics": [
+    { "id": "doubleJump", "description": "二段跳", "immutable": false },
+    { "id": "powerUps", "description": "道具增强（变大/加速）", "immutable": false },
+    { "id": "levels", "description": "多关卡系统", "immutable": false }
+  ],
+  "scoringSystem": {},
+  "platformDefaults": {
+    "web": { "controls": "keyboard", "screen": "landscape" },
+    "mobile": { "controls": "touch", "screen": "landscape" }
+  }
+}

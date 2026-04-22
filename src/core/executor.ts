@@ -10,6 +10,7 @@ import { reviewTaskOutput } from './task-reviewer.js';
 import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
 import { validateGameInBrowser, quickGameCheck } from './game-validator-browser.js';
+import { matchContract } from './contract-engine.js';
 import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
 import { executeWithFallback, executeFixWithFallback } from './adapter-utils.js';
 import { readFileSync, existsSync } from 'fs';
@@ -314,7 +315,8 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       runtimePassed = false;
     }
 
-    const browser = await validateGameInBrowser(subProject.targetDir);
+    const contract = matchContract(project.idea.rawText);
+    const browser = await validateGameInBrowser(subProject.targetDir, contract || undefined);
 
     // Display playability score breakdown
     if (browser.playability) {
@@ -363,7 +365,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
           db.saveTask(task, project.id);
 
           // Re-validate after fix
-          const reBrowser = await validateGameInBrowser(subProject.targetDir);
+          const reBrowser = await validateGameInBrowser(subProject.targetDir, contract || undefined);
           if (reBrowser.playability) {
             const { formatPlayabilityScore } = await import('./game-playability.js');
             const reMsg = formatPlayabilityScore(reBrowser.playability);

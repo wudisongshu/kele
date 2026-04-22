@@ -1,0 +1,24 @@
+{
+  "id": "snake",
+  "name": "贪吃蛇",
+  "aliases": ["snake", "贪吃蛇", "serpent", "worm", " Nokia snake"],
+  "coreMechanics": [
+    { "id": "movement", "description": "蛇头按方向键移动，身体跟随", "immutable": true, "evidencePatterns": ["snake", "head", "body", "segment", "move", "direction"] },
+    { "id": "food", "description": "地图上随机生成食物", "immutable": true, "evidencePatterns": ["food", "apple", "eat", "random"] },
+    { "id": "growth", "description": "吃到食物后蛇身增长一节", "immutable": true, "evidencePatterns": ["grow", "length", "push", "unshift", "addSegment"] },
+    { "id": "selfCollision", "description": "撞到自身或墙壁时游戏结束", "immutable": true, "evidencePatterns": ["collision", "self", "wall", "boundary", "gameOver"] },
+    { "id": "score", "description": "每吃一个食物得分", "immutable": true, "evidencePatterns": ["score", "point", "food"] }
+  ],
+  "optionalMechanics": [
+    { "id": "speedUp", "description": "随分数增加速度", "immutable": false },
+    { "id": "wrap", "description": "穿墙模式", "immutable": false },
+    { "id": "powerUps", "description": "特殊食物（减速/加分）", "immutable": false }
+  ],
+  "scoringSystem": {
+    "perFood": 10
+  },
+  "platformDefaults": {
+    "web": { "controls": "keyboard-arrows", "screen": "square" },
+    "mobile": { "controls": "touch-swipe", "screen": "square" }
+  }
+}

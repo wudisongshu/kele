@@ -12,6 +12,7 @@ import { escapePromptInput } from './security.js';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { buildProjectContext, shouldCompress } from './context-compressor.js';
+import { matchContract, buildContractPrompt } from './contract-engine.js';
 
 const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
 1. COMPLETE IMPLEMENTATION: You MUST generate FULLY WORKING code. NO stubs, NO TODOs, NO placeholder functions. Every function must do something real.
@@ -100,8 +101,14 @@ Platform template: ${effectiveTemplateDesc}
 User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSection}${platformSection}`;
 
   if (isCodingTask) {
+    // Inject gameplay contract if matched
+    const contract = !isSetup && project.idea.type === 'game' ? matchContract(project.idea.rawText) : null;
+    const contractSection = contract
+      ? `\n## 玩法契约 (Gameplay Contract)\n${buildContractPrompt(contract, project.idea.rawText)}\n\n---\n`
+      : '';
+
     const gameConstraint = !isSetup && project.idea.type === 'game'
-      ? `\n4. GAME DEVELOPMENT — CORE RULES:
+      ? `${contractSection}\n4. GAME DEVELOPMENT — CORE RULES:
    a) The core gameplay loop (rendering + input + game logic) MUST be fully implemented and playable.
    b) Do NOT split core mechanics across multiple tasks — this task must produce a runnable game.
    c) Choose the BEST technology for the game described by the user. If the user wants a simple browser game, HTML5 Canvas or DOM is fine. If they want a more complex game, use appropriate frameworks (Phaser, Three.js, React, Vue, etc.). If the target platform is WeChat/Douyin mini-game, follow their SDK requirements.

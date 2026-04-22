@@ -1,0 +1,18 @@
+{
+  "id": "custom-test-game",
+  "name": "测试游戏",
+  "aliases": [
+    "test game"
+  ],
+  "coreMechanics": [
+    {
+      "id": "jump",
+      "description": "跳跃",
+      "immutable": true,
+      "evidencePatterns": [
+        "jump"
+      ]
+    }
+  ],
+  "optionalMechanics": []
+}

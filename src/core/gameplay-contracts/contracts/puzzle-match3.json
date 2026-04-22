@@ -1,0 +1,26 @@
+{
+  "id": "puzzle-match3",
+  "name": "三消",
+  "aliases": ["match3", "match-3", "三消", "消消乐", "candy crush", "bejeweled", "puzzle", "消除"],
+  "coreMechanics": [
+    { "id": "grid", "description": "游戏棋盘（通常 8x8 或类似）", "immutable": true, "evidencePatterns": ["grid", "board", "8x8", "row", "col", "cell"] },
+    { "id": "swap", "description": "相邻元素交换", "immutable": true, "evidencePatterns": ["swap", "exchange", "adjacent"] },
+    { "id": "match", "description": "3个或更多相同元素连成一线时消除", "immutable": true, "evidencePatterns": ["match", "3", "line", "clear", "remove"] },
+    { "id": "gravity", "description": "消除后上方元素下落填补", "immutable": true, "evidencePatterns": ["gravity", "fall", "drop", "refill", "fillEmpty"] },
+    { "id": "score", "description": "消除计分", "immutable": true, "evidencePatterns": ["score", "points", "addScore"] }
+  ],
+  "optionalMechanics": [
+    { "id": "combo", "description": "连续消除加成", "immutable": false },
+    { "id": "specialPieces", "description": "特殊消除块（炸弹/火箭）", "immutable": false },
+    { "id": "levels", "description": "关卡目标系统", "immutable": false }
+  ],
+  "scoringSystem": {
+    "match3": 100,
+    "match4": 200,
+    "match5": 500
+  },
+  "platformDefaults": {
+    "web": { "controls": "mouse", "screen": "portrait" },
+    "mobile": { "controls": "touch", "screen": "portrait" }
+  }
+}

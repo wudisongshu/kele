@@ -1,0 +1,22 @@
+{
+  "id": "rpg-battle",
+  "name": "回合制RPG战斗",
+  "aliases": ["rpg", "turn-based", "回合制", "battle", "战斗", "jrpg", "final fantasy"],
+  "coreMechanics": [
+    { "id": "turns", "description": "敌我双方轮流行动", "immutable": true, "evidencePatterns": ["turn", "round", "phase", "nextTurn"] },
+    { "id": "hpMp", "description": "生命值/魔法值系统", "immutable": true, "evidencePatterns": ["hp", "mp", "health", "mana", "sp"] },
+    { "id": "actions", "description": "玩家可选择攻击/技能/道具/防御", "immutable": true, "evidencePatterns": ["attack", "skill", "item", "defend", "action"] },
+    { "id": "damage", "description": "造成伤害/治疗的数值计算", "immutable": true, "evidencePatterns": ["damage", "heal", "calcDamage", "random"] },
+    { "id": "winLose", "description": "敌方全灭胜利，我方全灭失败", "immutable": true, "evidencePatterns": ["win", "lose", "victory", "defeat", "allDead"] }
+  ],
+  "optionalMechanics": [
+    { "id": "elements", "description": "属性克制（火/水/草）", "immutable": false },
+    { "id": "levelUp", "description": "经验值升级", "immutable": false },
+    { "id": "party", "description": "多角色队伍", "immutable": false }
+  ],
+  "scoringSystem": {},
+  "platformDefaults": {
+    "web": { "controls": "mouse", "screen": "portrait" },
+    "mobile": { "controls": "touch", "screen": "portrait" }
+  }
+}

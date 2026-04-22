@@ -1,0 +1,22 @@
+{
+  "id": "card-game",
+  "name": "卡牌游戏",
+  "aliases": ["card", "card game", "卡牌", "扑克", "poker", "solitaire", "纸牌", "deck", "trading card"],
+  "coreMechanics": [
+    { "id": "deck", "description": "一副牌组/牌堆", "immutable": true, "evidencePatterns": ["deck", "cards", "shuffle", "draw"] },
+    { "id": "draw", "description": "抽牌机制", "immutable": true, "evidencePatterns": ["draw", "drawCard", "hand"] },
+    { "id": "playCard", "description": "出牌/使用卡牌", "immutable": true, "evidencePatterns": ["play", "useCard", "place", "discard"] },
+    { "id": "rules", "description": "明确的胜负判定规则", "immutable": true, "evidencePatterns": ["win", "lose", "rule", "condition", "checkWin"] },
+    { "id": "turns", "description": "回合制轮流行动", "immutable": true, "evidencePatterns": ["turn", "round", "nextTurn", "phase"] }
+  ],
+  "optionalMechanics": [
+    { "id": "specialCards", "description": "特殊效果卡牌", "immutable": false },
+    { "id": "combo", "description": "连击/组合技", "immutable": false },
+    { "id": "betting", "description": "下注/筹码系统", "immutable": false }
+  ],
+  "scoringSystem": {},
+  "platformDefaults": {
+    "web": { "controls": "mouse", "screen": "landscape" },
+    "mobile": { "controls": "touch", "screen": "portrait" }
+  }
+}

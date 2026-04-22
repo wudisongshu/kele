@@ -2,9 +2,11 @@ import { randomUUID } from 'crypto';
 import type { AIAdapter } from '../adapters/base.js';
 import { debugLog } from '../debug.js';
 import { MOCK_COMPETITORS, type CompetitorProfile } from './product-partner.js';
+import { matchContract, buildContractPrompt, type Contract } from './contract-engine.js';
 
 export { MOCK_COMPETITORS };
 export type { CompetitorProfile };
+export type { Contract };
 
 /**
  * ResearchEngine — analyzes vague or competitor-based ideas before incubation.
@@ -27,6 +29,10 @@ export interface ResearchReport {
   suggestedPlatforms: string[];
   suggestedKeywords: string[];
   createdAt: string;
+  /** Matched gameplay contract, if any */
+  contract?: Contract;
+  /** Contract-based prompt snippet for AI codegen */
+  contractPrompt?: string;
 }
 
 export interface ResearchResult {
@@ -214,6 +220,29 @@ export async function research(
   onProgress?: (msg: string) => void,
 ): Promise<ResearchResult> {
   try {
+    // --- Phase 0: Local contract matching (zero token cost, zero hallucination) ---
+    const contract = matchContract(rawText);
+    if (contract) {
+      onProgress?.(`   📜 匹配到玩法契约: ${contract.name}，跳过 AI 研究`);
+      const contractPrompt = buildContractPrompt(contract, rawText);
+      const report: ResearchReport = {
+        id: randomUUID(),
+        subject: contract.name,
+        summary: `基于本地玩法契约【${contract.name}】生成，核心机制已硬编码。`,
+        productAnalysis: contract.coreMechanics.map((m) => m.description).join('；'),
+        monetizationAnalysis: '建议通过广告（插屏/激励视频）和 IAP（去广告/皮肤）变现。',
+        marketInsights: `${contract.name}是经典品类，用户认知度高，易于传播。`,
+        recommendations: `严格遵循契约核心机制：${contract.coreMechanics.filter((m) => m.immutable).map((m) => m.id).join(', ')}`,
+        suggestedPlatforms: Object.keys(contract.platformDefaults || { web: true, mobile: true }),
+        suggestedKeywords: contract.aliases.slice(0, 5),
+        createdAt: new Date().toISOString(),
+        contract,
+        contractPrompt,
+      };
+      return { success: true, report };
+    }
+
+    // --- Phase 1: AI research for unknown games ---
     const subject = extractSubject(rawText) || rawText.slice(0, 50);
     const prompt = buildResearchPrompt(subject, rawText);
     debugLog('Research Engine Prompt', prompt);

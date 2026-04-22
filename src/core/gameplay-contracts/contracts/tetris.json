@@ -1,0 +1,27 @@
+{
+  "id": "tetris",
+  "name": "俄罗斯方块",
+  "aliases": ["Tetris", "方块", "block fall", "tetromino", "俄罗斯方块", "tetris", "tetrominoes"],
+  "coreMechanics": [
+    { "id": "pieces", "description": "7种四格方块（I,J,L,O,S,T,Z）", "immutable": true, "evidencePatterns": ["I|J|L|O|S|T|Z", "tetromino", "pieceTypes", "7"] },
+    { "id": "rotation", "description": "方块可以顺时针/逆时针旋转，有墙踢", "immutable": true, "evidencePatterns": ["rotate", "rotation", "wallKick", "wall kick"] },
+    { "id": "lineClear", "description": "填满一行时消除该行，上方下落", "immutable": true, "evidencePatterns": ["clearLine", "clearRow", "removeLine", "removeRow", "splice", "line clear"] },
+    { "id": "gravity", "description": "方块自动下落，速度随等级增加", "immutable": true, "evidencePatterns": ["gravity", "drop", "fall", "speed", "level"] },
+    { "id": "gameOver", "description": "方块堆到顶部时游戏结束", "immutable": true, "evidencePatterns": ["gameOver", "game over", "top", "overflow"] }
+  ],
+  "optionalMechanics": [
+    { "id": "hold", "description": "暂存一个方块", "immutable": false },
+    { "id": "ghost", "description": "显示落点阴影", "immutable": false },
+    { "id": "combo", "description": "连续消行加分", "immutable": false }
+  ],
+  "scoringSystem": {
+    "single": 100,
+    "double": 300,
+    "triple": 500,
+    "tetris": 800
+  },
+  "platformDefaults": {
+    "web": { "controls": "keyboard", "screen": "portrait-optional" },
+    "mobile": { "controls": "touch-swipe", "screen": "portrait" }
+  }
+}

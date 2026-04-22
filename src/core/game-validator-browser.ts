@@ -2,6 +2,7 @@ import { JSDOM } from 'jsdom';
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { scorePlayability, type PlayabilityScore } from './game-playability.js';
+import { validateContractCompliance, type Contract } from './contract-engine.js';
 
 export interface BrowserValidationResult {
   playable: boolean;
@@ -58,7 +59,7 @@ export function detectGameProjectType(targetDir: string): GameProjectType {
  * - Missing game loops or input handlers
  * - Files that reference non-existent resources
  */
-export async function validateGameInBrowser(targetDir: string): Promise<BrowserValidationResult> {
+export async function validateGameInBrowser(targetDir: string, contract?: Contract): Promise<BrowserValidationResult> {
   const result: BrowserValidationResult = {
     playable: false,
     score: 0,
@@ -72,6 +73,20 @@ export async function validateGameInBrowser(targetDir: string): Promise<BrowserV
       consoleLogs: [],
     },
   };
+
+  // --- Contract compliance check (before expensive JSDOM) ---
+  if (contract) {
+    const compliance = validateContractCompliance(contract, targetDir);
+    if (!compliance.compliant) {
+      for (const missingId of compliance.missing) {
+        const mechanic = contract.coreMechanics.find((m) => m.id === missingId);
+        result.errors.push(`契约验证失败: 缺少核心机制 "${mechanic?.description || missingId}"`);
+      }
+      result.playable = false;
+      result.score = Math.max(0, 20 - compliance.missing.length * 10);
+      return result;
+    }
+  }
 
   const projectType = detectGameProjectType(targetDir);
 

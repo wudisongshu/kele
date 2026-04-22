@@ -8,6 +8,7 @@ import { join } from 'path';
 import { parseIdea } from '../../core/idea-engine.js';
 import { incubate } from '../../core/incubator.js';
 import { incubateWithAI } from '../../core/ai-incubator.js';
+import { matchContract } from '../../core/contract-engine.js';
 import { planTasks } from '../../core/task-planner.js';
 import { executeProject } from '../../core/project-executor.js';
 import { parseIntent } from '../../core/intent-engine.js';
@@ -259,14 +260,18 @@ async function handleCreateIntent(
   mkdirSync(outputDir, { recursive: true });
 
   console.log('🧠 AI 正在分析项目结构...\n');
-  let incubateResult = await incubateWithAI(idea, rootDir, route.adapter, (msg) => console.log(msg));
+  const contract = matchContract(idea.rawText);
+  if (contract) {
+    console.log(`   📜 匹配到玩法契约: ${contract.name}`);
+  }
+  let incubateResult = await incubateWithAI(idea, rootDir, route.adapter, (msg) => console.log(msg), contract || undefined);
 
   if (!incubateResult.success) {
     const mock = registry.get('mock');
     if (mock && route.provider !== 'mock') {
       console.log(`   ⚠️  AI incubator failed: ${incubateResult.error?.slice(0, 80)}`);
       console.log('   🔄 Falling back to mock incubator...');
-      incubateResult = await incubateWithAI(idea, rootDir, mock, (msg) => console.log(msg));
+      incubateResult = await incubateWithAI(idea, rootDir, mock, (msg) => console.log(msg), contract || undefined);
     }
   }
 
