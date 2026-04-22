@@ -13,6 +13,7 @@
  */
 
 import { existsSync, readdirSync, statSync, readFileSync } from 'fs';
+import { debugLog } from '../debug.js';
 import { join } from 'path';
 import type { Project, SubProject, Task } from '../types/index.js';
 
@@ -69,8 +70,9 @@ function countFiles(dir: string, maxDepth = 2): number {
           count++;
         }
       }
-    } catch {
-      // ignore permission errors
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Context compressor permission error', msg);
     }
   }
   walk(dir, 0);
@@ -129,8 +131,9 @@ export function getCompressedFileTree(targetDir: string, maxDepth = 2): string {
           lines.push(`${prefix}${entry} (${sizeStr})${tag}`);
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Context compressor stat error', msg);
     }
   }
   function getChildLines(dir: string, depth: number, maxD: number): string[] {
@@ -153,8 +156,9 @@ export function getCompressedFileTree(targetDir: string, maxDepth = 2): string {
           result.push(`  ${entry}${tag}`);
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Context compressor readdir error', msg);
     }
     return result;
   }
@@ -240,8 +244,9 @@ export function compressProjectContext(
     try {
       const summaryContent = readFileSync(summaryPath, 'utf-8').slice(0, 2000);
       summarySection = `\nPROJECT SUMMARY:\n${summaryContent}`;
-    } catch {
-      // ignore read errors
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Context compressor summary read error', msg);
     }
   }
 
