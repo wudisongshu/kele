@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { debugLog } from './debug.js';
 
 /**
  * Platform Credential Manager
@@ -103,7 +104,9 @@ function loadSecrets(): PlatformCredentials {
   if (!existsSync(SECRETS_PATH)) return {};
   try {
     return JSON.parse(readFileSync(SECRETS_PATH, 'utf-8'));
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Platform credentials load failed', msg);
     return {};
   }
 }

@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { debugLog } from '../debug.js';
 
 /**
  * kele Configuration Manager
@@ -64,7 +65,9 @@ export function loadConfig(): KeleConfig {
   try {
     const raw = readFileSync(CONFIG_PATH, 'utf-8');
     return JSON.parse(raw) as KeleConfig;
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Config load failed, using defaults', msg);
     return { ...DEFAULT_CONFIG };
   }
 }
