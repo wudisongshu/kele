@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { debugLog } from '../debug.js';
 
 export interface RunEntry {
   dir: string;
@@ -70,8 +71,9 @@ export function findRunEntry(rootDir: string): RunEntry {
         candidates.push({ dir: subDir, type: 'miniprogram', entryFile: 'app.json', priority: priority + 10 });
       }
     }
-  } catch {
-    // Ignore read errors
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`Run guide readdir failed: ${rootDir}`, msg);
   }
 
   if (candidates.length === 0) {
@@ -109,7 +111,9 @@ export async function printLocalRunGuide(rootDir: string): Promise<void> {
       } else {
         console.log('   npx serve .   # 或 python3 -m http.server 8080');
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Run guide package.json read failed: ${runEntry.dir}`, msg);
       console.log(`   cd "${runEntry.dir}"`);
       console.log('   npm install && npm run dev');
     }
