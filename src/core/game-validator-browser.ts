@@ -414,7 +414,7 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
       pretendToBeVisual: true,
       beforeParse(window: any) {
         // Track whether any input event handler actually runs
-        (window as any).__kele_eventHandlerRan = false;
+        window.__kele_eventHandlerRan = false;
 
         const origAddEventListener = window.EventTarget.prototype.addEventListener;
         window.EventTarget.prototype.addEventListener = function(type: string, handler: any, options?: any) {
@@ -424,7 +424,7 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
               type === 'touchstart' || type === 'touchend' || type === 'touchmove' ||
               type === 'keydown' || type === 'keyup' || type === 'keypress'
             ) {
-              (window as any).__kele_eventHandlerRan = true;
+              window.__kele_eventHandlerRan = true;
             }
             if (typeof handler === 'function') {
               return handler.call(this, event);
@@ -496,7 +496,7 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
     result.details.canvasDrawn = drawCalls > 0;
 
     // If an event handler actually ran during our dispatched events, confirm input handling
-    const eventHandlerRan = (window as any).__kele_eventHandlerRan || false;
+    const eventHandlerRan = (window as unknown as { __kele_eventHandlerRan?: boolean }).__kele_eventHandlerRan || false;
     if (eventHandlerRan) {
       result.details.hasInputHandler = true;
     }
