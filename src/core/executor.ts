@@ -1,7 +1,7 @@
 import type { Project, Task, SubProject, ExecuteResult } from '../types/index.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
-import { applyAIOutput, parseAIOutput, SubProjectFileRegistry } from './file-writer.js';
+import { applyAIOutput, parseAIOutput, SubProjectFileRegistry, SUBPROJECT_FILE_WHITELIST } from './file-writer.js';
 import { validateTaskOutput } from './task-validator.js';
 import { copyTemplate, getTemplateType } from './template-loader.js';
 import { debugLog } from '../debug.js';
@@ -11,9 +11,10 @@ import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
 import { validateGameInBrowser, quickGameCheck } from './game-validator-browser.js';
 import { matchContract } from './contract-engine.js';
+import { assembleProject } from './project-assembler.js';
 import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
 import { executeWithFallback, executeFixWithFallback } from './adapter-utils.js';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { trackTaskComplete, trackTaskFail, trackFixAttempt } from './telemetry.js';
 import { analyzeFailure, runRecoveryWizard, buildSimplifiedDescription, type RecoveryMode } from './recovery-wizard.js';
@@ -132,7 +133,8 @@ async function processOutput(
   const { subProject, onProgress } = ctx;
   const targetDir = subProject.targetDir;
 
-  let writtenFiles = applyAIOutput(targetDir, output, onProgress, registry, subProject.id, subProject.type);
+  const whitelist = SUBPROJECT_FILE_WHITELIST[subProject.type];
+  let writtenFiles = applyAIOutput(targetDir, output, onProgress, registry, subProject.id, subProject.type, whitelist);
 
   if (writtenFiles.length > 0 && !(writtenFiles.length === 1 && writtenFiles[0] === 'notes.md')) {
     onProgress?.(`   📝 Written: ${writtenFiles.join(', ')}`);
@@ -143,7 +145,7 @@ async function processOutput(
       const notesContent = readFileSync(notesPath, 'utf-8');
       const parsedFromNotes = parseAIOutput(notesContent);
       if (parsedFromNotes.files.length > 0) {
-        const extractedFiles = applyAIOutput(targetDir, notesContent, onProgress, registry, subProject.id, subProject.type);
+        const extractedFiles = applyAIOutput(targetDir, notesContent, onProgress, registry, subProject.id, subProject.type, whitelist);
         if (extractedFiles.length > 1 || (extractedFiles.length === 1 && extractedFiles[0] !== 'notes.md')) {
           onProgress?.(`   📝 二次提取成功: ${extractedFiles.filter(f => f !== 'notes.md').join(', ')}`);
           writtenFiles = extractedFiles;
@@ -157,7 +159,7 @@ async function processOutput(
       try {
         const route = ctx.registry.route(ctx.task.complexity);
         const reformatOutput = await route.adapter.execute(reformatPrompt);
-        const reformatFiles = applyAIOutput(targetDir, reformatOutput, onProgress, registry, subProject.id, subProject.type);
+        const reformatFiles = applyAIOutput(targetDir, reformatOutput, onProgress, registry, subProject.id, subProject.type, whitelist);
         if (reformatFiles.length > 1 || (reformatFiles.length === 1 && reformatFiles[0] !== 'notes.md')) {
           onProgress?.(`   📝 重新格式化后写入: ${reformatFiles.filter(f => f !== 'notes.md').join(', ')}`);
           writtenFiles = reformatFiles;
@@ -219,7 +221,7 @@ async function validateAndFixRuntime(
       try {
         const route = ctx.registry.route(task.complexity);
         const fixOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
-        const fixWritten = applyAIOutput(subProject.targetDir, fixOutput, onProgress, registry, subProject.id, subProject.type);
+        const fixWritten = applyAIOutput(subProject.targetDir, fixOutput, onProgress, registry, subProject.id, subProject.type, SUBPROJECT_FILE_WHITELIST[subProject.type]);
         if (fixWritten.length > 0) {
           onProgress?.(`   📝 修复后写入: ${fixWritten.join(', ')}`);
         }
@@ -277,7 +279,7 @@ async function validateAndFixRuntime(
         try {
           const route = ctx.registry.route(task.complexity);
           const fixOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
-          const fixWritten = applyAIOutput(subProject.targetDir, fixOutput);
+          const fixWritten = applyAIOutput(subProject.targetDir, fixOutput, onProgress, undefined, subProject.id, subProject.type, SUBPROJECT_FILE_WHITELIST[subProject.type]);
           if (fixWritten.length > 0) {
             onProgress?.(`   📝 修复后写入: ${fixWritten.join(', ')}`);
           }
@@ -362,7 +364,7 @@ async function validateAndFixRuntime(
         try {
           const route = ctx.registry.route(task.complexity);
           const fixOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
-          const fixWritten = applyAIOutput(subProject.targetDir, fixOutput);
+          const fixWritten = applyAIOutput(subProject.targetDir, fixOutput, onProgress, undefined, subProject.id, subProject.type, SUBPROJECT_FILE_WHITELIST[subProject.type]);
           if (fixWritten.length > 0) {
             onProgress?.(`   📝 修复后写入: ${fixWritten.join(', ')}`);
           }
@@ -455,7 +457,7 @@ async function runAcceptanceValidation(
     try {
       const route = ctx.registry.route(task.complexity);
       const retryOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
-      const retryWritten = applyAIOutput(subProject.targetDir, retryOutput, onProgress, registry, subProject.id, subProject.type);
+      const retryWritten = applyAIOutput(subProject.targetDir, retryOutput, onProgress, registry, subProject.id, subProject.type, SUBPROJECT_FILE_WHITELIST[subProject.type]);
       if (retryWritten.length > 0) {
         onProgress?.(`   📝 修复后写入: ${retryWritten.join(', ')}`);
       }
@@ -519,7 +521,7 @@ async function runAIQualityReview(
 
     try {
       const retryOutput = await executeFixWithFallback(ctx.registry, fixPrompt, route.provider, route.adapter);
-      const retryWritten = applyAIOutput(subProject.targetDir, retryOutput);
+      const retryWritten = applyAIOutput(subProject.targetDir, retryOutput, onProgress, undefined, subProject.id, subProject.type, SUBPROJECT_FILE_WHITELIST[subProject.type]);
       if (retryWritten.length > 0) {
         onProgress?.(`   📝 修复后写入: ${retryWritten.join(', ')}`);
       }
@@ -753,6 +755,12 @@ export async function executeTask(
         db.saveTask(optTask, project.id);
         project.tasks.push(optTask);
       }
+    }
+
+    // Phase 7: Assemble patches (index.patch.html -> index.html)
+    const assembly = assembleProject(subProject.targetDir);
+    if (assembly.patched) {
+      onProgress?.(`   🔧 Assembled ${assembly.patches.length} patch file(s) into index.html`);
     }
 
     const duration = Date.now() - taskStartTime;

@@ -26,6 +26,28 @@ export interface ParsedOutput {
  * SubProjectFileRegistry — tracks which sub-project owns which file.
  * Prevents late-stage sub-projects from overwriting core game files.
  */
+/**
+ * Sub-project file whitelist: each type can only write specific files.
+ * Patterns support simple glob-style wildcards (* matches any chars).
+ */
+export const SUBPROJECT_FILE_WHITELIST: Record<string, string[]> = {
+  setup: ['package.json', 'vite.config.ts', '.gitignore', 'index.html', 'public/manifest.json', 'public/sw.js', 'manifest.json', 'sw.js'],
+  development: ['js/*.js', 'css/*.css', 'src/*.js', 'src/*.ts', 'assets/*'],
+  production: ['js/*.js', 'css/*.css', 'src/*.js', 'src/*.ts', 'assets/*'],
+  creation: ['js/*.js', 'css/*.css', 'src/*.js', 'src/*.ts', 'assets/*'],
+  deployment: ['.github/workflows/*.yml', '.github/workflows/*.yaml', 'CNAME', 'SETUP.md', 'MONETIZATION.md', 'MONETIZE.md'],
+  monetization: ['ads.txt', 'adsense.html', 'js/ads.js', 'MONETIZATION.md', 'MONETIZE.md', 'index.patch.html'],
+  testing: ['tests/*.test.js', 'tests/*.test.ts', 'test-utils.js', 'test-utils.ts'],
+};
+
+function matchWhitelist(path: string, whitelist: string[]): boolean {
+  for (const pattern of whitelist) {
+    const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*\*/g, '(.+)').replace(/\*/g, '([^/]+)') + '$');
+    if (regex.test(path)) return true;
+  }
+  return false;
+}
+
 export class SubProjectFileRegistry {
   private ownership = new Map<string, { subProjectId: string; subProjectType: string }>();
 
@@ -165,13 +187,22 @@ export function writeFiles(
   registry?: SubProjectFileRegistry,
   subProjectId?: string,
   subProjectType?: string,
+  whitelist?: string[],
 ): string[] {
   const written: string[] = [];
   const baseName = basename(baseDir);
 
   for (const file of parsed.files) {
-    // Strip duplicate sub-project prefix from path
+    // Whitelist filter
     let relativePath = file.path;
+    if (whitelist && whitelist.length > 0) {
+      if (!matchWhitelist(relativePath, whitelist)) {
+        console.warn(`[WHITELIST] Skipped non-whitelist file: ${relativePath}`);
+        continue;
+      }
+    }
+
+    // Strip duplicate sub-project prefix from path
     const prefixPattern = new RegExp(`^${baseName}[/\\\\]`);
     if (prefixPattern.test(relativePath)) {
       relativePath = relativePath.replace(prefixPattern, '');
@@ -239,17 +270,10 @@ export function writeFiles(
       }
     }
 
-    // Incremental merge for HTML/CSS when file already exists and writer is not setup/dev
-    if (existsSync(filePath) && relativePath.endsWith('.html') && subProjectType && subProjectType !== 'setup' && subProjectType !== 'development' && subProjectType !== 'production' && subProjectType !== 'creation') {
-      const existing = readFileSync(filePath, 'utf-8');
-      const merged = mergeHtml(existing, content);
-      if (merged !== existing) {
-        onProgress?.(`      🔄 Merged ${relativePath} (incremental update)`);
-        content = merged;
-      } else {
-        onProgress?.(`      ⏭️  Skipped ${relativePath} (no new elements to merge)`);
-        continue;
-      }
+    // Whitelist check: non-setup sub-projects cannot write index.html (use index.patch.html instead)
+    if (relativePath === 'index.html' && subProjectType && subProjectType !== 'setup') {
+      console.warn(`[WHITELIST] Skipped index.html from ${subProjectType} sub-project — use index.patch.html for HTML modifications`);
+      continue;
     }
 
     // File ownership check (skip if no registry provided — e.g. mock mode)
@@ -320,52 +344,6 @@ export function writeFiles(
 }
 
 /**
- * Merge two HTML files incrementally.
- * - Appends new <head> tags (script/link/meta) that don't already exist
- * - Appends new <body> top-level elements that don't already exist (by id)
- * Returns the merged HTML string.
- */
-function mergeHtml(existing: string, incoming: string): string {
-  let result = existing;
-
-  // Merge <head>: add new script/link/meta tags
-  const incomingHead = incoming.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-  if (incomingHead) {
-    const newTags = (incomingHead[1].match(/<(script|link|meta)[^>]*>/gi) || [])
-      .map((t) => t.trim().toLowerCase().replace(/\s+/g, ' '));
-    const existingTags = new Set(
-      (existing.match(/<(script|link|meta)[^>]*>/gi) || [])
-        .map((t) => t.trim().toLowerCase().replace(/\s+/g, ' ')),
-    );
-    const toAdd = newTags.filter((t) => !existingTags.has(t));
-    if (toAdd.length > 0) {
-      result = result.replace(/<\/head>/i, toAdd.join('\n') + '\n</head>');
-    }
-  }
-
-  // Merge <body>: add new top-level div/script elements by id
-  const incomingBody = incoming.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  if (incomingBody) {
-    const existingIds = new Set(
-      (existing.match(/id=["']([^"']+)["']/g) || []),
-    );
-    const newElements = incomingBody[1].match(/<(div|script)[^>]*>[\s\S]*?<\/\1>/gi) || [];
-    const toAppend = newElements.filter((el) => {
-      const idMatch = el.match(/id=["']([^"']+)["']/);
-      if (!idMatch) return false; // only add identifiable elements
-      const idAttr = `id="${idMatch[1]}"`;
-      const idAttr2 = `id='${idMatch[1]}'`;
-      return !existingIds.has(idAttr) && !existingIds.has(idAttr2);
-    });
-    if (toAppend.length > 0) {
-      result = result.replace(/<\/body>/i, toAppend.join('\n') + '\n</body>');
-    }
-  }
-
-  return result;
-}
-
-/**
  * Fix common HTML issues that break local file opening:
  * 1. Remove crossorigin attributes (breaks file:// protocol)
  * 2. Move scripts from <head> to end of <body> (DOM ready)
@@ -431,9 +409,10 @@ export function applyAIOutput(
   registry?: SubProjectFileRegistry,
   subProjectId?: string,
   subProjectType?: string,
+  whitelist?: string[],
 ): string[] {
   const parsed = parseAIOutput(output);
-  return writeFiles(baseDir, parsed, onProgress, registry, subProjectId, subProjectType);
+  return writeFiles(baseDir, parsed, onProgress, registry, subProjectId, subProjectType, whitelist);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
