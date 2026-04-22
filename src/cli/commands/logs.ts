@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { Command } from 'commander';
+import { debugLog } from '../../debug.js';
 
 export function runLogs(lines: number = 20, levelFilter?: string): void {
   const logDir = join(homedir(), '.kele', 'logs');
@@ -27,7 +28,9 @@ export function runLogs(lines: number = 20, levelFilter?: string): void {
       try {
         const parsed = JSON.parse(entry);
         return parsed.level?.toLowerCase() === filter;
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog('Logs filter parse failed', msg);
         return false;
       }
     });
@@ -48,7 +51,9 @@ export function runLogs(lines: number = 20, levelFilter?: string): void {
       const level = parsed.level?.toUpperCase() || 'INFO';
       const icon = level === 'ERROR' ? '❌' : level === 'WARN' ? '⚠️' : 'ℹ️';
       console.log(`   ${icon} [${ts}] ${parsed.message}`);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Logs entry parse failed', msg);
       console.log(`   📝 ${entry.slice(0, 120)}`);
     }
   }

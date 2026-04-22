@@ -165,7 +165,9 @@ async function runRepl(project: Project, db: KeleDatabase, _debug: boolean, mock
     try {
       const route = registry.route('simple');
       intent = await parseIntent(trimmed, route.adapter);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Chat intent parse failed, using fallback', msg);
       // Fallback heuristic
       intent = { type: 'CHAT', message: trimmed };
     }
