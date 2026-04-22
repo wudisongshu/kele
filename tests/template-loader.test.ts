@@ -38,4 +38,28 @@ describe('TemplateLoader', () => {
     const files = loadTemplate('nonexistent-template' as any);
     expect(files).toEqual([]);
   });
+
+  it('loads pwa-game template with PWA files', () => {
+    const files = loadTemplate('pwa-game');
+    expect(files.length).toBeGreaterThan(0);
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('manifest.json');
+    expect(paths).toContain('sw.js');
+  });
+
+  it('loads steam-game template', () => {
+    const files = loadTemplate('steam-game');
+    expect(files.length).toBeGreaterThan(0);
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('main.js');
+  });
+
+  it('maps all known monetization types', () => {
+    const types = ['web', 'wechat-miniprogram', 'douyin', 'steam', 'app-store', 'google-play', 'discord-bot', 'telegram-bot', 'itchio', 'github-sponsors'];
+    for (const t of types) {
+      const template = getTemplateType(t as any);
+      expect(template).toBeTruthy();
+      expect(template.length).toBeGreaterThan(0);
+    }
+  });
 });

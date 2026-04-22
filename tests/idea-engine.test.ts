@@ -64,4 +64,40 @@ describe('IdeaEngine', () => {
     expect(result.success).toBe(true);
     expect(result.idea!.monetization).toBe('app-store');
   });
+
+  it('should detect Android Google Play', () => {
+    const result = parseIdea('做一个Android游戏上架Google Play');
+    expect(result.success).toBe(true);
+    expect(result.idea!.monetization).toBe('google-play');
+  });
+
+  it('should detect Discord bot', () => {
+    const result = parseIdea('做一个Discord机器人');
+    expect(result.success).toBe(true);
+    expect(result.idea!.monetization).toBe('discord-bot');
+  });
+
+  it('should detect Telegram bot', () => {
+    const result = parseIdea('做一个Telegram机器人');
+    expect(result.success).toBe(true);
+    expect(result.idea!.monetization).toBe('telegram-bot');
+  });
+
+  it('should detect GitHub Sponsors', () => {
+    const result = parseIdea('做一个开源工具接受GitHub赞助');
+    expect(result.success).toBe(true);
+    expect(result.idea!.monetization).toBe('github-sponsors');
+  });
+
+  it('should detect itchio', () => {
+    const result = parseIdea('做一个独立游戏发布到itch.io');
+    expect(result.success).toBe(true);
+    expect(result.idea!.monetization).toBe('itchio');
+  });
+
+  it('should detect medium complexity', () => {
+    const result = parseIdea('做一个塔防游戏有5种塔和10个关卡');
+    expect(result.success).toBe(true);
+    expect(result.idea!.complexity).toBe('medium');
+  });
 });
