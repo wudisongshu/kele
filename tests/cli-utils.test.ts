@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { generateProjectSlug, printNoProviderHelp } from '../src/cli/utils.js';
+import { describe, it, expect, vi } from 'vitest';
+import { generateProjectSlug, printNoProviderHelp, formatDuration, collectHeaders, parseTimeout } from '../src/cli/utils.js';
 
 describe('generateProjectSlug', () => {
   it('uses English words from idea text', () => {
@@ -34,5 +34,52 @@ describe('printNoProviderHelp', () => {
     expect(logs.some(l => l.includes('kimi'))).toBe(true);
     expect(logs.some(l => l.includes('deepseek'))).toBe(true);
     expect(logs.some(l => l.includes('mock'))).toBe(true);
+  });
+});
+
+describe('formatDuration', () => {
+  it('formats milliseconds', () => {
+    expect(formatDuration(500)).toBe('500ms');
+  });
+
+  it('formats seconds', () => {
+    expect(formatDuration(1500)).toBe('1.5s');
+    expect(formatDuration(59000)).toBe('59.0s');
+  });
+
+  it('formats minutes and seconds', () => {
+    expect(formatDuration(65000)).toBe('1m 5s');
+    expect(formatDuration(125000)).toBe('2m 5s');
+  });
+});
+
+describe('collectHeaders', () => {
+  it('collects header key-value pairs', () => {
+    const result = collectHeaders('X-Custom: value', {});
+    expect(result).toEqual({ 'X-Custom': 'value' });
+  });
+
+  it('accumulates multiple headers', () => {
+    const result = collectHeaders('X-First: one', { 'X-Second': 'two' });
+    expect(result).toEqual({ 'X-Second': 'two', 'X-First': 'one' });
+  });
+
+  it('ignores malformed headers', () => {
+    const result = collectHeaders('no-colon-here', { existing: 'val' });
+    expect(result).toEqual({ existing: 'val' });
+  });
+});
+
+describe('parseTimeout', () => {
+  it('parses valid timeout', () => {
+    expect(parseTimeout('5000')).toBe(5000);
+    expect(parseTimeout('60')).toBe(60);
+  });
+
+  it('falls back to default for invalid input', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(parseTimeout('invalid')).toBe(3000);
+    expect(parseTimeout('-1')).toBe(3000);
+    expect(warnSpy).toHaveBeenCalled();
   });
 });
