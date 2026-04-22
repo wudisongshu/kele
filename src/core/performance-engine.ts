@@ -148,16 +148,18 @@ export function analyzeBundle(projectDir: string, platform: string = 'web'): Bun
       const deps = lock.packages?.['']?.dependencies || lock.dependencies || {};
       // Rough estimate: 500KB per direct dependency
       result.dependencyBytes = Object.keys(deps).length * 500 * 1024;
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Performance engine lock parse error', msg);
     }
   } else if (existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
       const depCount = Object.keys(pkg.dependencies || {}).length;
       result.dependencyBytes = depCount * 500 * 1024;
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Performance engine package parse error', msg);
     }
   }
 
