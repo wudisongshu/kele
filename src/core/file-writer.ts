@@ -38,6 +38,7 @@ export const SUBPROJECT_FILE_WHITELIST: Record<string, string[]> = {
   deployment: ['.github/workflows/*.yml', '.github/workflows/*.yaml', 'CNAME', 'SETUP.md', 'MONETIZATION.md', 'MONETIZE.md'],
   monetization: ['ads.txt', 'adsense.html', 'js/ads.js', 'MONETIZATION.md', 'MONETIZE.md', 'index.patch.html'],
   testing: ['tests/*.test.js', 'tests/*.test.ts', 'test-utils.js', 'test-utils.ts'],
+  'ui-polish': ['css/*.css', 'assets/*', 'index.patch.html'],
 };
 
 function matchWhitelist(path: string, whitelist: string[]): boolean {
@@ -77,7 +78,7 @@ export class SubProjectFileRegistry {
     const isSameType = owner.subProjectType === subProjectType;
     const isUiPolishOverride =
       subProjectType === 'ui-polish' &&
-      (filePath.endsWith('.css') || filePath.includes('/assets/'));
+      (filePath.endsWith('.css') || filePath.includes('/assets/') || filePath.startsWith('assets/'));
 
     if (isSetupOwner) {
       return { allowed: true, warning: `Note: ${subProjectType} is overwriting setup scaffolding ${filePath}` };
