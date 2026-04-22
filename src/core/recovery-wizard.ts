@@ -129,7 +129,7 @@ export function analyzeFailure(task: Task, error: string): FailureDiagnosis {
     };
   }
 
-  // AI timeout / network errors
+  // AI timeout / network errors / rate limits
   if (
     lower.includes('超时') ||
     lower.includes('timeout') ||
@@ -137,7 +137,10 @@ export function analyzeFailure(task: Task, error: string): FailureDiagnosis {
     lower.includes('econnreset') ||
     lower.includes('econnrefused') ||
     lower.includes('socket hang up') ||
-    lower.includes('连接中断')
+    lower.includes('连接中断') ||
+    lower.includes('429') ||
+    lower.includes('too many requests') ||
+    lower.includes('rate limit')
   ) {
     return {
       type: 'ai_timeout',
