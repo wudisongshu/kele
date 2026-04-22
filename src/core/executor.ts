@@ -166,7 +166,9 @@ async function processOutput(
           ctx.task.result = reformatOutput;
           ctx.db.saveTask(ctx.task, ctx.project.id);
         }
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog('Reformat failed', msg);
         // Reformat failed — continue with what we have
       }
     }
@@ -673,7 +675,9 @@ export async function executeTask(
           existingFileTree = files.slice(0, 30).join('\n') + (files.length > 30 ? `\n... and ${files.length - 30} more files` : '');
         }
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Dir read error', msg);
       // Ignore read errors (e.g. dir does not exist)
     }
 
