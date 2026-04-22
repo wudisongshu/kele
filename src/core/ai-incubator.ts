@@ -232,7 +232,9 @@ export async function incubateWithAI(
         validationMeta.localWarnings = localValidation.warnings;
         if (localValidation.valid) break;
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Incubator fix attempt failed', msg);
       // Fix attempt failed — keep looping
     }
     fixAttempt++;
@@ -291,7 +293,9 @@ export async function incubateWithAI(
           }
           reviewAttempt++;
         }
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog('Incubator review/fix failed', msg);
         // Review or fix failed — continue with current result
         validationMeta.aiApproved = true;
         break;
@@ -410,7 +414,9 @@ async function reviewIncubatorOutput(
       issues: parsed.issues ?? [],
       suggestions: parsed.suggestions ?? [],
     };
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Incubator review parse failed', msg);
     // If review fails, assume approved to avoid blocking
     return { approved: true, severity: 'minor', issues: [], suggestions: [] };
   }
@@ -420,7 +426,9 @@ export function parseIncubationResponse(jsonStr: string, rootDir: string): AIInc
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonStr);
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Incubator JSON parse failed', msg);
     return { success: false, error: 'Invalid JSON in AI response' };
   }
 
