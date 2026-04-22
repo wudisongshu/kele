@@ -33,7 +33,7 @@ export function assembleProject(rootDir: string): { patched: boolean; patches: s
         if (patchContent) {
           patches.push(entry.name);
           // Insert patch content before </body>
-          indexContent = indexContent.replace(/<\/body>/i, patchContent + '\n</body>');
+          indexContent = indexContent.replace(/<\/body>/i, (match) => patchContent + '\n' + match);
         }
         // Delete patch file after assembly
         try { rmSync(patchPath); } catch { /* ignore */ }
