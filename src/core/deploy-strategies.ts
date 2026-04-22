@@ -20,6 +20,7 @@ import { execSync } from 'child_process';
 import { validateTaskOutput } from './task-validator.js';
 import { validateGameInBrowser } from './game-validator-browser.js';
 import { checkMonetizationReadiness } from './monetization-readiness.js';
+import { debugLog } from '../debug.js';
 import {
   getPlatformCredentials,
   hasPlatformCredentials,
@@ -535,7 +536,10 @@ const itchioStrategy: DeployStrategy = {
         const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
         itchProject = pkg.name || itchProject;
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('itchio package.json read failed', msg);
+    }
 
     // Try to get itch username from credentials
     const itchCreds = getPlatformCredentials('itchio');
