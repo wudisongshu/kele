@@ -7,6 +7,7 @@ import { rmSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { Command } from 'commander';
+import { debugLog } from '../../debug.js';
 
 export function runClean(autoDelete = false, debugLogs = false): void {
   // Handle debug logs cleanup first
@@ -25,7 +26,9 @@ export function runClean(autoDelete = false, debugLogs = false): void {
         totalSize += statSync(filePath).size;
         rmSync(filePath, { force: true });
         removed++;
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`Clean rm failed: ${filePath}`, msg);
         // skip
       }
     }

@@ -6,6 +6,7 @@ import { existsSync, cpSync, mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { Command } from 'commander';
 import { KeleDatabase } from '../../db/index.js';
+import { debugLog } from '../../debug.js';
 
 export function runExport(projectId: string, targetDir?: string, format?: 'dir' | 'markdown' | 'zip' | 'json'): void {
   const db = new KeleDatabase();
@@ -88,7 +89,9 @@ export function runExport(projectId: string, targetDir?: string, format?: 'dir' 
     try {
       execSync(`tar -czf "${archivePath}" -C "${dirname(sourceDir)}" "${project.name}"`, { stdio: 'ignore' });
       console.log(`✅ 项目已打包: ${archivePath}`);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Export tar command failed', msg);
       console.error(`❌ 打包失败，请确保系统支持 tar 命令`);
       process.exit(1);
     }
