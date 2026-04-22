@@ -20,6 +20,7 @@ import { setupLogsCommand } from './commands/logs.js';
 import { setupStatsCommand } from './commands/stats.js';
 import { setupChatCommand } from './commands/chat.js';
 import { setupDeployCommand } from './commands/deploy.js';
+import { setupOptimizeCommand } from './commands/optimize.js';
 
 const program = new Command();
 
@@ -36,7 +37,8 @@ program
     `  $ kele delete <project>                   # Delete a project\n` +
     `  $ kele export <project> [dir]             # Export project files\n` +
     `  $ kele deploy <project> [platform]        # Deploy to production\n` +
-    `  $ kele chat [project-id]                  # Interactive chat mode`)
+    `  $ kele chat [project-id]                  # Interactive chat mode\n` +
+    `  $ kele optimize <project-id>               # Analyze & optimize deployed project`)
   .version(`${version} (Node ${process.version}, TS 5.9.3, ${process.platform})`, '-v, --version', 'Display version number');
 
 // Register all commands
@@ -58,5 +60,6 @@ setupLogsCommand(program);
 setupStatsCommand(program);
 setupDeployCommand(program);
 setupChatCommand(program);
+setupOptimizeCommand(program);
 
 program.parse();
