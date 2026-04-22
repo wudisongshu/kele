@@ -35,4 +35,7 @@ function initAds() {
 // const ads = initAds();
 // ads.rewardedAd.show().then(() => { /* 给予奖励 */ });
 
-module.exports = { initAds };
+// Douyin Mini Game environment — expose globally
+if (typeof window !== 'undefined') {
+  window.initAds = initAds;
+}

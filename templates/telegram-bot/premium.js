@@ -29,7 +29,7 @@ function checkPremiumOrReply(ctx) {
   return null;
 }
 
-module.exports = {
+export {
   PREMIUM_COMMANDS,
   PREMIUM_FEATURES,
   isPremium,

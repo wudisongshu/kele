@@ -130,4 +130,12 @@ if (typeof window !== 'undefined') {
   initAds();
 }
 
-module.exports = { initAds, showBannerAd, hideBannerAd, showInterstitialAd, showRewardedAd, canShowInterstitial };
+// PWA Browser environment — expose globally
+if (typeof window !== 'undefined') {
+  window.initAds = initAds;
+  window.showBannerAd = showBannerAd;
+  window.hideBannerAd = hideBannerAd;
+  window.showInterstitialAd = showInterstitialAd;
+  window.showRewardedAd = showRewardedAd;
+  window.canShowInterstitial = canShowInterstitial;
+}

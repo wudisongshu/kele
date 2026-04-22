@@ -47,4 +47,10 @@ function showRewarded(onReward) {
   }
 }
 
-module.exports = { initAdMob, showInterstitial, showRewarded, ADMOB_CONFIG };
+// Browser/Cordova environment — expose globally
+if (typeof window !== 'undefined') {
+  window.initAdMob = initAdMob;
+  window.showInterstitial = showInterstitial;
+  window.showRewarded = showRewarded;
+  window.ADMOB_CONFIG = ADMOB_CONFIG;
+}

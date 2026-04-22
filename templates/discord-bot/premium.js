@@ -46,7 +46,7 @@ function checkPremiumOrReply(interaction) {
   return null;
 }
 
-module.exports = {
+export {
   PREMIUM_COMMANDS,
   PREMIUM_FEATURES,
   isPremium,

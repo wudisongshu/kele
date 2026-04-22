@@ -109,4 +109,11 @@ function showRewardedAd(onReward) {
   });
 }
 
-module.exports = { initAds, showBannerAd, hideBannerAd, showInterstitialAd, showRewardedAd };
+// WeChat Mini Game environment — expose globally
+if (typeof window !== 'undefined') {
+  window.initAds = initAds;
+  window.showBannerAd = showBannerAd;
+  window.hideBannerAd = hideBannerAd;
+  window.showInterstitialAd = showInterstitialAd;
+  window.showRewardedAd = showRewardedAd;
+}
