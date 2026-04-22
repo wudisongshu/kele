@@ -315,8 +315,18 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
     }
 
     const browser = await validateGameInBrowser(subProject.targetDir);
+
+    // Display playability score breakdown
+    if (browser.playability) {
+      const { formatPlayabilityScore } = await import('./game-playability.js');
+      const playabilityMsg = formatPlayabilityScore(browser.playability);
+      for (const line of playabilityMsg.split('\n')) {
+        if (line.trim()) onProgress?.(`   ${line}`);
+      }
+    }
+
     if (!browser.playable) {
-      onProgress?.(`   ❌ 游戏不可玩 (评分: ${browser.score}/100)`);
+      onProgress?.(`   ❌ 游戏不可玩 (综合评分: ${browser.score}/100)`);
       for (const err of browser.errors.slice(0, 3)) {
         onProgress?.(`      • ${err}`);
       }
@@ -354,13 +364,20 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
 
           // Re-validate after fix
           const reBrowser = await validateGameInBrowser(subProject.targetDir);
+          if (reBrowser.playability) {
+            const { formatPlayabilityScore } = await import('./game-playability.js');
+            const reMsg = formatPlayabilityScore(reBrowser.playability);
+            for (const line of reMsg.split('\n')) {
+              if (line.trim()) onProgress?.(`   ${line}`);
+            }
+          }
           if (reBrowser.playable) {
-            onProgress?.(`   ✅ 修复后游戏可玩 (评分: ${reBrowser.score}/100)`);
+            onProgress?.(`   ✅ 修复后游戏可玩 (综合评分: ${reBrowser.score}/100)`);
             runtimePassed = true;
             fixed = true;
             break;
           }
-          onProgress?.(`   ❌ 修复后仍不可玩 (评分: ${reBrowser.score}/100)`);
+          onProgress?.(`   ❌ 修复后仍不可玩 (综合评分: ${reBrowser.score}/100)`);
         } catch (fixErr) {
           const fixErrMsg = fixErr instanceof Error ? fixErr.message : String(fixErr);
           onProgress?.(`   ⚠️  修复请求失败: ${fixErrMsg.slice(0, 120)}`);
@@ -378,7 +395,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
         throw new ValidationError(task.error);
       }
     } else {
-      onProgress?.(`   ✅ 游戏可玩性验证通过 (评分: ${browser.score}/100)`);
+      onProgress?.(`   ✅ 游戏可玩性验证通过 (综合评分: ${browser.score}/100)`);
     }
   }
 

@@ -1,6 +1,7 @@
 import { JSDOM } from 'jsdom';
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { scorePlayability, type PlayabilityScore } from './game-playability.js';
 
 export interface BrowserValidationResult {
   playable: boolean;
@@ -14,6 +15,7 @@ export interface BrowserValidationResult {
     jsErrors: string[];
     consoleLogs: string[];
   };
+  playability?: PlayabilityScore;
 }
 
 export type GameProjectType = 'html-canvas' | 'html-dom' | 'framework' | 'miniprogram' | 'unknown';
@@ -447,6 +449,21 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
   }
   if (jsErrors.length > 0) {
     result.errors.push(`JavaScript errors: ${jsErrors.join('; ')}`);
+  }
+
+  // Playability scoring (objective, based on code structure)
+  try {
+    const playability = scorePlayability(targetDir);
+    result.playability = playability;
+    // Blend browser validation score with playability score
+    result.score = Math.round(result.score * 0.4 + playability.total * 0.6);
+    // Update playable flag based on playability
+    if (playability.total < 40) {
+      result.playable = false;
+      result.errors.push(`可玩性评分过低 (${playability.total}/100)，${playability.suggestions[0] || '建议增加游戏内容'}`);
+    }
+  } catch {
+    // ignore playability scoring errors
   }
 
   return result;

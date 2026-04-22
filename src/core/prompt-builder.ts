@@ -130,7 +130,18 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSecti
         * Player death → showRewardedAd(() => { /* revive */ })
         * Pause menu → showBannerAd()
       - Ad frequency cap: minimum 30 seconds between interstitial ads. Implement a lastAdTime check.
-      - Ad code MUST be "runnable placeholder": use test mode or fake unit IDs, never crash if ad fails to load.`
+      - Ad code MUST be "runnable placeholder": use test mode or fake unit IDs, never crash if ad fails to load.
+   j) PLAYABILITY REQUIREMENTS (MANDATORY — kele will score your game 0-100 after generation):
+      - Your code MUST include inline comments marking playability features so kele can detect them.
+      - Tower defense games MUST have: at least 2 tower types, at least 2 enemy types, wave/round system, currency/upgrades.
+      - Platformer games MUST have: multiple platform types, jump physics, at least 1 enemy/obstacle, collectibles, death/respawn.
+      - Racing games MUST have: steering + acceleration + brake, obstacles, speed display, power-ups, high-score save.
+      - ALL games MUST have: start screen, game-over/restart, visible score, and immediate visual feedback on player action.
+      - Example comments (place these near the relevant code):
+        // 波次系统：每 5 关增加一种敌人
+        // 防御塔类型：箭塔（单体）、炮塔（范围）
+        // 收集品：金币、宝石
+        // 升级商店：消耗金币提升塔等级`
       : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'
