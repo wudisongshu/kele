@@ -45,5 +45,21 @@ describe('deploy-strategies', () => {
     it('returns undefined for unknown monetization', () => {
       expect(detectPlatformFromProject('unknown')).toBeUndefined();
     });
+
+    it('returns undefined for empty string', () => {
+      expect(detectPlatformFromProject('')).toBeUndefined();
+    });
+  });
+
+  describe('getDeployStrategy', () => {
+    it('returns strategy with prerequisite check function', () => {
+      const strategy = getDeployStrategy('github-pages');
+      expect(strategy).toBeDefined();
+      expect(typeof strategy?.checkPrerequisites).toBe('function');
+    });
+
+    it('returns undefined for unknown strategy', () => {
+      expect(getDeployStrategy('unknown')).toBeUndefined();
+    });
   });
 });

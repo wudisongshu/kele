@@ -104,4 +104,17 @@ describe('safeJsonParse', () => {
     expect(result.raw).toBeNull();
     expect(result.error).toContain('no JSON structure found');
   });
+
+  it('handles JSON with escaped quotes', () => {
+    const result = safeJsonParse('{"msg": "say \\"hello\\""}');
+    expect(result.data).toEqual({ msg: 'say "hello"' });
+    expect(result.error).toBeNull();
+  });
+
+  it('handles deeply nested JSON', () => {
+    const deep = { a: { b: { c: { d: [1, 2, 3] } } } };
+    const result = safeJsonParse(JSON.stringify(deep));
+    expect(result.data).toEqual(deep);
+    expect(result.error).toBeNull();
+  });
 });

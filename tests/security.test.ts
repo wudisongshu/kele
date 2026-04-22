@@ -126,5 +126,22 @@ describe('Security', () => {
     it('should return false for unsafe paths', () => {
       expect(isSafePath('../secret')).toBe(false);
     });
+
+    it('should return true for nested safe paths', () => {
+      expect(isSafePath('src/components/Button.tsx')).toBe(true);
+      expect(isSafePath('assets/images/logo.png')).toBe(true);
+    });
+  });
+
+  describe('escapePromptInput edge cases', () => {
+    it('should handle very long input', () => {
+      const long = 'a'.repeat(5000);
+      const result = escapePromptInput(long);
+      expect(result.length).toBeLessThanOrEqual(2003);
+    });
+
+    it('should handle input with only control chars', () => {
+      expect(escapePromptInput('\x00\x01\x02')).toBe('');
+    });
   });
 });

@@ -66,4 +66,12 @@ document.addEventListener('click', function() {});
     // Should not crash, may have lower score
     expect(result.errors.length).toBeGreaterThanOrEqual(0);
   });
+
+  it('validates framework projects with package.json', async () => {
+    writeFileSync(join(TEST_DIR, 'package.json'), JSON.stringify({ name: 'test' }));
+    writeFileSync(join(TEST_DIR, 'index.html'), '<!DOCTYPE html><html><body><canvas></canvas></body></html>');
+
+    const result = await validateGameInBrowser(TEST_DIR);
+    expect(typeof result.score).toBe('number');
+  });
 });

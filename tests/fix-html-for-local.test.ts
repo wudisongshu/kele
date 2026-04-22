@@ -97,4 +97,17 @@ describe('fixHtmlForLocal', () => {
     expect(fixed.substring(0, headEnd3).includes('<script')).toBe(false);
     expect(fixed).toMatch(/<body>.*<script/s);
   });
+
+  it('handles empty HTML', () => {
+    const html = '';
+    const fixed = fixHtmlForLocal(html);
+    expect(fixed).toBe('');
+  });
+
+  it('preserves existing content while fixing paths', () => {
+    const html = '<html><head><title>My Game</title></head><body><script src="/assets/app.js"></script></body></html>';
+    const fixed = fixHtmlForLocal(html);
+    expect(fixed).toContain('<title>My Game</title>');
+    expect(fixed).toContain('src="./assets/app.js"');
+  });
 });
