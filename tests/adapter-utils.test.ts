@@ -53,6 +53,31 @@ describe('executeWithFallback', () => {
     await expect(executeWithFallback(registry, 'prompt', 'deepseek', primary, undefined, undefined, signal)).rejects.toThrow('aborted');
   });
 
+  it('throws immediately on non-retryable errors without retrying', async () => {
+    const primary = makeFailingAdapter('invalid api key');
+    const registry = makeRegistry();
+    await expect(executeWithFallback(registry, 'prompt', 'deepseek', primary)).rejects.toThrow('invalid api key');
+    expect(primary.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes onToken callback to adapter', async () => {
+    const primary = makeMockAdapter('output');
+    const registry = makeRegistry();
+    const onToken = vi.fn();
+    await executeWithFallback(registry, 'prompt', 'deepseek', primary, onToken);
+    expect(primary.execute).toHaveBeenCalledWith('prompt', onToken);
+  });
+
+  it('calls onProgress for retryable errors', async () => {
+    const primary = makeFailingAdapter('429 Too Many Requests');
+    const registry = makeRegistry();
+    const onProgress = vi.fn();
+    await expect(executeWithFallback(registry, 'prompt', 'deepseek', primary, undefined, onProgress)).rejects.toThrow('429');
+    const progressCalls = onProgress.mock.calls.map((c) => c[0]);
+    expect(progressCalls.some((msg: string) => msg.includes('429'))).toBe(true);
+    expect(progressCalls.some((msg: string) => msg.includes('重试'))).toBe(true);
+  });
+
   it('does not fallback when primary is already mock', async () => {
     const primary = makeFailingAdapter('mock failed');
     const registry = makeRegistry(primary);
