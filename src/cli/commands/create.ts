@@ -199,14 +199,14 @@ async function handleCreateIntent(
   if (needsResearch(ideaText, idea.keywords)) {
     console.log('🔍 检测到模糊/竞品参考需求，启动商业研究...\n');
 
-    let researchResult = await research(ideaText, route.adapter);
+    let researchResult = await research(ideaText, route.adapter, (msg) => console.log(msg));
 
     // Fallback to mock if real provider fails
     if (!researchResult.success) {
       const mock = registry.get('mock');
       if (mock && route.provider !== 'mock') {
         console.log('   ⚠️  AI provider 调用失败，使用 Mock 模式生成研究报告\n');
-        researchResult = await research(ideaText, mock);
+        researchResult = await research(ideaText, mock, (msg) => console.log(msg));
       }
     }
 

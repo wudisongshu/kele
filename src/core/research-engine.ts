@@ -206,14 +206,22 @@ export function extractSubject(rawText: string): string | undefined {
  */
 export async function research(
   rawText: string,
-  adapter: AIAdapter
+  adapter: AIAdapter,
+  onProgress?: (msg: string) => void,
 ): Promise<ResearchResult> {
   try {
     const subject = extractSubject(rawText) || rawText.slice(0, 50);
     const prompt = buildResearchPrompt(subject, rawText);
     debugLog('Research Engine Prompt', prompt);
 
-    const response = await adapter.execute(prompt);
+    onProgress?.('   📊 正在生成研究报告...（通常需要 30-60 秒）');
+    let firstToken = false;
+    const response = await adapter.execute(prompt, (_token) => {
+      if (!firstToken) {
+        firstToken = true;
+        onProgress?.('   ✍️  AI 开始撰写研究报告...');
+      }
+    });
     const report = parseResearchResponse(subject, response);
 
     if (!report) {
