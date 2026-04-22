@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { debugLog } from '../debug.js';
 import { spawn } from 'child_process';
 import { JSDOM } from 'jsdom';
 
@@ -48,7 +49,9 @@ async function detectRunConfig(targetDir: string): Promise<RunConfig | null> {
       }
       // No scripts — just try npm install to verify package.json is valid
       return { command: 'npm', args: ['install'], cwd: targetDir };
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Run validator package.json parse error', msg);
       return { command: 'npm', args: ['install'], cwd: targetDir };
     }
   }
