@@ -350,7 +350,7 @@ export function writeFiles(
  * 2. Move scripts from <head> to end of <body> (DOM ready)
  * 3. Convert absolute /assets/ paths to relative ./assets/
  */
-function fixHtmlForLocal(html: string): string {
+export function fixHtmlForLocal(html: string): string {
   let fixed = html;
 
   // Remove crossorigin attributes
