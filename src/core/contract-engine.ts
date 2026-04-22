@@ -226,7 +226,7 @@ export function validateContractCompliance(
       allContent += readFileSync(jsPath, 'utf-8') + '\n';
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      debugLog(`Contract engine HTML read failed: ${htmlPath}`, msg);
+      debugLog(`Contract engine JS read failed: ${jsPath}`, msg);
     }
   }
 

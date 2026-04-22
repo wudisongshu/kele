@@ -21,6 +21,7 @@
 import { createInterface } from 'readline';
 import { Command } from 'commander';
 import { KeleDatabase } from '../../db/index.js';
+import { debugLog } from '../../debug.js';
 import { createRegistryFromConfig } from '../../adapters/index.js';
 import { parseIntent } from '../../core/intent-engine.js';
 import {

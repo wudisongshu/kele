@@ -64,7 +64,6 @@ Return JSON:
 /**
  * Parse user input into a structured intent using AI.
  */
-import { debugLog } from '../debug.js';
 import { safeJsonParse } from './json-utils.js';
 
 export async function parseIntent(userInput: string, adapter: AIAdapter): Promise<UserIntent> {
