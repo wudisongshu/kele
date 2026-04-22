@@ -6,6 +6,7 @@
 import { appendFileSync, mkdirSync, existsSync, statSync, renameSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { debugLog } from '../debug.js';
 
 const LOG_DIR = join(homedir(), '.kele', 'logs');
 
@@ -32,7 +33,9 @@ function rotateLogIfNeeded(filePath: string): void {
       const rotated = filePath.replace('.log', `.${Date.now()}.log`);
       renameSync(filePath, rotated);
     }
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`Logger rotation failed: ${filePath}`, msg);
     // Ignore rotation errors
   }
 }

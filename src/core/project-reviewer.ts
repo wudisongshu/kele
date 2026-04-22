@@ -146,7 +146,9 @@ function listFilesBrief(dir: string): string[] {
   if (!existsSync(dir)) return [];
   try {
     return readdirSync(dir, { recursive: true, encoding: 'utf-8' }) as string[];
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`Project reviewer readdir failed: ${dir}`, msg);
     return [];
   }
 }
@@ -205,11 +207,15 @@ function detectFileConflicts(project: Project): string[] {
               if (earlierContent !== laterContent) {
                 conflicts.push(`${later.name}(${later.type}) 覆盖了 ${earlier.name}(${earlier.type}) 的 ${file}`);
               }
-            } catch {
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              debugLog(`Project reviewer file read failed: ${earlierFilePath}`, msg);
               // Binary or unreadable file — skip content comparison
             }
           }
-        } catch {
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          debugLog(`Project reviewer stat failed: ${file}`, msg);
           // ignore stat errors
         }
       }
