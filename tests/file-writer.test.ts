@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parseAIOutput, writeFiles, applyAIOutput } from '../src/core/file-writer.js';
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -119,6 +119,45 @@ describe('FileWriter', () => {
       expect(existsSync(join(baseDir, 'js/game.js'))).toBe(true);
       expect(existsSync(join(baseDir, 'README.md'))).toBe(true);
       expect(existsSync(join(baseDir, 'game-dev', 'index.html'))).toBe(false);
+    });
+
+    it('should truncate files larger than 5MB', () => {
+      const hugeContent = 'x'.repeat(6 * 1024 * 1024); // 6MB
+      const parsed = {
+        files: [{ path: 'huge.js', content: hugeContent }],
+        notes: '',
+      };
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      writeFiles(tmpDir, parsed);
+      warnSpy.mockRestore();
+
+      const written = readFileSync(join(tmpDir, 'huge.js'), 'utf-8');
+      expect(written.length).toBeLessThanOrEqual(5 * 1024 * 1024 + 100); // ~5MB + truncation comment
+      expect(written).toContain('Truncated by kele');
+    });
+
+    it('should auto-generate .gitignore', () => {
+      const parsed = {
+        files: [{ path: 'package.json', content: '{"name":"test"}' }],
+        notes: '',
+      };
+      writeFiles(tmpDir, parsed);
+      expect(existsSync(join(tmpDir, '.gitignore'))).toBe(true);
+      const gitignore = readFileSync(join(tmpDir, '.gitignore'), 'utf-8');
+      expect(gitignore).toContain('node_modules');
+      expect(gitignore).toContain('dist');
+    });
+
+    it('should not overwrite existing .gitignore', () => {
+      writeFileSync(join(tmpDir, '.gitignore'), 'custom-ignore\n', 'utf-8');
+      const parsed = {
+        files: [{ path: 'package.json', content: '{"name":"test"}' }],
+        notes: '',
+      };
+      writeFiles(tmpDir, parsed);
+      const gitignore = readFileSync(join(tmpDir, '.gitignore'), 'utf-8');
+      expect(gitignore).toBe('custom-ignore\n');
     });
   });
 

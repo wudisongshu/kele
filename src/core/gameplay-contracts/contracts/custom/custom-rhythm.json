@@ -1,0 +1,21 @@
+{
+  "id": "custom-rhythm",
+  "name": "节奏游戏",
+  "aliases": [
+    "rhythm",
+    "音游",
+    "music game"
+  ],
+  "coreMechanics": [
+    {
+      "id": "beat",
+      "description": "节拍判定",
+      "immutable": true,
+      "evidencePatterns": [
+        "beat",
+        "rhythm"
+      ]
+    }
+  ],
+  "optionalMechanics": []
+}

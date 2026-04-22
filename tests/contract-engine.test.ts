@@ -175,5 +175,40 @@ describe('contract-engine', () => {
       expect(found).toBeDefined();
       expect(found!.name).toBe('测试游戏');
     });
+
+    it('matches saved custom contract by alias', () => {
+      invalidateContractCache();
+      const custom: Contract = {
+        id: 'custom-rhythm',
+        name: '节奏游戏',
+        aliases: ['rhythm', '音游', 'music game'],
+        coreMechanics: [
+          { id: 'beat', description: '节拍判定', immutable: true, evidencePatterns: ['beat', 'rhythm'] },
+        ],
+        optionalMechanics: [],
+      };
+      saveCustomContract(custom);
+      const matched = matchContract('做一个音游');
+      expect(matched).not.toBeNull();
+      expect(matched!.id).toBe('custom-rhythm');
+    });
+
+    it('persists across cache invalidations when saved to disk', () => {
+      invalidateContractCache();
+      const custom: Contract = {
+        id: 'persistent-game',
+        name: '持久测试',
+        aliases: ['persistent'],
+        coreMechanics: [
+          { id: 'test', description: '测试', immutable: true, evidencePatterns: ['test'] },
+        ],
+        optionalMechanics: [],
+      };
+      saveCustomContract(custom);
+      invalidateContractCache(); // clear memory cache
+      const matched = matchContract('persistent game');
+      expect(matched).not.toBeNull();
+      expect(matched!.id).toBe('persistent-game');
+    });
   });
 });

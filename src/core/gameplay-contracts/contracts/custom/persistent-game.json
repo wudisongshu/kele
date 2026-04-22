@@ -1,0 +1,18 @@
+{
+  "id": "persistent-game",
+  "name": "持久测试",
+  "aliases": [
+    "persistent"
+  ],
+  "coreMechanics": [
+    {
+      "id": "test",
+      "description": "测试",
+      "immutable": true,
+      "evidencePatterns": [
+        "test"
+      ]
+    }
+  ],
+  "optionalMechanics": []
+}

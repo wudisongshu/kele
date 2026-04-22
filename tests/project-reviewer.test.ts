@@ -138,17 +138,28 @@ describe('project-reviewer', () => {
       const health = { healthy: true, progress: 'on-track', concerns: [], recommendations: [] };
       const adjusted = adjustProjectScope(project, health);
       expect(adjusted).toBe(project);
+      const pendingCount = adjusted.tasks.filter((t: any) => t.status === 'pending').length;
+      expect(pendingCount).toBe(1); // t2 is pending in mock
     });
 
     it('marks optional tasks as skipped when behind', () => {
       const project = createMockProject();
       project.subProjects[1].monetizationRelevance = 'optional';
+      // Make both tasks pending so we can test the skip logic
+      project.tasks[0].status = 'pending';
+      project.tasks[1].status = 'pending';
+
       const health = { healthy: false, progress: 'behind', concerns: [], recommendations: [] };
       const adjusted = adjustProjectScope(project, health);
-      // Tasks from optional sub-projects should be modified
-      const remainingTasks = adjusted.tasks.filter((t: any) => t.status === 'pending');
-      // The task in the optional sub-project should have been processed
-      expect(adjusted).toBe(project); // in-place mutation
+
+      // In-place mutation: same object returned
+      expect(adjusted).toBe(project);
+      // The optional task should be marked as skipped
+      const optionalTask = adjusted.tasks.find((t: any) => t.subProjectId === project.subProjects[1].id);
+      expect(optionalTask?.status).toBe('skipped');
+      // Non-optional tasks remain pending
+      const nonOptionalTask = adjusted.tasks.find((t: any) => t.subProjectId === project.subProjects[0].id);
+      expect(nonOptionalTask?.status).toBe('pending');
     });
   });
 });

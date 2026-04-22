@@ -149,4 +149,23 @@ describe('buildSimplifiedDescription', () => {
     const desc = buildSimplifiedDescription('desc', longError);
     expect(desc.length).toBeLessThan(longError.length + 200);
   });
+
+  it('handles empty description and error', () => {
+    const desc = buildSimplifiedDescription('', '');
+    expect(desc).toContain('MINIMAL working version');
+  });
+
+  it('detects timeout errors', () => {
+    const task = makeTask('Timed Out');
+    const diagnosis = analyzeFailure(task, 'ETIMEDOUT: Request timed out after 300s');
+    expect(diagnosis.type).toBe('ai_timeout');
+    expect(diagnosis.suggestions.some((s) => s.action === 'retry')).toBe(true);
+  });
+
+  it('detects syntax errors', () => {
+    const task = makeTask('Syntax Error');
+    const diagnosis = analyzeFailure(task, 'SyntaxError: Unexpected token');
+    expect(diagnosis.type).toBe('runtime');
+    expect(diagnosis.humanReadable).toContain('运行时崩溃');
+  });
 });

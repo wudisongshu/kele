@@ -212,5 +212,19 @@ document.addEventListener('keydown', function() {});
       const result = quickGameCheck(TEST_DIR);
       expect(result.ok).toBe(true);
     });
+
+    it('detects missing referenced external script', () => {
+      writeFileSync(join(TEST_DIR, 'index.html'), '<html><body><canvas></canvas><script src="missing.js"></script></body></html>');
+      const result = quickGameCheck(TEST_DIR);
+      expect(result.issues.some((i) => i.includes('missing.js'))).toBe(true);
+    });
+
+    it('passes when all referenced scripts exist', () => {
+      writeFileSync(join(TEST_DIR, 'index.html'), '<html><body><canvas></canvas><script src="game.js"></script></body></html>');
+      writeFileSync(join(TEST_DIR, 'game.js'), 'console.log(1)');
+      const result = quickGameCheck(TEST_DIR);
+      expect(result.ok).toBe(true);
+      expect(result.issues).toHaveLength(0);
+    });
   });
 });
