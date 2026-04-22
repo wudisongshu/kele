@@ -44,7 +44,9 @@ function readFilesFromDir(dir: string, maxSize = 50000): string {
       } else {
         result += `\n--- ${entry.name} ---\n${content}\n`;
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Upgrade engine file read failed: ${entry.name}`, msg);
       // Skip unreadable files
     }
   }
