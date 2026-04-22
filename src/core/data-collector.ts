@@ -13,6 +13,7 @@
 
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { debugLog } from '../debug.js';
 
 export interface ProjectMetrics {
   revenue: number; // USD or local currency
@@ -371,8 +372,9 @@ export function loadPreviousMetrics(projectId: string): ProjectMetrics | undefin
     if (typeof data === 'object' && data !== null && 'revenue' in data) {
       return data as ProjectMetrics;
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Metrics read error', msg);
   }
   return undefined;
 }
