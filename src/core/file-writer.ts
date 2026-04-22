@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, existsSync, renameSync, rmSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, renameSync, rmSync, readdirSync, statSync, readFileSync } from 'fs';
 import { dirname, join, basename } from 'path';
 import { sanitizeFilePath } from './security.js';
 import { extractJson as extractJsonFromUtils } from './json-utils.js';
@@ -296,4 +296,134 @@ function fixHtmlForLocal(html: string): string {
 export function applyAIOutput(baseDir: string, output: string, onProgress?: (msg: string) => void): string[] {
   const parsed = parseAIOutput(output);
   return writeFiles(baseDir, parsed, onProgress);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Project Summary Generator
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SUMMARY_IGNORE = new Set(['node_modules', '.git', 'dist', 'build', '.kele', '.vite', '.vscode']);
+
+function walkForSummary(dir: string, depth = 0, maxDepth = 3): { path: string; size: number; isDir: boolean }[] {
+  if (depth > maxDepth) return [];
+  const results: { path: string; size: number; isDir: boolean }[] = [];
+  try {
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      if (SUMMARY_IGNORE.has(entry) || entry.startsWith('.')) continue;
+      const full = join(dir, entry);
+      const stat = statSync(full);
+      const rel = full.slice(dir.length + 1);
+      if (stat.isDirectory()) {
+        results.push({ path: rel + '/', size: 0, isDir: true });
+        results.push(...walkForSummary(full, depth + 1, maxDepth));
+      } else {
+        results.push({ path: rel, size: stat.size, isDir: false });
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return results;
+}
+
+function extractInterfaceSnippet(filePath: string, maxLines = 30): string {
+  try {
+    const content = readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+    // Find lines that look like exports, interfaces, or function signatures
+    const snippets: string[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (
+        trimmed.startsWith('export') ||
+        trimmed.startsWith('interface') ||
+        trimmed.startsWith('type ') ||
+        trimmed.startsWith('function') ||
+        trimmed.startsWith('class ') ||
+        trimmed.startsWith('const ') && trimmed.includes(':')
+      ) {
+        snippets.push(line);
+      }
+      if (snippets.length >= maxLines) break;
+    }
+    return snippets.join('\n');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Generate a PROJECT_SUMMARY.md for a sub-project directory.
+ * This summary is used by the ContextCompressor instead of the full file tree.
+ */
+export function generateProjectSummary(targetDir: string, subProjectName?: string, description?: string): string {
+  if (!existsSync(targetDir)) return '';
+
+  const files = walkForSummary(targetDir);
+  const sourceFiles = files.filter((f) => !f.isDir && /\.(ts|tsx|js|jsx|html|css|json)$/.test(f.path));
+  const totalSize = sourceFiles.reduce((sum, f) => sum + f.size, 0);
+
+  const lines: string[] = [];
+  lines.push(`# Project Summary: ${subProjectName || 'Unknown'}`);
+  lines.push('');
+  if (description) {
+    lines.push(`## Description`);
+    lines.push(description);
+    lines.push('');
+  }
+  lines.push(`## Key Files (${sourceFiles.length} source files, ${(totalSize / 1024).toFixed(1)}KB total)`);
+  lines.push('');
+
+  for (const f of sourceFiles.slice(0, 30)) {
+    lines.push(`- ${f.path}`);
+  }
+  if (sourceFiles.length > 30) {
+    lines.push(`- ... and ${sourceFiles.length - 30} more files`);
+  }
+  lines.push('');
+
+  // Extract interface snippets from type-definition-like files
+  const typeFiles = sourceFiles.filter((f) =>
+    f.path.endsWith('.d.ts') || f.path.includes('types') || f.path.includes('interface')
+  );
+  if (typeFiles.length > 0) {
+    lines.push('## Public Interfaces');
+    lines.push('');
+    for (const tf of typeFiles.slice(0, 5)) {
+      const snippet = extractInterfaceSnippet(join(targetDir, tf.path), 20);
+      if (snippet) {
+        lines.push(`### ${tf.path}`);
+        lines.push('```typescript');
+        lines.push(snippet);
+        lines.push('```');
+        lines.push('');
+      }
+    }
+  }
+
+  // Extract entry points
+  const entryFiles = sourceFiles.filter((f) =>
+    f.path === 'index.html' || f.path === 'index.js' || f.path === 'main.ts' || f.path === 'app.ts'
+  );
+  if (entryFiles.length > 0) {
+    lines.push('## Entry Points');
+    lines.push('');
+    for (const ef of entryFiles) {
+      lines.push(`- ${ef.path}`);
+    }
+    lines.push('');
+  }
+
+  const summary = lines.join('\n');
+
+  // Write to disk
+  const summaryPath = join(targetDir, 'PROJECT_SUMMARY.md');
+  try {
+    writeFileSync(summaryPath, summary, 'utf-8');
+  } catch {
+    // ignore write errors
+  }
+
+  return summary;
 }

@@ -11,6 +11,7 @@ import { formatPlatformGuideForPrompt, getDeployableConfigTemplate } from '../pl
 import { escapePromptInput } from './security.js';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { buildProjectContext, shouldCompress } from './context-compressor.js';
 
 const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
 1. COMPLETE IMPLEMENTATION: You MUST generate FULLY WORKING code. NO stubs, NO TODOs, NO placeholder functions. Every function must do something real.
@@ -73,11 +74,22 @@ export function buildTaskPrompt(task: Task, subProject: SubProject, project: Pro
     ? 'Standard Web Project (package.json + Vite + index.html)'
     : templateDesc;
 
-  // Inject existing project files context so AI knows what already exists
-  const fileTree = getProjectFileTree(subProject.targetDir);
-  const fileTreeSection = fileTree
-    ? `\n--- EXISTING PROJECT FILES ---\n${fileTree}\n--- END FILE TREE ---\n`
-    : '';
+  // Build project context — compress if project is large
+  let contextSection: string;
+  if (shouldCompress(project)) {
+    const compressed = buildProjectContext(project, subProject, task);
+    const savedInfo = compressed.savedPercent ? ` (saved ~${compressed.savedPercent}% tokens)` : '';
+    contextSection = `\n--- PROJECT CONTEXT (compressed${savedInfo}) ---\n${compressed.context}\n--- END PROJECT CONTEXT ---\n`;
+  } else {
+    const fileTree = getProjectFileTree(subProject.targetDir);
+    const fileTreeSection = fileTree
+      ? `\n--- EXISTING PROJECT FILES ---\n${fileTree}\n--- END FILE TREE ---\n`
+      : '';
+    const allSubProjects = project.subProjects
+      .map((sp) => `  - ${sp.name} (${sp.type}) [${sp.status}] — ${sp.description}`)
+      .join('\n');
+    contextSection = `\nAll sub-projects:\n${allSubProjects}\n${fileTreeSection}`;
+  }
 
   const baseContext = `You are a senior software engineer working on the project "${escapePromptInput(project.name)}".
 
@@ -85,7 +97,7 @@ Sub-project: ${escapePromptInput(subProject.name)}
 Description: ${escapePromptInput(subProject.description)}
 Target directory: ${subProject.targetDir}
 Platform template: ${effectiveTemplateDesc}
-User's original idea: "${escapePromptInput(project.idea.rawText)}"${fileTreeSection}${platformSection}`;
+User's original idea: "${escapePromptInput(project.idea.rawText)}"${contextSection}${platformSection}`;
 
   if (isCodingTask) {
     const gameConstraint = !isSetup && project.idea.type === 'game'
