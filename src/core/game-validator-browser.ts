@@ -3,6 +3,7 @@ import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { scorePlayability, type PlayabilityScore } from './game-playability.js';
 import { validateContractCompliance, type Contract } from './contract-engine.js';
+import { debugLog } from '../debug.js';
 
 export interface BrowserValidationResult {
   playable: boolean;
@@ -563,7 +564,9 @@ async function validateHtmlGame(targetDir: string, result: BrowserValidationResu
       result.playable = false;
       result.errors.push(`可玩性评分过低 (${playability.total}/100)，${playability.suggestions[0] || '建议增加游戏内容'}`);
     }
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Playability scoring error', msg);
     // ignore playability scoring errors
   }
 
