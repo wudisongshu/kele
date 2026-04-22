@@ -53,4 +53,20 @@ describe('TaskValidator', () => {
     expect(result.valid).toBe(true);
     rmSync(dir, { recursive: true });
   });
+
+  it('detects FIXME comments', () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, 'index.js'), 'function hello() { // FIXME: broken\n}', 'utf-8');
+    const result = validateTaskOutput(dir, 'test');
+    expect(result.issues.some(i => i.includes('FIXME'))).toBe(true);
+    rmSync(dir, { recursive: true });
+  });
+
+  it('detects HACK comments', () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, 'index.js'), 'function hello() { // HACK: workaround\n}', 'utf-8');
+    const result = validateTaskOutput(dir, 'test');
+    expect(result.issues.some(i => i.includes('HACK'))).toBe(true);
+    rmSync(dir, { recursive: true });
+  });
 });
