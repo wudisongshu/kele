@@ -56,6 +56,66 @@ describe('Security', () => {
       expect(sanitizeFilePath('.')).toBeNull();
       expect(sanitizeFilePath('  ')).toBeNull();
     });
+
+    it('should accept dot-relative paths', () => {
+      expect(sanitizeFilePath('./js/game.js')).toBe('./js/game.js');
+      expect(sanitizeFilePath('./index.html')).toBe('./index.html');
+    });
+
+    it('should reject embedded path traversal', () => {
+      expect(sanitizeFilePath('foo/bar/../baz')).toBeNull();
+      expect(sanitizeFilePath('assets/../../secret')).toBeNull();
+    });
+
+    it('should reject null bytes', () => {
+      expect(sanitizeFilePath('file\0.txt')).toBeNull();
+      expect(sanitizeFilePath('index\0.html')).toBeNull();
+    });
+
+    it('should reject overly long paths', () => {
+      expect(sanitizeFilePath('a'.repeat(501))).toBeNull();
+      expect(sanitizeFilePath('a'.repeat(500))).toBe('a'.repeat(500));
+    });
+
+    it('should reject sensitive system files', () => {
+      expect(sanitizeFilePath('.env')).toBeNull();
+      expect(sanitizeFilePath('.env.local')).toBeNull();
+      expect(sanitizeFilePath('.ssh/id_rsa')).toBeNull();
+      expect(sanitizeFilePath('.git/config')).toBeNull();
+      expect(sanitizeFilePath('.npmrc')).toBeNull();
+      expect(sanitizeFilePath('id_ed25519')).toBeNull();
+      expect(sanitizeFilePath('.bashrc')).toBeNull();
+      expect(sanitizeFilePath('.zshrc')).toBeNull();
+      expect(sanitizeFilePath('.profile')).toBeNull();
+      expect(sanitizeFilePath('.keystore')).toBeNull();
+      expect(sanitizeFilePath('.key')).toBeNull();
+      expect(sanitizeFilePath('.pem')).toBeNull();
+      expect(sanitizeFilePath('.crt')).toBeNull();
+      expect(sanitizeFilePath('.p12')).toBeNull();
+      expect(sanitizeFilePath('.pfx')).toBeNull();
+      expect(sanitizeFilePath('.cer')).toBeNull();
+    });
+
+    it('should reject system directories', () => {
+      expect(sanitizeFilePath('/etc/passwd')).toBeNull();
+      expect(sanitizeFilePath('/usr/bin/node')).toBeNull();
+      expect(sanitizeFilePath('/bin/bash')).toBeNull();
+      expect(sanitizeFilePath('/var/log/syslog')).toBeNull();
+      expect(sanitizeFilePath('/sys/devices')).toBeNull();
+      expect(sanitizeFilePath('/proc/self/environ')).toBeNull();
+      expect(sanitizeFilePath('/dev/null')).toBeNull();
+    });
+
+    it('should handle mixed slashes', () => {
+      expect(sanitizeFilePath('js\\game.js')).toBe('js/game.js');
+      expect(sanitizeFilePath('css\\style.css')).toBe('css/style.css');
+    });
+
+    it('should reject non-string input', () => {
+      expect(sanitizeFilePath(null as unknown as string)).toBeNull();
+      expect(sanitizeFilePath(undefined as unknown as string)).toBeNull();
+      expect(sanitizeFilePath(123 as unknown as string)).toBeNull();
+    });
   });
 
   describe('isSafePath', () => {
