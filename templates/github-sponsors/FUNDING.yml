@@ -1,0 +1,8 @@
+# GitHub Sponsors 配置
+# 访问 https://github.com/sponsors 申请赞助
+
+github: [YOUR_GITHUB_USERNAME] # 替换为你的 GitHub 用户名
+patreon: # 替换为你的 Patreon 用户名（可选）
+ko_fi: # 替换为你的 Ko-fi 用户名（可选）
+custom:
+  - # 替换为自定义赞助链接（可选）

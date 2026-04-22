@@ -51,7 +51,7 @@ describe('game-validator-browser', () => {
   });
 
   describe('validateGameInBrowser', () => {
-    it('validates framework project with build script', () => {
+    it('validates framework project with build script', async () => {
       writeFileSync(join(TEST_DIR, 'package.json'), JSON.stringify({
         scripts: { build: 'echo build', dev: 'echo dev' },
         dependencies: { phaser: '^3.0.0' },
@@ -60,19 +60,19 @@ describe('game-validator-browser', () => {
       writeFileSync(join(TEST_DIR, 'src', 'game.js'), 'console.log(1)');
       writeFileSync(join(TEST_DIR, 'index.html'), '<html></html>');
 
-      const result = validateGameInBrowser(TEST_DIR);
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.score).toBeGreaterThanOrEqual(70);
       expect(result.playable).toBe(true);
     });
 
-    it('fails framework project without build script', () => {
+    it('fails framework project without build script', async () => {
       writeFileSync(join(TEST_DIR, 'package.json'), JSON.stringify({ name: 'test' }));
-      const result = validateGameInBrowser(TEST_DIR);
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.playable).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it('validates miniprogram project', () => {
+    it('validates miniprogram project', async () => {
       writeFileSync(join(TEST_DIR, 'game.json'), JSON.stringify({ deviceOrientation: 'portrait' }));
       writeFileSync(join(TEST_DIR, 'game.js'), `
         const canvas = createCanvas();
@@ -81,18 +81,18 @@ describe('game-validator-browser', () => {
         canvas.onTouchStart = function(e) {};
       `);
 
-      const result = validateGameInBrowser(TEST_DIR);
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.score).toBeGreaterThanOrEqual(70);
       expect(result.playable).toBe(true);
     });
 
-    it('fails miniprogram without entry file', () => {
+    it('fails miniprogram without entry file', async () => {
       writeFileSync(join(TEST_DIR, 'game.json'), '{}');
-      const result = validateGameInBrowser(TEST_DIR);
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.playable).toBe(false);
     });
 
-    it('validates HTML canvas game', () => {
+    it('validates HTML canvas game', async () => {
       writeFileSync(join(TEST_DIR, 'index.html'), `
 <!DOCTYPE html>
 <html>
@@ -112,13 +112,13 @@ document.addEventListener('click', function() {});
       writeFileSync(join(TEST_DIR, 'manifest.json'), '{}');
       writeFileSync(join(TEST_DIR, 'sw.js'), '');
 
-      const result = validateGameInBrowser(TEST_DIR);
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.details.hasCanvas).toBe(true);
       expect(result.details.hasGameLoop).toBe(true);
       expect(result.details.hasInputHandler).toBe(true);
     });
 
-    it('validates HTML DOM game', () => {
+    it('validates HTML DOM game', async () => {
       writeFileSync(join(TEST_DIR, 'index.html'), `
 <!DOCTYPE html>
 <html>
@@ -132,20 +132,20 @@ document.addEventListener('keydown', function() {});
 </html>
       `);
 
-      const result = validateGameInBrowser(TEST_DIR);
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.details.hasGameLoop).toBe(true);
       expect(result.details.hasInputHandler).toBe(true);
     });
 
-    it('fails HTML without game elements', () => {
+    it('fails HTML without game elements', async () => {
       writeFileSync(join(TEST_DIR, 'index.html'), '<!DOCTYPE html><html><body><div>Hello</div></body></html>');
-      const result = validateGameInBrowser(TEST_DIR);
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.playable).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it('returns error for missing index.html', () => {
-      const result = validateGameInBrowser(TEST_DIR);
+    it('returns error for missing index.html', async () => {
+      const result = await validateGameInBrowser(TEST_DIR);
       expect(result.errors[0]).toContain('No index.html');
     });
   });

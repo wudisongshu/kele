@@ -27,8 +27,8 @@ describe('validate command', () => {
     expect(typeof result.score).toBe('number');
   });
 
-  it('validates game directory without canvas', () => {
-    const result = validateGameInBrowser('./src');
+  it('validates game directory without canvas', async () => {
+    const result = await validateGameInBrowser('./src');
     expect(result.playable).toBe(false);
     expect(result.score).toBeLessThan(60);
   });

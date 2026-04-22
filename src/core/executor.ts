@@ -91,11 +91,18 @@ async function callAI(ctx: ExecutionContext, prompt: string): Promise<{ output: 
   ctx.task.aiProvider = route.provider;
 
   let firstTokenReceived = false;
+  let tokenCount = 0;
   const startTime = Date.now();
   const onToken = (_token: string) => {
+    tokenCount++;
     if (!firstTokenReceived) {
       firstTokenReceived = true;
       onProgress?.(`   ✍️  AI 开始生成代码...（请耐心等待，完整代码通常需要 1-5 分钟）`);
+    }
+    // Progress update every 500 tokens so user knows AI is still working
+    if (tokenCount % 500 === 0) {
+      const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+      onProgress?.(`   ⏳  已生成 ${tokenCount} tokens... (${elapsedSec} 秒)`);
     }
   };
 
@@ -304,7 +311,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       runtimePassed = false;
     }
 
-    const browser = validateGameInBrowser(subProject.targetDir);
+    const browser = await validateGameInBrowser(subProject.targetDir);
     if (!browser.playable) {
       onProgress?.(`   ❌ 游戏不可玩 (评分: ${browser.score}/100)`);
       for (const err of browser.errors.slice(0, 3)) {
@@ -315,7 +322,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
       // Auto-fix: feed browser validation errors to AI
       let fixed = false;
       let fixAttempt = 1;
-      const MAX_GAME_FIX_ATTEMPTS = 2;
+      const MAX_GAME_FIX_ATTEMPTS = 3;
       while (fixAttempt <= MAX_GAME_FIX_ATTEMPTS) {
         trackFixAttempt(ctx.project.id, task.id, fixAttempt, 'game');
         onProgress?.(`   🔄 第 ${fixAttempt}/${MAX_GAME_FIX_ATTEMPTS} 次游戏修复...`);
@@ -343,7 +350,7 @@ async function validateAndFixRuntime(ctx: ExecutionContext, prompt: string): Pro
           db.saveTask(task, project.id);
 
           // Re-validate after fix
-          const reBrowser = validateGameInBrowser(subProject.targetDir);
+          const reBrowser = await validateGameInBrowser(subProject.targetDir);
           if (reBrowser.playable) {
             onProgress?.(`   ✅ 修复后游戏可玩 (评分: ${reBrowser.score}/100)`);
             runtimePassed = true;

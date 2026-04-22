@@ -96,7 +96,7 @@ Return ONLY a JSON object in this exact format (no markdown code blocks):
     }
 
     // Browser validation
-    const browser = validateGameInBrowser(dir);
+    const browser = await validateGameInBrowser(dir);
     console.log(`Browser validation: Playable=${browser.playable}, Score=${browser.score}/100`);
     if (browser.errors.length > 0) {
       console.log(`Errors: ${browser.errors.join('; ')}`);

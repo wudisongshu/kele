@@ -113,6 +113,15 @@ async function handleCreateIntent(
   logger.log('🥤 kele 收到了你的想法（创建项目）：');
   logger.log(`   "${ideaText}"\n`);
 
+  // Step tracker: total 5 major steps
+  const totalSteps = 5;
+  let currentStep = 0;
+  const printStep = (label: string) => {
+    currentStep++;
+    console.log(`\n[步骤 ${currentStep}/${totalSteps}] ${label}`);
+  };
+
+  printStep('解析想法');
   // Step 1: Parse idea
   const parseResult = parseIdea(ideaText);
   if (!parseResult.success || !parseResult.idea) {
@@ -185,6 +194,7 @@ async function handleCreateIntent(
     logger.debug('Provider connection successful', { provider: route.provider });
   }
 
+  printStep('商业研究（如需要）');
   // Step 2: Business Research (if needed)
   if (needsResearch(ideaText, idea.keywords)) {
     console.log('🔍 检测到模糊/竞品参考需求，启动商业研究...\n');
@@ -227,6 +237,7 @@ async function handleCreateIntent(
     }
   }
 
+  printStep('AI 孵化器分析项目结构');
   // Step 3: Incubate sub-projects (AI-driven, fallback to local rules)
   const projectName = generateProjectSlug(ideaText, idea.type);
   const outputDir = options.output || join(process.env.HOME || process.env.USERPROFILE || '.', 'kele-projects');
@@ -340,6 +351,7 @@ async function handleCreateIntent(
     return;
   }
 
+  printStep('拆解任务');
   // Step 4: Plan tasks for each sub-project
   const allTasks = [];
   for (const sp of subProjects) {
@@ -359,6 +371,7 @@ async function handleCreateIntent(
     return;
   }
 
+  printStep('执行代码生成');
   // Step 5: Assemble and execute project
   const project: Project = {
     id: idea.id,
@@ -408,6 +421,27 @@ async function handleCreateIntent(
   console.log(`\n✨ 项目完成！`);
   console.log(`   项目目录: ${rootDir}`);
   console.log(`   任务统计: ${result.completed} 完成, ${result.failed} 失败`);
+
+  // Final monetization readiness check
+  if (idea.monetization && idea.monetization !== 'unknown') {
+    const { checkMonetizationReadiness } = await import('../../core/monetization-readiness.js');
+    const devSp = subProjects.find((s) => s.type === 'development');
+    const checkDir = devSp?.targetDir || rootDir;
+    console.log(`\n💰 变现 readiness 检查 (${idea.monetization})...`);
+    const readiness = checkMonetizationReadiness(checkDir, idea.monetization);
+    console.log(`   变现就绪度: ${readiness.score}/100`);
+    if (readiness.monetizable) {
+      console.log(`   ✅ 变现基础已就绪`);
+    } else {
+      console.log(`   ⚠️  变现尚未完全就绪，以下检查未通过:`);
+      for (const c of readiness.checks.filter((c) => c.required && !c.passed)) {
+        console.log(`      • ${c.message}`);
+      }
+    }
+    for (const c of readiness.checks.filter((c) => !c.required && !c.passed)) {
+      console.log(`      ○ ${c.message} (可选)`);
+    }
+  }
 
   await printLocalRunGuide(rootDir);
 

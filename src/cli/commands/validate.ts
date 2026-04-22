@@ -44,7 +44,7 @@ export function setupValidateCommand(program: Command): void {
 
         let browserScore = staticScore;
         if (project.idea.type === 'game') {
-          const browserResult = validateGameInBrowser(sp.targetDir);
+          const browserResult = await validateGameInBrowser(sp.targetDir);
           browserScore = browserResult.score;
           console.log(`     游戏验证: ${browserResult.playable ? '✅' : '⚠️'} (${browserScore}/100)`);
           if (browserResult.errors.length > 0) {

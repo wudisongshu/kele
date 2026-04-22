@@ -96,7 +96,13 @@ User's original idea: "${escapePromptInput(project.idea.rawText)}"${fileTreeSect
    d) The game MUST be runnable immediately after this task completes. If it's a web game, the user should be able to open the HTML file in a browser. If it requires a build step, include the build config and instructions.
    e) The game MUST have: (1) a visible score/lives/progress display, (2) clear start/restart/game-over states, (3) immediate feedback on player input (visual/audio).
    f) For simple web games: prefer inlining JS/CSS in a single HTML file for easy testing. For complex games or framework-based games: generate proper project structure with all files.
-   g) PWA SUPPORT (MANDATORY): For web games, generate manifest.json AND sw.js. Add <link rel="manifest" href="manifest.json"> and navigator.serviceWorker.register('sw.js') to index.html.`
+   g) PWA SUPPORT (MANDATORY): For web games, generate manifest.json AND sw.js. Add <link rel="manifest" href="manifest.json"> and navigator.serviceWorker.register('sw.js') to index.html.
+   h) MONETIZATION INTEGRATION (MANDATORY): The game MUST include monetization code appropriate for the target platform:
+      - Web/H5 games: Embed Google AdSense or ad container code directly in index.html. Include at least one ad placement (banner at bottom or interstitial between game states).
+      - WeChat Mini Games: Include wx.createRewardedVideoAd() or similar ad SDK calls.
+      - Douyin Mini Games: Include tt.createRewardedVideoAd() or similar ad SDK calls.
+      - If no ad credentials are available, use placeholder IDs and clearly mark them with comments like /* REPLACE_WITH_YOUR_AD_UNIT_ID */.
+      - The game MUST remain fully playable even with placeholder ads — do NOT block gameplay on ad loading.`
       : '';
     const setupConstraint = isSetup
       ? '\n4. This is a SETUP task — generate ONLY project configuration files (package.json, build config, .gitignore, basic HTML). NO game logic, NO application code, NO src/ directory with implementation files.'

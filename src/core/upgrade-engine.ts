@@ -166,7 +166,7 @@ export async function upgradeTask(
 
     // For games, run browser validation
     if (project.idea.type === 'game') {
-      const browser = validateGameInBrowser(subProject.targetDir);
+      const browser = await validateGameInBrowser(subProject.targetDir);
       if (browser.playable) {
         onProgress?.(`   ✅ Game playable (Score: ${browser.score}/100)`);
       } else {

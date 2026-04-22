@@ -70,7 +70,7 @@ function detectRunConfig(targetDir: string): RunConfig | null {
     return { command: 'cargo', args: ['check'], cwd: targetDir };
   }
 
-  // Static HTML — validate HTML structure and basic syntax
+  // Static HTML — validate HTML structure and run JSDOM to catch JS errors
   const htmlPath = join(targetDir, 'index.html');
   if (existsSync(htmlPath)) {
     const html = readFileSync(htmlPath, 'utf-8');
@@ -103,9 +103,31 @@ function detectRunConfig(targetDir: string): RunConfig | null {
       }
     }
 
+    // Try to run the HTML in a lightweight JSDOM check to catch JS syntax/runtime errors
+    // We use node to execute a small inline script that loads JSDOM
+    const jsCheckPath = join(targetDir, '.kele-js-check.mjs');
+    const jsCheckContent = `
+import { JSDOM } from 'jsdom';
+import { readFileSync } from 'fs';
+try {
+  const html = readFileSync('${htmlPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', 'utf-8');
+  const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'file://${targetDir.replace(/\\/g, '/').replace(/'/g, "%27")}/', pretendToBeVisual: true });
+  // Let scripts run briefly
+  await new Promise(r => setTimeout(r, 50));
+  dom.window.close();
+  console.log('[kele] HTML JS runtime check PASSED');
+  process.exit(0);
+} catch (err) {
+  console.error('[kele] HTML JS runtime check FAILED:', err.message);
+  process.exit(1);
+}
+`;
+    const { writeFileSync } = await import('fs');
+    writeFileSync(jsCheckPath, jsCheckContent);
+
     return {
-      command: 'echo',
-      args: [`[kele] HTML validation PASSED: doctype=${hasDoctype}, html=${hasHtmlTag}, body=${hasBody}, script=${hasScript}`],
+      command: 'node',
+      args: [jsCheckPath],
       cwd: targetDir,
       env: { KELE_HTML_VALID: 'true' },
     };

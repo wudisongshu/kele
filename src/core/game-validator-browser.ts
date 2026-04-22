@@ -56,7 +56,7 @@ export function detectGameProjectType(targetDir: string): GameProjectType {
  * - Missing game loops or input handlers
  * - Files that reference non-existent resources
  */
-export function validateGameInBrowser(targetDir: string): BrowserValidationResult {
+export async function validateGameInBrowser(targetDir: string): Promise<BrowserValidationResult> {
   const result: BrowserValidationResult = {
     playable: false,
     score: 0,
@@ -210,7 +210,7 @@ function validateMiniProgramGame(targetDir: string, result: BrowserValidationRes
   return result;
 }
 
-function validateHtmlGame(targetDir: string, result: BrowserValidationResult): BrowserValidationResult {
+async function validateHtmlGame(targetDir: string, result: BrowserValidationResult): Promise<BrowserValidationResult> {
   const htmlPath = join(targetDir, 'index.html');
   if (!existsSync(htmlPath)) {
     result.errors.push('No index.html found');
@@ -254,11 +254,13 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
 
   try {
     // Create a mock 2D canvas context that satisfies common game canvas operations
+    let drawCalls = 0;
+
     const mockCtx = {
       clearRect: () => {},
-      fillRect: () => {},
-      strokeRect: () => {},
-      fillText: () => {},
+      fillRect: () => { drawCalls++; },
+      strokeRect: () => { drawCalls++; },
+      fillText: () => { drawCalls++; },
       strokeText: () => {},
       measureText: (text: string) => ({ width: (text?.length || 0) * 8 }),
       beginPath: () => {},
@@ -267,7 +269,7 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
       lineTo: () => {},
       stroke: () => {},
       fill: () => {},
-      arc: () => {},
+      arc: () => { drawCalls++; },
       arcTo: () => {},
       bezierCurveTo: () => {},
       quadraticCurveTo: () => {},
@@ -283,7 +285,7 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
       createLinearGradient: () => ({ addColorStop: () => {} }),
       createRadialGradient: () => ({ addColorStop: () => {} }),
       createPattern: () => ({}),
-      drawImage: () => {},
+      drawImage: () => { drawCalls++; },
       getImageData: () => ({ data: new Uint8ClampedArray(0) }),
       putImageData: () => {},
       createImageData: () => ({ data: new Uint8ClampedArray(0) }),
@@ -316,6 +318,29 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
       url: 'file://' + targetDir + '/',
       pretendToBeVisual: true,
       beforeParse(window: any) {
+        // Track whether any input event handler actually runs
+        (window as any).__kele_eventHandlerRan = false;
+
+        const origAddEventListener = window.EventTarget.prototype.addEventListener;
+        window.EventTarget.prototype.addEventListener = function(type: string, handler: any, options?: any) {
+          const wrapped = function(this: any, event: any) {
+            if (
+              type === 'click' || type === 'mousedown' || type === 'pointerdown' ||
+              type === 'touchstart' || type === 'touchend' || type === 'touchmove' ||
+              type === 'keydown' || type === 'keyup' || type === 'keypress'
+            ) {
+              (window as any).__kele_eventHandlerRan = true;
+            }
+            if (typeof handler === 'function') {
+              return handler.call(this, event);
+            }
+            if (handler && typeof handler.handleEvent === 'function') {
+              return handler.handleEvent(event);
+            }
+          };
+          return origAddEventListener.call(this, type, wrapped, options);
+        };
+
         const proto = window.HTMLCanvasElement.prototype;
         const orig = proto.getContext;
         proto.getContext = function(contextId: string) {
@@ -339,6 +364,9 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
       jsErrors.push(`[window.error] ${msg}`);
     });
 
+    // Wait briefly for scripts to initialize and register loops / listeners
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     // Check if canvas element exists
     const canvas = doc.getElementById('c') as HTMLCanvasElement | null;
     if (!canvas) {
@@ -346,6 +374,28 @@ function validateHtmlGame(targetDir: string, result: BrowserValidationResult): B
       if (allCanvas.length > 0) {
         result.details.hasCanvas = true;
       }
+    } else {
+      result.details.hasCanvas = true;
+    }
+
+    // Dispatch a simulated click on the canvas to test input handling
+    const targetCanvas = doc.querySelector('canvas') as HTMLCanvasElement | null;
+    if (targetCanvas) {
+      const clickEvent = new window.MouseEvent('click', { bubbles: true, cancelable: true });
+      targetCanvas.dispatchEvent(clickEvent);
+    }
+
+    // Dispatch a simulated keydown on the document to test keyboard input
+    const keyEvent = new window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+    doc.dispatchEvent(keyEvent);
+
+    // Set canvasDrawn based on actual draw calls
+    result.details.canvasDrawn = drawCalls > 0;
+
+    // If an event handler actually ran during our dispatched events, confirm input handling
+    const eventHandlerRan = (window as any).__kele_eventHandlerRan || false;
+    if (eventHandlerRan) {
+      result.details.hasInputHandler = true;
     }
 
     dom.window.close();

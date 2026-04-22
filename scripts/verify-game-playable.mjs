@@ -77,7 +77,7 @@ async function verifyGame(name, ideaText) {
   const quick = quickGameCheck(sp.targetDir);
   console.log('Quick check:', quick.ok ? '✅' : '❌', quick.issues);
 
-  const browser = validateGameInBrowser(sp.targetDir);
+  const browser = await validateGameInBrowser(sp.targetDir);
   console.log('Browser validation:');
   console.log('  Playable:', browser.playable ? '✅' : '❌');
   console.log('  Score:', browser.score);
