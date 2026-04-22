@@ -12,6 +12,7 @@
 
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { debugLog } from '../debug.js';
 
 export interface PlayabilityCategory {
   name: string;
@@ -76,8 +77,9 @@ function extractGameCode(gameDir: string): string {
           parts.push(readFileSync(join(dir, entry.name), 'utf-8'));
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Game playability readdir failed: ${dir}`, msg);
     }
   }
   collect(gameDir);

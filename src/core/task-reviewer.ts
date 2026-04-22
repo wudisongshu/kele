@@ -147,7 +147,9 @@ function gatherOutputSummary(targetDir: string): string {
       try {
         const stat = readFileSync(join(targetDir, e));
         return stat !== undefined; // it's a file, not a dir
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`Task reviewer stat failed: ${e}`, msg);
         return false;
       }
     });
@@ -163,7 +165,9 @@ function gatherOutputSummary(targetDir: string): string {
         const content = readFileSync(join(targetDir, file), 'utf-8');
         const preview = content.slice(0, 800);
         summaries.push(`--- ${file} ---\n${preview}${content.length > 800 ? '\n... (truncated)' : ''}`);
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog(`Task reviewer file read failed: ${file}`, msg);
         summaries.push(`--- ${file} --- (unable to read)`);
       }
     }
@@ -173,7 +177,9 @@ function gatherOutputSummary(targetDir: string): string {
     }
 
     return summaries.join('\n\n');
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`Task reviewer directory read failed: ${targetDir}`, msg);
     return '(error reading directory)';
   }
 }
