@@ -174,6 +174,7 @@ export async function incubateWithAI(
   idea: Idea,
   rootDir: string,
   adapter: AIAdapter,
+  onProgress?: (msg: string) => void,
 ): Promise<AIIncubateResult> {
   const validationMeta = {
     localValid: false,
@@ -186,10 +187,19 @@ export async function incubateWithAI(
 
   // kele principle: no timeouts. Wait indefinitely for AI to respond.
 
+  // Streaming progress: notify user when AI starts responding
+  let firstTokenReceived = false;
+  const onToken = (_token: string) => {
+    if (!firstTokenReceived) {
+      firstTokenReceived = true;
+      onProgress?.('   ✍️  AI 开始分析...（请耐心等待，通常需要 30-90 秒）');
+    }
+  };
+
   // --- Attempt 1: Generate initial plan ---
   let result: AIIncubateResult;
   try {
-    result = await tryIncubate(idea, rootDir, adapter);
+    result = await tryIncubate(idea, rootDir, adapter, onToken);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     return { success: false, error, validation: validationMeta };
@@ -208,7 +218,7 @@ export async function incubateWithAI(
   while (!localValidation.valid && fixAttempt <= MAX_LOCAL_FIX_ATTEMPTS) {
     try {
       const fixed = await tryFixIncubator(
-        idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? ''
+        idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? '', onToken
       );
       if (fixed.success && fixed.subProjects) {
         result = fixed;
@@ -233,7 +243,7 @@ export async function incubateWithAI(
     let reviewAttempt = 1;
     while (reviewAttempt <= MAX_AI_REVIEW_ATTEMPTS) {
       try {
-        const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea);
+        const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea, onToken);
         validationMeta.aiApproved = review.approved;
         validationMeta.aiIssues = review.issues;
 
@@ -241,7 +251,7 @@ export async function incubateWithAI(
 
         // Try to fix based on AI review — infinite loop until approved
         const fixed = await tryFixIncubator(
-          idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? ''
+          idea, rootDir, adapter, result.subProjects!, review.issues, review.suggestions, result.reasoning ?? '', result.monetizationPath ?? '', onToken
         );
         if (fixed.success && fixed.subProjects) {
           result = fixed;
@@ -261,7 +271,7 @@ export async function incubateWithAI(
           let structFixAttempt = 1;
           while (!validationMeta.localValid && structFixAttempt <= MAX_STRUCT_FIX_ATTEMPTS) {
             const structFixed = await tryFixIncubator(
-              idea, rootDir, adapter, result.subProjects!, validationMeta.localErrors, validationMeta.localWarnings, result.reasoning ?? '', result.monetizationPath ?? ''
+              idea, rootDir, adapter, result.subProjects!, validationMeta.localErrors, validationMeta.localWarnings, result.reasoning ?? '', result.monetizationPath ?? '', onToken
             );
             if (structFixed.success && structFixed.subProjects) {
               result = structFixed;
@@ -295,13 +305,14 @@ export async function incubateWithAI(
 async function tryIncubate(
   idea: Idea,
   rootDir: string,
-  adapter: AIAdapter
+  adapter: AIAdapter,
+  onToken?: (token: string) => void,
 ): Promise<AIIncubateResult> {
   try {
     const prompt = `${INCUBATOR_PROMPT}\n\nUser idea: "${idea.rawText}"\nDetected type: ${idea.type}\nDetected complexity: ${idea.complexity}\nMonetization channel: ${idea.monetization}`;
 
     debugLog('AI Incubator Prompt', prompt);
-    const response = await adapter.execute(prompt);
+    const response = await adapter.execute(prompt, onToken);
 
     const parsedResult = safeJsonParse(response);
     if (!parsedResult.data) {
@@ -324,7 +335,8 @@ async function tryFixIncubator(
   errors: string[],
   warnings: string[],
   reasoning: string,
-  monetizationPath: string
+  monetizationPath: string,
+  onToken?: (token: string) => void,
 ): Promise<AIIncubateResult> {
   try {
     const fixPrompt = `${INCUBATOR_PROMPT}\n\n` +
@@ -335,7 +347,7 @@ async function tryFixIncubator(
       `Please return a corrected JSON in the same format.`;
 
     debugLog('AI Incubator Fix Prompt', fixPrompt);
-    const response = await adapter.execute(fixPrompt);
+    const response = await adapter.execute(fixPrompt, onToken);
 
     const parsedResult = safeJsonParse(response);
     if (!parsedResult.data) {
@@ -353,13 +365,14 @@ async function tryFixIncubator(
 async function reviewIncubatorOutput(
   adapter: AIAdapter,
   subProjects: SubProject[],
-  idea: Idea
+  idea: Idea,
+  onToken?: (token: string) => void,
 ): Promise<{ approved: boolean; severity: string; issues: string[]; suggestions: string[] }> {
   try {
     const reviewPrompt = `${REVIEW_PROMPT}\n\nUser idea: "${idea.rawText}"\nComplexity: ${idea.complexity}\nMonetization: ${idea.monetization}\n\nProject plan:\n${JSON.stringify(subProjects, null, 2)}`;
 
     debugLog('AI Incubator Review Prompt', reviewPrompt);
-    const response = await adapter.execute(reviewPrompt);
+    const response = await adapter.execute(reviewPrompt, onToken);
 
     const parsedResult = safeJsonParse<{
       approved: boolean;
