@@ -108,7 +108,7 @@ export function setupCreateCommand(program: Command): void {
 
 async function handleCreateIntent(
   ideaText: string,
-  options: { output?: string; yes: boolean; timeout?: number; json?: boolean; skipPartner?: boolean },
+  options: { output?: string; yes: boolean; timeout?: number; json?: boolean; skipPartner?: boolean; recoveryMode?: string },
   db: KeleDatabase,
   useMock: boolean = false,
 ) {

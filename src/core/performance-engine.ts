@@ -17,6 +17,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { join, extname, relative } from 'path';
+import { debugLog } from '../debug.js';
 
 /* ──────────────────────────────────────────────
    Types
