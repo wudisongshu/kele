@@ -62,4 +62,21 @@ describe('TemplateLoader', () => {
       expect(template.length).toBeGreaterThan(0);
     }
   });
+
+  it('loads wechat-miniprogram template', () => {
+    const files = loadTemplate('wechat-miniprogram');
+    expect(files.length).toBeGreaterThan(0);
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('game.json');
+  });
+
+  it('loads android-app template', () => {
+    const files = loadTemplate('android-app');
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  it('loads ios-app template', () => {
+    const files = loadTemplate('ios-app');
+    expect(files.length).toBeGreaterThan(0);
+  });
 });
