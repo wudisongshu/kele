@@ -39,3 +39,4 @@ kele-projects/
 # Test artifacts
 coverage/
 
+.node/

@@ -262,6 +262,7 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
           title: 'Integrate monetization',
           description:
             'Generate and integrate monetization code for the target platform. ' +
+            'NOTE: The development task already attempted to embed basic monetization code. Your job is to VERIFY, COMPLETE, and OPTIMIZE it. ' +
             'CRITICAL: The ad code MUST be embedded directly into the existing game/product files, not just placed in a separate file. ' +
             'For H5/Web games: modify the game\'s index.html to include ad containers (banner at bottom, interstitial between levels). Use the actual AdSense script tags. ' +
             'For WeChat Mini Games: add 微信广告 SDK initialization and ad unit calls to the game code (激励视频、插屏广告、Banner广告). ' +
@@ -269,7 +270,8 @@ function getTaskTemplates(subProjectType: string, ideaType: string, subProjectNa
             'For Google Play: add AdMob SDK to the Android project. ' +
             'For App Store: add AdMob SDK to the iOS project. ' +
             'Also generate deployment config files (CI/CD workflows, platform configs) and a MONETIZE.md with revenue estimates and account setup instructions. ' +
-            'If ad credentials are not configured, use placeholder IDs and clearly mark them as TODO items for the user to replace.',
+            'If ad credentials are not configured, use placeholder IDs and clearly mark them as TODO items for the user to replace. ' +
+            'If the development task already included ad code, enhance it (add more ad placements, improve timing, add fallback handling).',
           baseComplexity: 'medium',
         },
       ];

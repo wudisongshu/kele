@@ -85,8 +85,9 @@ export function loadTemplate(type: TemplateType): TemplateFile[] {
 
 /**
  * Copy template files to target directory.
+ * @param skipExisting - If true, only copy files that don't already exist in the target directory.
  */
-export function copyTemplate(type: TemplateType, targetDir: string): string[] {
+export function copyTemplate(type: TemplateType, targetDir: string, skipExisting = false): string[] {
   const files = loadTemplate(type);
   const written: string[] = [];
 
@@ -96,6 +97,10 @@ export function copyTemplate(type: TemplateType, targetDir: string): string[] {
 
     if (!existsSync(destDir)) {
       mkdirSync(destDir, { recursive: true });
+    }
+
+    if (skipExisting && existsSync(destPath)) {
+      continue;
     }
 
     writeFileSync(destPath, file.content, 'utf-8');

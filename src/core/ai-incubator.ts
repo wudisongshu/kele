@@ -216,6 +216,7 @@ export async function incubateWithAI(
 
   let fixAttempt = 1;
   while (!localValidation.valid && fixAttempt <= MAX_LOCAL_FIX_ATTEMPTS) {
+    onProgress?.(`   🔄 孵化器自检发现问题，正在修正 (第 ${fixAttempt}/${MAX_LOCAL_FIX_ATTEMPTS} 次)...`);
     try {
       const fixed = await tryFixIncubator(
         idea, rootDir, adapter, result.subProjects!, localValidation.errors, localValidation.warnings, result.reasoning ?? '', result.monetizationPath ?? '', onToken
@@ -240,9 +241,11 @@ export async function incubateWithAI(
     localValidation.warnings.length > 0 || idea.complexity === 'complex';
 
   if (needsAiReview) {
+    onProgress?.(`   🔍 孵化器进入 AI 审查阶段...`);
     let reviewAttempt = 1;
     while (reviewAttempt <= MAX_AI_REVIEW_ATTEMPTS) {
       try {
+        onProgress?.(`   🔄 AI 审查第 ${reviewAttempt}/${MAX_AI_REVIEW_ATTEMPTS} 轮...`);
         const review = await reviewIncubatorOutput(adapter, result.subProjects!, idea, onToken);
         validationMeta.aiApproved = review.approved;
         validationMeta.aiIssues = review.issues;

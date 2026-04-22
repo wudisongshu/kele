@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { spawn } from 'child_process';
+import { JSDOM } from 'jsdom';
 
 /**
  * Run Validator — executes generated code locally to confirm it actually works.
@@ -103,31 +104,9 @@ async function detectRunConfig(targetDir: string): Promise<RunConfig | null> {
       }
     }
 
-    // Try to run the HTML in a lightweight JSDOM check to catch JS syntax/runtime errors
-    // We use node to execute a small inline script that loads JSDOM
-    const jsCheckPath = join(targetDir, '.kele-js-check.mjs');
-    const jsCheckContent = `
-import { JSDOM } from 'jsdom';
-import { readFileSync } from 'fs';
-try {
-  const html = readFileSync('${htmlPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', 'utf-8');
-  const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'file://${targetDir.replace(/\\/g, '/').replace(/'/g, "%27")}/', pretendToBeVisual: true });
-  // Let scripts run briefly
-  await new Promise(r => setTimeout(r, 50));
-  dom.window.close();
-  console.log('[kele] HTML JS runtime check PASSED');
-  process.exit(0);
-} catch (err) {
-  console.error('[kele] HTML JS runtime check FAILED:', err.message);
-  process.exit(1);
-}
-`;
-    const { writeFileSync } = await import('fs');
-    writeFileSync(jsCheckPath, jsCheckContent);
-
     return {
-      command: 'node',
-      args: [jsCheckPath],
+      command: 'echo',
+      args: [`[kele] HTML validation PASSED: doctype=${hasDoctype}, html=${hasHtmlTag}, body=${hasBody}, script=${hasScript}`],
       cwd: targetDir,
       env: { KELE_HTML_VALID: 'true' },
     };
@@ -215,6 +194,31 @@ export async function runProject(targetDir: string): Promise<RunResult> {
 
   // Run the actual validation command
   const result = await runCommand(config);
+
+  // For HTML projects, additionally run JSDOM to catch JS runtime errors
+  if (config.env?.KELE_HTML_VALID === 'true') {
+    const htmlPath = join(targetDir, 'index.html');
+    if (existsSync(htmlPath)) {
+      try {
+        const html = readFileSync(htmlPath, 'utf-8');
+        const dom = new JSDOM(html, {
+          runScripts: 'dangerously',
+          url: 'file://' + targetDir + '/',
+          pretendToBeVisual: true,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        dom.window.close();
+      } catch (jsdomErr) {
+        const msg = jsdomErr instanceof Error ? jsdomErr.message : String(jsdomErr);
+        return {
+          ...result,
+          success: false,
+          stderr: `[kele] HTML JS runtime check FAILED: ${msg}`,
+        };
+      }
+    }
+  }
+
   return result;
 }
 

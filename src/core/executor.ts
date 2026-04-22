@@ -570,13 +570,13 @@ export async function executeTask(
     const modelLabel = modelInfo ? ` (${modelInfo.name})` : '';
     onProgress?.(`   ${nextStep()} 🤖 Using ${route.provider}${modelLabel}`);
 
-    // For setup tasks, copy the appropriate template based on monetization channel
-    if (subProject.type === 'setup') {
-      const templateType = getTemplateType(project.idea.monetization);
-      const copied = copyTemplate(templateType, subProject.targetDir);
-      if (copied.length > 0) {
-        onProgress?.(`   📁 Template copied (${templateType}): ${copied.join(', ')}`);
-      }
+    // For setup tasks, AFTER AI generates config, copy template files that are missing.
+    // This ensures AI-generated files (like index.html) are not overwritten by templates.
+    // Templates provide scaffolding (manifest.json, sw.js, ads.txt) that AI might forget.
+    const isSetupTask = subProject.type === 'setup';
+    let templateType: string | null = null;
+    if (isSetupTask) {
+      templateType = getTemplateType(project.idea.monetization);
     }
 
     const prompt = buildTaskPrompt(task, subProject, project);
@@ -608,6 +608,15 @@ export async function executeTask(
     const writtenFiles = await processOutput(ctx, output, prompt, provider);
     if (writtenFiles.length === 0) {
       throw new ValidationError('AI 返回空输出，未生成任何文件。这通常是因为 API 超时或返回了空响应。建议：(1) 检查网络连接和 API provider 状态，(2) 运行 kele retry 重试此任务，(3) 使用 kele --mock 快速测试。');
+    }
+
+    // After AI writes files, copy missing template files (e.g., manifest.json, sw.js, ads.txt)
+    // This prevents AI from overwriting template scaffolding while ensuring nothing is missing.
+    if (isSetupTask && templateType) {
+      const copied = copyTemplate(templateType as import('./template-loader.js').TemplateType, subProject.targetDir, true);
+      if (copied.length > 0) {
+        onProgress?.(`   📁 Template scaffolding copied (missing only): ${copied.join(', ')}`);
+      }
     }
 
     // Phase 3: Validation + runtime
