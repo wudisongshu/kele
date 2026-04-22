@@ -15,6 +15,7 @@ import { executeWithFallback, executeFixWithFallback } from './adapter-utils.js'
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { trackTaskComplete, trackTaskFail, trackFixAttempt } from './telemetry.js';
+import { analyzeFailure, runRecoveryWizard, buildSimplifiedDescription, type RecoveryMode } from './recovery-wizard.js';
 
 /**
  * Executor — schedules and runs tasks in dependency order.
@@ -38,6 +39,8 @@ export interface ExecutorOptions {
   timeout?: number;
   /** AbortSignal to gracefully interrupt execution */
   signal?: AbortSignal;
+  /** Failure recovery mode: auto = auto-fix, skip = ignore failures, interactive = ask user */
+  recoveryMode?: RecoveryMode;
 }
 
 const CODING_TYPES = ['setup', 'development', 'production', 'creation', 'build', 'testing', 'deployment', 'monetization'];
@@ -527,6 +530,58 @@ class ValidationError extends Error {
   }
 }
 
+const RECOVERY_ATTEMPT_KEY = Symbol('recoveryAttempt');
+
+/**
+ * Handle task failure via the Recovery Wizard.
+ * Limits to 1 recovery attempt per task to avoid infinite loops.
+ */
+async function handleTaskFailure(
+  task: Task,
+  subProject: SubProject,
+  project: Project,
+  options: ExecutorOptions,
+  error: string
+): Promise<{ recovered: boolean; result?: ExecuteResult; error?: string }> {
+  const attempt = ((task as unknown as Record<symbol, number>)[RECOVERY_ATTEMPT_KEY] || 0);
+  if (attempt >= 1) {
+    return { recovered: false };
+  }
+
+  const { onProgress } = options;
+  const diagnosis = analyzeFailure(task, error);
+  const recovery = await runRecoveryWizard(diagnosis, options.recoveryMode || 'interactive', options.autoRun || false);
+
+  onProgress?.(`   🔄 恢复模式: ${recovery.message}`);
+
+  if (recovery.action === 'retry' || recovery.action === 'auto_fix') {
+    (task as unknown as Record<symbol, number>)[RECOVERY_ATTEMPT_KEY] = attempt + 1;
+    task.status = 'pending';
+    task.error = undefined;
+    options.db.saveTask(task, project.id);
+    onProgress?.(`   🔄 重试任务...`);
+    const result = await executeTask(task, subProject, project, options);
+    return { recovered: true, result };
+  }
+
+  if (recovery.action === 'simplify') {
+    (task as unknown as Record<symbol, number>)[RECOVERY_ATTEMPT_KEY] = attempt + 1;
+    task.description = buildSimplifiedDescription(task.description, error);
+    task.status = 'pending';
+    task.error = undefined;
+    options.db.saveTask(task, project.id);
+    onProgress?.(`   🔄 以简化版需求重试...`);
+    const result = await executeTask(task, subProject, project, options);
+    return { recovered: true, result };
+  }
+
+  if (recovery.action === 'skip') {
+    return { recovered: false, error: recovery.message };
+  }
+
+  return { recovered: false, error: recovery.message };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main entry points
 // ─────────────────────────────────────────────────────────────────────────────
@@ -639,19 +694,22 @@ export async function executeTask(
     onProgress?.(`   ✅ Completed`);
     return { success: true, output };
   } catch (err) {
-    if (err instanceof ValidationError) {
-      // Already logged and saved inside the phase function
-      return { success: false, error: err.message };
+    const error = err instanceof Error ? err.message : String(err);
+
+    // Recovery wizard: diagnose and offer repair options
+    const recovery = await handleTaskFailure(task, subProject, project, options, error);
+    if (recovery.recovered) {
+      return recovery.result!;
     }
 
-    const error = err instanceof Error ? err.message : String(err);
+    const finalError = recovery.error || error;
     const duration = Date.now() - taskStartTime;
     task.status = 'failed';
-    task.error = error;
+    task.error = finalError;
     db.saveTask(task, project.id);
-    trackTaskFail(project.id, task.id, task.aiProvider || 'unknown', error, duration);
-    onProgress?.(`   ❌ Failed: ${error.slice(0, 200)}`);
-    return { success: false, error };
+    trackTaskFail(project.id, task.id, task.aiProvider || 'unknown', finalError, duration);
+    onProgress?.(`   ❌ Failed: ${finalError.slice(0, 200)}`);
+    return { success: false, error: finalError };
   }
 }
 

@@ -2,6 +2,7 @@ import type { Project, SubProject } from '../types/index.js';
 import type { ProviderRegistry } from '../adapters/index.js';
 import type { KeleDatabase } from '../db/index.js';
 import { sortSubProjects, executeTask } from './executor.js';
+import type { RecoveryMode } from './recovery-wizard.js';
 import { reviewProjectHealth } from './project-reviewer.js';
 import { formatDuration } from '../cli/utils.js';
 
@@ -12,6 +13,7 @@ export interface ProjectExecutorOptions {
   onProgress?: (message: string) => void;
   timeout?: number;
   signal?: AbortSignal;
+  recoveryMode?: RecoveryMode;
 }
 
 /**

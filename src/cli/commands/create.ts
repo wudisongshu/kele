@@ -34,8 +34,9 @@ export function setupCreateCommand(program: Command): void {
     .option('--mock', 'Force mock AI mode for fast testing (no API calls)', false)
     .option('--json', 'Output structured JSON instead of human-readable text (for CI/CD)', false)
     .option('--dry-run', 'Show what would be done without executing AI calls', false)
+    .option('--recovery-mode <mode>', 'Failure recovery: auto, skip, interactive (default)', 'interactive')
     .option('--quiet', 'Suppress non-error output', false)
-    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean }) => {
+    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean; recoveryMode?: string }) => {
       if (options.quiet) {
         const originalLog = console.log;
         console.log = () => {};
@@ -406,6 +407,7 @@ async function handleCreateIntent(
     onProgress: (msg) => console.log(msg),
     timeout: options.timeout,
     signal: abortController.signal,
+    recoveryMode: (['auto', 'skip', 'interactive'].includes((options as any).recoveryMode) ? (options as any).recoveryMode : 'interactive') as import('../../core/recovery-wizard.js').RecoveryMode,
   });
 
   process.off('SIGINT', sigintHandler);
