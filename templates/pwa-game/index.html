@@ -7,6 +7,8 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>kele Game</title>
+  <!-- AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -28,6 +30,10 @@
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <!-- Ad containers -->
+  <div id="ad-banner-bottom" style="position:fixed;bottom:0;left:0;right:0;text-align:center;z-index:1000;min-height:50px;background:transparent;"></div>
+  <div id="ad-interstitial" style="display:none;"></div>
+  <script src="js/adsense-init.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -2,10 +2,10 @@ const CACHE_NAME = 'kele-app-v1';
 const ASSETS = [
   '/',
   '/index.html',
-  '/src/main.ts',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png'
+  // Vite builds assets to /assets/ — AI-generated files will be cached dynamically
 ];
 
 self.addEventListener('install', (event) => {
