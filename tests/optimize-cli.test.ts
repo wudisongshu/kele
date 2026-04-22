@@ -110,4 +110,15 @@ describe('optimize CLI', () => {
     expect(opts.dryRun).toBe(true);
     expect(opts.report).toBe(false);
   });
+
+  it('should default all flags to false', () => {
+    const program = new Command();
+    setupOptimizeCommand(program);
+    const optimizeCmd = program.commands.find((c) => c.name() === 'optimize')!;
+    const opts = optimizeCmd.opts();
+    expect(opts.mock).toBe(false);
+    expect(opts.auto).toBe(false);
+    expect(opts.dryRun).toBe(false);
+    expect(opts.report).toBe(false);
+  });
 });

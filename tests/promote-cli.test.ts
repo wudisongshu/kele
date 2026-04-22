@@ -79,4 +79,15 @@ describe('promote CLI', () => {
     expect(opts.schedule).toBe(false);
     expect(opts.output).toBeUndefined();
   });
+
+  it('should parse combined options', () => {
+    const program = new Command();
+    setupPromoteCommand(program);
+    const cmd = program.commands.find((c) => c.name() === 'promote')!;
+    cmd.parseOptions(['test-id', '--channel', 'twitter', '--schedule', '--output', '/tmp/out']);
+    const opts = cmd.opts();
+    expect(opts.channel).toBe('twitter');
+    expect(opts.schedule).toBe(true);
+    expect(opts.output).toBe('/tmp/out');
+  });
 });

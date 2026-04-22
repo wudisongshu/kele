@@ -118,4 +118,24 @@ describe('TaskPlanner', () => {
     const titles = result.tasks!.map((t) => t.title);
     expect(titles).toContain('Initialize project with minimal configuration');
   });
+
+  it('should generate monetization tasks for monetization sub-project', () => {
+    const sp = makeSubProject({ type: 'monetization' });
+    const idea = makeIdea();
+    const result = planTasks(sp, idea);
+
+    expect(result.tasks!.length).toBeGreaterThanOrEqual(1);
+    const titles = result.tasks!.map((t) => t.title);
+    expect(titles.some((t) => t.includes('monetization') || t.includes('Integrate'))).toBe(true);
+  });
+
+  it('should generate deployment tasks for deployment sub-project', () => {
+    const sp = makeSubProject({ type: 'deployment' });
+    const idea = makeIdea();
+    const result = planTasks(sp, idea);
+
+    expect(result.tasks!.length).toBeGreaterThanOrEqual(1);
+    const titles = result.tasks!.map((t) => t.title);
+    expect(titles.some((t) => t.includes('deployment') || t.includes('Generate'))).toBe(true);
+  });
 });

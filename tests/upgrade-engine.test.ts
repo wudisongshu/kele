@@ -2,6 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { batchUpgrade } from '../src/core/upgrade-engine.js';
 import type { AIAdapter } from '../src/adapters/base.js';
 
+function createFailingAdapter(): AIAdapter {
+  return {
+    name: 'mock',
+    isAvailable: () => true,
+    execute: vi.fn().mockRejectedValue(new Error('API error')),
+  } as AIAdapter;
+}
+
 function createMockAdapter(): AIAdapter {
   return {
     name: 'mock',
@@ -131,6 +139,23 @@ describe('upgrade-engine', () => {
 
       expect(result.success).toBe(0);
       expect(result.failed).toBe(0);
+    });
+
+    it('handles adapter failure gracefully', async () => {
+      const adapter = createFailingAdapter();
+      const registry = createMockRegistry(adapter);
+      const db = createMockDb();
+      const project = createMockProject();
+      const tasks = [createMockTask('task-1', 'sp-1')];
+      const subProjects = [createMockSubProject('sp-1')];
+
+      const result = await batchUpgrade(tasks, subProjects, project, 'fix bug', {
+        registry: registry as any,
+        db: db as any,
+      });
+
+      expect(result.success).toBe(0);
+      expect(result.failed).toBe(1);
     });
   });
 });
