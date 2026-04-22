@@ -10,6 +10,7 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'fs';
 import { join } from 'path';
+import { debugLog } from '../debug.js';
 
 /**
  * Assemble the final project by merging all index.patch.html files into index.html.
@@ -36,7 +37,7 @@ export function assembleProject(rootDir: string): { patched: boolean; patches: s
           indexContent = indexContent.replace(/<\/body>/i, (match) => patchContent + '\n' + match);
         }
         // Delete patch file after assembly
-        try { rmSync(patchPath); } catch { /* ignore */ }
+        try { rmSync(patchPath); } catch (err) { debugLog(`Project assembler rm failed: ${patchPath}`, err instanceof Error ? err.message : String(err)); }
       }
     }
   }

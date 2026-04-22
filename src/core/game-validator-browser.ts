@@ -291,11 +291,17 @@ function extractHtmlScripts(html: string, targetDir: string): string {
                 loadedPaths.add(dynPath);
                 try {
                   combined += '\n' + readFileSync(dynPath, 'utf-8');
-                } catch { /* skip unreadable */ }
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : String(err);
+                  debugLog(`Game validator browser dyn script read failed: ${dynPath}`, msg);
+                }
               }
             }
           }
-        } catch { /* skip unreadable */ }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          debugLog('Game validator browser script match failed', msg);
+        }
       }
     }
   }
