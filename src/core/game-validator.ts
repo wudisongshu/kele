@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { findSourceFiles } from './file-utils.js';
+import { debugLog } from '../debug.js';
 
 /**
  * Game Validator — checks if a generated game is actually playable.
@@ -58,8 +59,9 @@ export function validateGamePlayability(targetDir: string): GameValidationResult
   for (const f of jsFiles) {
     try {
       allCode += readFileSync(f, 'utf-8') + '\n';
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Game validator JS read failed: ${f}`, msg);
     }
   }
 

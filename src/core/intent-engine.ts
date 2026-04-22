@@ -1,4 +1,5 @@
 import type { AIAdapter } from '../adapters/base.js';
+import { debugLog } from '../debug.js';
 
 /**
  * Intent Engine — turns natural language into structured actions.
@@ -135,7 +136,9 @@ export async function parseIntent(userInput: string, adapter: AIAdapter): Promis
       default:
         return { type: 'CHAT', message: userInput };
     }
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Intent engine AI parse failed, falling back to heuristic', msg);
     // Fallback: if AI fails, use heuristic parsing
     return heuristicParse(userInput);
   }
