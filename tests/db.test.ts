@@ -284,6 +284,31 @@ describe('KeleDatabase', () => {
       expect(failed).toHaveLength(1);
       expect(failed[0].id).toBe('t1');
     });
+
+    it('updateTaskStatus on non-existent task does not throw', () => {
+      expect(() => db.updateTaskStatus('nonexistent', 'completed', 'result', undefined)).not.toThrow();
+    });
+
+    it('deleteProject on non-existent project does not throw', () => {
+      expect(() => db.deleteProject('nonexistent')).not.toThrow();
+    });
+
+    it('getSubProjects for non-existent project returns empty array', () => {
+      expect(db.getSubProjects('nonexistent')).toEqual([]);
+    });
+
+    it('getTasks for non-existent project returns empty array', () => {
+      expect(db.getTasks('nonexistent')).toEqual([]);
+    });
+
+    it('handles many projects efficiently', () => {
+      for (let i = 0; i < 50; i++) {
+        const p = createTestProject(`bulk-${i}`);
+        db.saveProject(p);
+      }
+      const list = db.listProjects();
+      expect(list).toHaveLength(50);
+    });
   });
 
   describe('getDbPath', () => {

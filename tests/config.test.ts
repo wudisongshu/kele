@@ -165,4 +165,27 @@ describe('config', () => {
     expect(config.providers).toEqual({});
     expect(config.autoYes).toBe(false);
   });
+
+  it('recovers from corruption and allows saving new config', async () => {
+    const configPath = join(TEST_HOME, '.kele', 'config.json');
+    writeFileSync(configPath, 'corrupted', 'utf-8');
+
+    const { loadConfig, saveConfig, setProvider } = await importConfig();
+    const config = loadConfig();
+    expect(config.providers).toEqual({});
+
+    setProvider('kimi', { apiKey: 'sk-test', baseURL: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-128k' });
+    const loaded = loadConfig();
+    expect(loaded.providers.kimi).toBeDefined();
+  });
+
+  it('handles empty config file', async () => {
+    const configPath = join(TEST_HOME, '.kele', 'config.json');
+    writeFileSync(configPath, '', 'utf-8');
+
+    const { loadConfig } = await importConfig();
+    const config = loadConfig();
+    expect(config.providers).toEqual({});
+    expect(config.autoYes).toBe(false);
+  });
 });

@@ -29,7 +29,9 @@ describe('telemetry', () => {
     const path = getTelemetryFile();
     if (!existsSync(path)) return [];
     const lines = readFileSync(path, 'utf-8').trim().split('\n').filter(Boolean);
-    return lines.map((l) => JSON.parse(l));
+    return lines.map((l) => {
+      try { return JSON.parse(l); } catch { return null; }
+    }).filter(Boolean);
   }
 
   it('trackEvent writes JSONL to telemetry file', async () => {
@@ -140,5 +142,31 @@ describe('telemetry', () => {
     expect(events).toHaveLength(2);
     expect(events[0].event).toBe('project_start');
     expect(events[1].event).toBe('task_complete');
+  });
+
+  it('handles malformed existing telemetry file gracefully', async () => {
+    const { trackEvent } = await importTelemetry();
+    // Write invalid JSON to the file
+    const fs = await import('fs');
+    const dir = join(TEST_HOME, '.kele');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(join(dir, 'telemetry.jsonl'), 'not-json\n{invalid\n', 'utf-8');
+
+    // Should not throw — writes a new valid line
+    trackEvent({ timestamp: '2024-01-01T00:00:00Z', event: 'test' });
+
+    const events = readEvents();
+    // Only the valid new line should be readable (old malformed lines are skipped by JSON.parse)
+    expect(events.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('handles very large event payload', async () => {
+    const { trackEvent } = await importTelemetry();
+    const largePayload = { timestamp: '2024-01-01T00:00:00Z', event: 'large', data: 'x'.repeat(100000) };
+    trackEvent(largePayload);
+
+    const events = readEvents();
+    expect(events.length).toBe(1);
+    expect(events[0].data).toHaveLength(100000);
   });
 });

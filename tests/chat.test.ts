@@ -241,6 +241,119 @@ describe('handleChatIntent', () => {
     expect(result.action).toBe('MODIFY');
     expect(result.message).toContain('未找到');
   });
+
+  it('handles CREATE intent via CHAT fallback', async () => {
+    const project = makeMockProject();
+    const ctx = createChatContext(project.id);
+    const mockAdapter = {
+      name: 'mock',
+      execute: vi.fn().mockResolvedValue('Created new project plan'),
+    };
+    const registry = {
+      route: () => ({ provider: 'mock', adapter: mockAdapter }),
+    } as any;
+
+    const result = await handleChatIntent(
+      { type: 'CREATE', idea: '做一个新游戏' },
+      project,
+      ctx,
+      { registry }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('CHAT');
+    expect(result.message).toContain('Created new project plan');
+  });
+
+  it('handles CHAT intent directly', async () => {
+    const project = makeMockProject();
+    const ctx = createChatContext(project.id);
+    const mockAdapter = {
+      name: 'mock',
+      execute: vi.fn().mockResolvedValue('Hello! How can I help?'),
+    };
+    const registry = {
+      route: () => ({ provider: 'mock', adapter: mockAdapter }),
+    } as any;
+
+    const result = await handleChatIntent(
+      { type: 'CHAT', message: '你好' },
+      project,
+      ctx,
+      { registry }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('CHAT');
+    expect(result.message).toContain('Hello! How can I help?');
+  });
+
+  it('handles CONFIG intent via CHAT fallback', async () => {
+    const project = makeMockProject();
+    const ctx = createChatContext(project.id);
+    const mockAdapter = {
+      name: 'mock',
+      execute: vi.fn().mockResolvedValue('Config updated'),
+    };
+    const registry = {
+      route: () => ({ provider: 'mock', adapter: mockAdapter }),
+    } as any;
+
+    const result = await handleChatIntent(
+      { type: 'CONFIG', key: 'provider', value: 'kimi' },
+      project,
+      ctx,
+      { registry }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('CHAT');
+  });
+
+  it('handles DELETE intent via CHAT fallback', async () => {
+    const project = makeMockProject();
+    const ctx = createChatContext(project.id);
+    const mockAdapter = {
+      name: 'mock',
+      execute: vi.fn().mockResolvedValue('Deleted'),
+    };
+    const registry = {
+      route: () => ({ provider: 'mock', adapter: mockAdapter }),
+    } as any;
+
+    const result = await handleChatIntent(
+      { type: 'DELETE', target: 'project' },
+      project,
+      ctx,
+      { registry }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.action).toBe('CHAT');
+  });
+
+  it('handles unknown intent via CHAT fallback with adapter error', async () => {
+    const project = makeMockProject();
+    const ctx = createChatContext(project.id);
+    const mockAdapter = {
+      name: 'mock',
+      execute: vi.fn().mockRejectedValue(new Error('adapter down')),
+    };
+    const registry = {
+      route: () => ({ provider: 'mock', adapter: mockAdapter }),
+    } as any;
+
+    const result = await handleChatIntent(
+      { type: 'CHAT', message: 'test' },
+      project,
+      ctx,
+      { registry }
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('CHAT');
+    expect(result.message).toContain('adapter down');
+  });
 });
 
 describe('CLI command setup', () => {
