@@ -6,6 +6,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { Command } from 'commander';
+import { debugLog } from '../../debug.js';
 
 export function runDoctor(fix = false): void {
   let issues: string[] = [];
@@ -35,7 +36,9 @@ export function runDoctor(fix = false): void {
     if (freeGB < 1) {
       issues.push('Disk space is very low. Project generation may fail.');
     }
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog('Doctor statfsSync unavailable', msg);
     // statfsSync may not be available on all platforms
   }
 
@@ -57,7 +60,9 @@ export function runDoctor(fix = false): void {
       } else {
         issues.push('No providers configured');
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Doctor config parse failed', msg);
       issues.push('Config file is invalid JSON');
     }
   } else {
@@ -93,14 +98,16 @@ export function runDoctor(fix = false): void {
       const { readdirSync, statSync } = require('fs');
       const files = readdirSync(debugDir);
       const totalSize = files.reduce((sum: number, f: string) => {
-        try { return sum + statSync(join(debugDir, f)).size; } catch { return sum; }
+        try { return sum + statSync(join(debugDir, f)).size; } catch (err) { debugLog(`Doctor stat failed: ${f}`, err instanceof Error ? err.message : String(err)); return sum; }
       }, 0);
       const sizeMB = (totalSize / 1024 / 1024).toFixed(1);
       checks.push(`Debug logs: ${files.length} files, ${sizeMB}MB in ${debugDir}`);
       if (parseFloat(sizeMB) > 100) {
         issues.push(`Debug logs are ${sizeMB}MB. Run: rm -rf ${debugDir}`);
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('Doctor debug dir read failed', msg);
       checks.push(`Debug logs: ${debugDir} exists`);
     }
   } else {
