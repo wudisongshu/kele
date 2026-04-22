@@ -537,15 +537,48 @@ const itchioStrategy: DeployStrategy = {
       }
     } catch { /* ignore */ }
 
+    // Try to get itch username from credentials
+    const itchCreds = getPlatformCredentials('itchio');
+    const configuredUser = itchCreds?.username || itchCreds?.itchUsername;
+    if (configuredUser && configuredUser !== 'YOUR_ITCH_USERNAME') {
+      itchUser = configuredUser;
+    }
+
     const cmd = `butler push "${projectDir}" ${itchUser}/${itchProject}:html`;
 
-    return {
-      success: false,
-      platform: 'itchio',
-      message: `请在 itch.io 创建项目后运行:\n  ${cmd}\n\n或者设置项目名后重试。`,
-      command: cmd,
-      dryRun: false,
-    };
+    if (itchUser === 'YOUR_ITCH_USERNAME') {
+      return {
+        success: false,
+        platform: 'itchio',
+        message: `请在 itch.io 创建项目后运行:\n  ${cmd}\n\n或者配置用户名后重试: kele secrets --platform itchio --set username=yourname`,
+        command: cmd,
+        dryRun: false,
+      };
+    }
+
+    try {
+      const env = { ...process.env };
+      if (itchCreds?.apiKey) {
+        env.BUTLER_API_KEY = itchCreds.apiKey;
+      }
+      const output = execSync(cmd, { stdio: opts.verbose ? 'inherit' : 'pipe', encoding: 'utf-8', timeout: 300000, env });
+      return {
+        success: true,
+        platform: 'itchio',
+        message: `已推送到 itch.io: ${itchUser}/${itchProject}`,
+        output: output.slice(0, 500),
+        dryRun: false,
+      };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        success: false,
+        platform: 'itchio',
+        message: `butler push 失败: ${msg}`,
+        command: cmd,
+        dryRun: false,
+      };
+    }
   },
 
   getDeployGuide(_projectDir: string): string {
@@ -741,7 +774,7 @@ export function detectPlatformFromProject(monetization: string): string | undefi
       return 'itchio';
     case 'discord-bot':
     case 'telegram-bot':
-      return 'vps';
+      return undefined; // Bots require Railway/Render/Vercel — not yet supported
     default:
       return undefined;
   }

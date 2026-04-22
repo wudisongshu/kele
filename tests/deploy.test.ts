@@ -68,9 +68,9 @@ describe('detectPlatformFromProject', () => {
     expect(detectPlatformFromProject('itchio')).toBe('itchio');
   });
 
-  it('maps discord-bot and telegram-bot to vps', () => {
-    expect(detectPlatformFromProject('discord-bot')).toBe('vps');
-    expect(detectPlatformFromProject('telegram-bot')).toBe('vps');
+  it('returns undefined for bot platforms (not yet supported)', () => {
+    expect(detectPlatformFromProject('discord-bot')).toBeUndefined();
+    expect(detectPlatformFromProject('telegram-bot')).toBeUndefined();
   });
 
   it('returns undefined for unsupported platforms', () => {

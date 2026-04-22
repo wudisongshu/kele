@@ -86,9 +86,10 @@ export const PLATFORM_FIELDS: Record<string, Array<{ key: string; label: string;
   ],
   'itchio': [
     { key: 'apiKey', label: 'itch.io Butler API Key', required: false, sensitive: true },
+    { key: 'username', label: 'itch.io Username', required: false, sensitive: false },
   ],
   'github-sponsors': [
-    { key: 'githubUsername', label: 'GitHub Username', required: false, sensitive: false },
+    { key: 'username', label: 'GitHub Username', required: false, sensitive: false },
   ],
   'vps': [
     { key: 'host', label: 'SSH Host (user@server.com)', required: true, sensitive: false },
