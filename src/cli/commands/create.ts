@@ -425,7 +425,7 @@ async function handleCreateIntent(
     onProgress: (msg) => console.log(msg),
     timeout: options.timeout,
     signal: abortController.signal,
-    recoveryMode: (['auto', 'skip', 'interactive'].includes((options as any).recoveryMode) ? (options as any).recoveryMode : 'interactive') as import('../../core/recovery-wizard.js').RecoveryMode,
+    recoveryMode: (['auto', 'skip', 'interactive'].includes(options.recoveryMode || '') ? options.recoveryMode : 'interactive') as import('../../core/recovery-wizard.js').RecoveryMode,
   });
 
   process.off('SIGINT', sigintHandler);
