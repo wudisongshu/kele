@@ -18,6 +18,7 @@ import { setupExportCommand } from './commands/export.js';
 import { setupInitCommand } from './commands/init.js';
 import { setupLogsCommand } from './commands/logs.js';
 import { setupStatsCommand } from './commands/stats.js';
+import { setupDeployCommand } from './commands/deploy.js';
 
 const program = new Command();
 
@@ -32,7 +33,8 @@ program
     `  $ kele upgrade <project> <task> "改像素风"  # Upgrade a task\n` +
     `  $ kele retry <project> <task>             # Retry failed task\n` +
     `  $ kele delete <project>                   # Delete a project\n` +
-    `  $ kele export <project> [dir]             # Export project files`)
+    `  $ kele export <project> [dir]             # Export project files\n` +
+    `  $ kele deploy <project> [platform]        # Deploy to production`)
   .version(`${version} (Node ${process.version}, TS 5.9.3, ${process.platform})`, '-v, --version', 'Display version number');
 
 // Register all commands
@@ -52,5 +54,6 @@ setupExportCommand(program);
 setupInitCommand(program);
 setupLogsCommand(program);
 setupStatsCommand(program);
+setupDeployCommand(program);
 
 program.parse();

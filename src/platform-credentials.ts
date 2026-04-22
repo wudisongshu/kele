@@ -51,6 +51,13 @@ export interface PlatformCredentials {
   'github-sponsors'?: {
     username: string;
   };
+  /** VPS / Self-hosted server */
+  vps?: {
+    host: string;
+    path?: string;
+    port?: string;
+    sshKey?: string;
+  };
 }
 
 /**
@@ -82,6 +89,12 @@ export const PLATFORM_FIELDS: Record<string, Array<{ key: string; label: string;
   ],
   'github-sponsors': [
     { key: 'githubUsername', label: 'GitHub Username', required: false, sensitive: false },
+  ],
+  'vps': [
+    { key: 'host', label: 'SSH Host (user@server.com)', required: true, sensitive: false },
+    { key: 'path', label: 'Remote deploy path', required: false, sensitive: false },
+    { key: 'port', label: 'SSH Port', required: false, sensitive: false },
+    { key: 'sshKey', label: 'SSH Private Key Path', required: false, sensitive: true },
   ],
 };
 

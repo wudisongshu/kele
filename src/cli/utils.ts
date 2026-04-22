@@ -127,6 +127,7 @@ export function printUsage(): void {
   console.log('  kele show <project-id>       查看项目详情');
   console.log('  kele upgrade <pid> <tid> "..."  升级某个任务');
   console.log('  kele "继续" 或 kele "接着干"    恢复中断的项目');
+  console.log('  kele deploy <project-id> [platform]  部署项目到生产环境');
   console.log('\n配置 AI：');
   console.log('  kele config --provider kimi --key sk-xxx --url https://api.moonshot.cn/v1 --model moonshot-v1-128k');
   console.log('  kele config --provider kimi-code --key sk-xxx --url https://api.kimi.com/coding/v1 --model kimi-for-coding');
