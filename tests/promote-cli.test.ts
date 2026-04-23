@@ -90,4 +90,20 @@ describe('promote CLI', () => {
     expect(opts.schedule).toBe(true);
     expect(opts.output).toBe('/tmp/out');
   });
+
+  it('should have a description', () => {
+    const program = new Command();
+    setupPromoteCommand(program);
+    const cmd = program.commands.find((c) => c.name() === 'promote')!;
+    expect(cmd.description()).toBeTruthy();
+  });
+
+  it('should accept different channel values', () => {
+    const program = new Command();
+    setupPromoteCommand(program);
+    const cmd = program.commands.find((c) => c.name() === 'promote')!;
+    cmd.parseOptions(['test-id', '--channel', 'reddit']);
+    const opts = cmd.opts();
+    expect(opts.channel).toBe('reddit');
+  });
 });

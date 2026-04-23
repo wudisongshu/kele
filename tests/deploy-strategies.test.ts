@@ -61,5 +61,17 @@ describe('deploy-strategies', () => {
     it('returns undefined for unknown strategy', () => {
       expect(getDeployStrategy('unknown')).toBeUndefined();
     });
+
+    it('returns strategy for itchio', () => {
+      const strategy = getDeployStrategy('itchio');
+      expect(strategy).toBeDefined();
+      expect(strategy?.name).toBe('itchio');
+    });
+
+    it('returns strategy for vps', () => {
+      const strategy = getDeployStrategy('vps');
+      expect(strategy).toBeDefined();
+      expect(strategy?.name).toBe('vps');
+    });
   });
 });

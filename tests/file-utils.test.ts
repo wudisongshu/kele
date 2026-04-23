@@ -136,4 +136,16 @@ describe('file-utils', () => {
       expect(isFile(join(TEST_DIR, 'nonexistent.txt'))).toBe(false);
     });
   });
+
+  describe('findFilesByExt', () => {
+    it('finds .tsx files', () => {
+      const files = findFilesByExt(TEST_DIR, '.tsx');
+      expect(files).toContain(join(TEST_DIR, 'src', 'components', 'Button.tsx'));
+    });
+
+    it('finds .jsx files', () => {
+      const files = findFilesByExt(TEST_DIR, '.jsx');
+      expect(files).toContain(join(TEST_DIR, 'src', 'components', 'Header.jsx'));
+    });
+  });
 });

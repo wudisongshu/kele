@@ -111,5 +111,25 @@ describe('chat-engine', () => {
       const prompt = buildChatPrompt(ctx, 'hello', project);
       expect(prompt).toContain('Core Game');
     });
+
+    it('includes conversation history in prompt', () => {
+      const project: Project = {
+        id: 'p1',
+        name: 'Test Game',
+        idea: { rawText: 'a snake game', type: 'game', monetization: 'ads' },
+        subProjects: [],
+        tasks: [],
+        status: 'initialized',
+        rootDir: '/tmp/test',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const ctx = createChatContext('p1');
+      addTurn(ctx, 'user', 'previous question');
+      addTurn(ctx, 'assistant', 'previous answer');
+      const prompt = buildChatPrompt(ctx, 'new question', project);
+      expect(prompt).toContain('previous question');
+      expect(prompt).toContain('previous answer');
+    });
   });
 });
