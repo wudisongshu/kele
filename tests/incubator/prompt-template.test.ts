@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { PromptTemplate } from '../../src/incubator/prompt-template.js';
+import { PromptTemplate, TemplateNotFoundError } from '../../src/incubator/prompt-template.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -12,7 +12,7 @@ describe('PromptTemplate', () => {
     testDir = join(tmpdir(), `kele-prompt-test-${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
     mkdirSync(join(testDir, '_partials'), { recursive: true });
-    template = new PromptTemplate(testDir);
+    template = new PromptTemplate([testDir]);
   });
 
   afterEach(() => {
@@ -33,8 +33,69 @@ describe('PromptTemplate', () => {
     expect(result).toContain('Default fallback');
   });
 
-  it('throws when neither template nor fallback exists', async () => {
-    await expect(template.load('missing')).rejects.toThrow('neither');
+  it('throws TemplateNotFoundError when neither template nor fallback exists', async () => {
+    await expect(template.load('missing')).rejects.toThrow(TemplateNotFoundError);
+    await expect(template.load('missing')).rejects.toThrow(/system-missing\.md not found/);
+  });
+
+  it('searches multiple paths in priority order', async () => {
+    const dirA = join(tmpdir(), `kele-prompt-a-${Date.now()}`);
+    const dirB = join(tmpdir(), `kele-prompt-b-${Date.now()}`);
+    mkdirSync(dirA, { recursive: true });
+    mkdirSync(dirB, { recursive: true });
+
+    writeFileSync(join(dirA, 'system-primary.md'), 'from A', 'utf-8');
+    writeFileSync(join(dirB, 'system-primary.md'), 'from B', 'utf-8');
+
+    const multi = new PromptTemplate([dirA, dirB]);
+    const result = await multi.load('primary');
+    expect(result).toBe('from A');
+
+    rmSync(dirA, { recursive: true, force: true });
+    rmSync(dirB, { recursive: true, force: true });
+  });
+
+  it('falls back to default in the same directory as the primary search', async () => {
+    const dirA = join(tmpdir(), `kele-prompt-fb-a-${Date.now()}`);
+    const dirB = join(tmpdir(), `kele-prompt-fb-b-${Date.now()}`);
+    mkdirSync(dirA, { recursive: true });
+    mkdirSync(dirB, { recursive: true });
+
+    // dirA has no system-special.md, but dirB has both
+    writeFileSync(join(dirB, 'system-special.md'), 'special', 'utf-8');
+    writeFileSync(join(dirB, 'system-default.md'), 'default from B', 'utf-8');
+
+    // Search dirA first, then dirB — special should be found in dirB
+    const multi = new PromptTemplate([dirA, dirB]);
+    const result = await multi.load('special');
+    expect(result).toBe('special');
+
+    // Now test fallback: dirA has default, dirB has nothing for missing
+    writeFileSync(join(dirA, 'system-default.md'), 'default from A', 'utf-8');
+    const multi2 = new PromptTemplate([dirA, dirB]);
+    const fb = await multi2.load('missing');
+    // Fallback should use default from dirA (first path with a fallback)
+    expect(fb).toBe('default from A');
+
+    rmSync(dirA, { recursive: true, force: true });
+    rmSync(dirB, { recursive: true, force: true });
+  });
+
+  it('TemplateNotFoundError includes searched paths', async () => {
+    const smallDir = join(tmpdir(), `kele-prompt-err-${Date.now()}`);
+    mkdirSync(smallDir, { recursive: true });
+    const t = new PromptTemplate([smallDir]);
+    try {
+      await t.load('nope');
+      expect.fail('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(TemplateNotFoundError);
+      const tnfe = err as TemplateNotFoundError;
+      expect(tnfe.templateName).toBe('nope');
+      expect(tnfe.searchedPaths).toContain(smallDir);
+      expect(tnfe.searchedPaths.length).toBeGreaterThanOrEqual(1);
+    }
+    rmSync(smallDir, { recursive: true, force: true });
   });
 
   it('renders string variables', () => {
@@ -77,7 +138,7 @@ describe('PromptTemplate', () => {
   it('reloads templates in development mode', async () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
-    const devTemplate = new PromptTemplate(testDir);
+    const devTemplate = new PromptTemplate([testDir]);
 
     writeFileSync(join(testDir, 'system-setup.md'), 'Original content', 'utf-8');
     const first = await devTemplate.load('setup');

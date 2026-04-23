@@ -273,6 +273,12 @@ async function handleCreateIntent(
   let incubateResult = await incubateWithAI(idea, rootDir, route.adapter, (msg) => console.log(msg), contract || undefined);
 
   if (!incubateResult.success) {
+    // Template not found is a fatal configuration error — do NOT fall back to mock
+    if (incubateResult.error?.includes('TemplateNotFoundError')) {
+      console.log(`   ❌ ${incubateResult.error}`);
+      console.log('   💡 请检查 kele 模板文件是否正确安装。');
+      process.exit(1);
+    }
     const mock = registry.get('mock');
     if (mock && route.provider !== 'mock') {
       console.log(`   ⚠️  AI incubator failed: ${incubateResult.error?.slice(0, 80)}`);

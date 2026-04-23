@@ -2,9 +2,26 @@
 Each sub-project MUST include 3-7 acceptance criteria that kele can EXECUTE automatically.
 **STRICT WHITELIST RULE: Each acceptance criterion MUST ONLY check files that belong to its sub-project type's whitelist. Criteria that target files outside the whitelist will be AUTOMATICALLY DISCARDED and will NEVER pass.**
 
+### Acceptance Criteria Format Rules (MUST FOLLOW)
+- `checkType` MUST be one of: `file_exists`, `content_contains`, `regex_match`
+- `expected` MUST be a REAL code snippet (actual string from the file), NOT a descriptive sentence
+- `regexPattern` (when checkType is `regex_match`) MUST be a valid JavaScript RegExp pattern
+
+**CORRECT examples:**
+- `checkType: "content_contains"`, `expected: "<canvas id="game""`
+- `checkType: "file_exists"`, `expected: "js/game.js"`
+- `checkType: "regex_match"`, `regexPattern: "function\\s+initGame"`
+
+**WRONG examples (NEVER use these):**
+- ❌ `expected: "file contains <canvas"` — descriptive, not a real snippet
+- ❌ `expected: "has canvas element"` — descriptive, not a real snippet
+- ❌ `expected: "should include Service Worker"` — descriptive, not a real snippet
+- ❌ `expected: "deploy.yml exists"` — for file_exists, just put the filename
+
+### Sub-project Whitelists
 - **setup whitelist**: package.json, vite.config.ts, .gitignore, index.html, public/manifest.json, public/sw.js, manifest.json, sw.js, SETUP.md
-  - Allowed checks: verify-file ("index.html exists"), check-text ("index.html contains <canvas"), check-element ("viewport meta tag")
-  - FORBIDDEN for setup: js/*.js, css/*.css, .github/workflows/*, ads.txt, adsense.html, MONETIZE.md — these belong to other sub-project types
+  - Allowed checks: verify-file ("index.html exists"), check-text ("index.html contains <canvas")
+  - FORBIDDEN for setup: js/*.js, css/*.css, .github/workflows/*, ads.txt, adsense.html, MONETIZE.md
 - **development whitelist**: js/*.js, css/*.css, src/*.js, src/*.ts, assets/*
   - Allowed checks: verify-file ("js/game.js exists"), check-text ("css/style.css contains @media")
   - FORBIDDEN for development: .github/workflows/*, ads.txt, adsense.html, SETUP.md
