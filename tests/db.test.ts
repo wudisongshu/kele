@@ -318,4 +318,34 @@ describe('KeleDatabase', () => {
       expect(path).toContain('kele.db');
     });
   });
+
+  describe('KeleDatabase', () => {
+    it('can close and reopen database', () => {
+      const db1 = new KeleDatabase(':memory:');
+      db1.saveProject(createTestProject('reopen-test'));
+      db1.close();
+
+      const db2 = new KeleDatabase(':memory:');
+      db2.saveProject(createTestProject('reopen-test-2'));
+      const list = db2.listProjects();
+      expect(list.length).toBe(1);
+      db2.close();
+    });
+
+    it('saves and retrieves task with result', () => {
+      const db = new KeleDatabase(':memory:');
+      const project = createTestProject('task-result-test');
+      const sp = createTestSubProject('sp-result');
+      db.saveProject(project);
+      db.saveSubProject(sp, project.id);
+
+      const task = createTestTask('tr-1', sp.id, project.id);
+      task.result = 'generated code here';
+      db.saveTask(task, project.id);
+
+      const tasks = db.getTasks(project.id);
+      expect(tasks[0].result).toBe('generated code here');
+      db.close();
+    });
+  });
 });

@@ -181,5 +181,30 @@ describe('FileWriter', () => {
       expect(written).toContain('hello.txt');
       expect(readFileSync(join(tmpDir, 'hello.txt'), 'utf-8')).toBe('world');
     });
+
+    it('should write multiple files', () => {
+      const output = JSON.stringify({
+        files: [
+          { path: 'a.js', content: 'const a = 1;' },
+          { path: 'b.js', content: 'const b = 2;' },
+        ],
+      });
+
+      const written = applyAIOutput(tmpDir, output);
+      expect(written).toContain('a.js');
+      expect(written).toContain('b.js');
+      expect(readFileSync(join(tmpDir, 'a.js'), 'utf-8')).toBe('const a = 1;');
+      expect(readFileSync(join(tmpDir, 'b.js'), 'utf-8')).toBe('const b = 2;');
+    });
+
+    it('should handle nested paths', () => {
+      const output = JSON.stringify({
+        files: [{ path: 'src/utils/helper.js', content: 'export const help = () => {};' }],
+      });
+
+      const written = applyAIOutput(tmpDir, output);
+      expect(written).toContain('src/utils/helper.js');
+      expect(readFileSync(join(tmpDir, 'src', 'utils', 'helper.js'), 'utf-8')).toBe('export const help = () => {};');
+    });
   });
 });

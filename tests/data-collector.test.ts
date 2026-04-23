@@ -261,5 +261,14 @@ describe('DataCollector', () => {
       const report = formatWeeklyReport(history);
       expect(report).toContain('需优化');
     });
+
+    it('should show positive trend indicators', () => {
+      const history = {
+        current: generateMockMetrics('positive-trend'),
+        trend: { revenue: 50, dau: 30, retention_day1: 10, avg_session: 20, rating: 0.5 },
+      };
+      const report = formatWeeklyReport(history);
+      expect(report).toContain('📈');
+    });
   });
 });

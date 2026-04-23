@@ -110,4 +110,17 @@ describe('fixHtmlForLocal', () => {
     expect(fixed).toContain('<title>My Game</title>');
     expect(fixed).toContain('src="./assets/app.js"');
   });
+
+  it('handles HTML without head tag', () => {
+    const html = '<body><script>console.log(1);</script></body>';
+    const fixed = fixHtmlForLocal(html);
+    expect(fixed).toContain('<body>');
+    expect(fixed).toContain('console.log(1);');
+  });
+
+  it('fixes absolute asset paths', () => {
+    const html = '<html><head><script src="/assets/app.js"></script></head><body></body></html>';
+    const fixed = fixHtmlForLocal(html);
+    expect(fixed).toContain('src="./assets/app.js"');
+  });
 });
