@@ -218,5 +218,11 @@ describe('PerformanceEngine', () => {
       const passingReport = { ...report, metrics: { ...report.metrics, score: 85, passed: true } };
       expect(shouldAutoOptimize(passingReport)).toBe(false);
     });
+
+    it('should return score between 0 and 100', () => {
+      const report = runPerformanceOptimization(tempDir, 'web');
+      expect(report.metrics.score).toBeGreaterThanOrEqual(0);
+      expect(report.metrics.score).toBeLessThanOrEqual(100);
+    });
   });
 });

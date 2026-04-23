@@ -312,5 +312,11 @@ describe('MarketingEngine', () => {
       const output = formatMarketingPlan(assets, channels, schedule);
       expect(output).toContain('PV');
     });
+
+    it('should include copy variants in assets', () => {
+      const project = makeProject();
+      const { assets } = generateMarketingPlan(project);
+      expect(assets.copy.length).toBeGreaterThan(0);
+    });
   });
 });

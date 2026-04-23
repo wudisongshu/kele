@@ -227,5 +227,10 @@ describe('OptimizationEngine', () => {
       expect(execTasks[1].complexity).toBe('simple');
       expect(execTasks[2].complexity).toBe('simple');
     });
+
+    it('should handle empty optimization task list', () => {
+      const execTasks = tasksToExecutableTasks([], 'sp-1');
+      expect(execTasks).toEqual([]);
+    });
   });
 });

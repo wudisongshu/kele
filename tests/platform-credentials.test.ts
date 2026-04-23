@@ -163,4 +163,13 @@ describe('platform-credentials', () => {
       expect(hasPlatformCredentials('wechat-miniprogram')).toBe(false);
     });
   });
+
+  describe('platform list', () => {
+    it('returns list of supported platforms', async () => {
+      const { PLATFORM_FIELDS } = await importModule();
+      const platforms = Object.keys(PLATFORM_FIELDS);
+      expect(platforms.length).toBeGreaterThan(0);
+      expect(platforms).toContain('steam');
+    });
+  });
 });
