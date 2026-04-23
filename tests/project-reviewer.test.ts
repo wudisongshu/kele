@@ -161,5 +161,18 @@ describe('project-reviewer', () => {
       const nonOptionalTask = adjusted.tasks.find((t: any) => t.subProjectId === project.subProjects[0].id);
       expect(nonOptionalTask?.status).toBe('pending');
     });
+
+    it('does not skip tasks when project is healthy', () => {
+      const project = createMockProject();
+      project.subProjects[1].monetizationRelevance = 'optional';
+      project.tasks[0].status = 'pending';
+      project.tasks[1].status = 'pending';
+
+      const health = { healthy: true, progress: 'on-track', concerns: [], recommendations: [] };
+      const adjusted = adjustProjectScope(project, health);
+
+      const optionalTask = adjusted.tasks.find((t: any) => t.subProjectId === project.subProjects[1].id);
+      expect(optionalTask?.status).toBe('pending');
+    });
   });
 });

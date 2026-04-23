@@ -116,4 +116,24 @@ describe('project-assembler', () => {
     const content = readFileSync(join(tmpDir, 'index.html'), 'utf-8');
     expect(content).toBe(original);
   });
+
+  it('handles patch file with only whitespace', () => {
+    writeFileSync(join(tmpDir, 'index.html'), '<html><body></body></html>');
+    writeFileSync(join(tmpDir, 'ws.patch.html'), '\t\n   \n\t');
+
+    const result = assembleProject(tmpDir);
+    expect(result.patched).toBe(false);
+    expect(existsSync(join(tmpDir, 'ws.patch.html'))).toBe(false);
+  });
+
+  it('preserves index.html when patch is larger than original', () => {
+    writeFileSync(join(tmpDir, 'index.html'), '<html><body></body></html>');
+    writeFileSync(join(tmpDir, 'big.patch.html'), '<div>' + 'x'.repeat(1000) + '</div>');
+
+    const result = assembleProject(tmpDir);
+    expect(result.patched).toBe(true);
+
+    const content = readFileSync(join(tmpDir, 'index.html'), 'utf-8');
+    expect(content).toContain('x'.repeat(1000));
+  });
 });

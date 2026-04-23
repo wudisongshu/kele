@@ -138,4 +138,33 @@ describe('TaskPlanner', () => {
     const titles = result.tasks!.map((t) => t.title);
     expect(titles.some((t) => t.includes('deployment') || t.includes('Generate'))).toBe(true);
   });
+
+  it('should generate testing tasks for testing sub-project', () => {
+    const sp = makeSubProject({ type: 'testing' });
+    const idea = makeIdea({ complexity: 'medium' });
+    const result = planTasks(sp, idea);
+
+    expect(result.tasks!.length).toBeGreaterThanOrEqual(1);
+    const titles = result.tasks!.map((t) => t.title);
+    expect(titles.some((t) => t.includes('test') || t.includes('Test'))).toBe(true);
+  });
+
+  it('should generate production tasks for production sub-project', () => {
+    const sp = makeSubProject({ type: 'production' });
+    const idea = makeIdea({ type: 'music' });
+    const result = planTasks(sp, idea);
+
+    expect(result.success).toBe(true);
+    expect(result.tasks!.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should assign version 1 to all new tasks', () => {
+    const sp = makeSubProject({ type: 'development' });
+    const idea = makeIdea({ complexity: 'simple' });
+    const result = planTasks(sp, idea);
+
+    for (const task of result.tasks!) {
+      expect(task.version).toBe(1);
+    }
+  });
 });

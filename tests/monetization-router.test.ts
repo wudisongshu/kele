@@ -108,5 +108,28 @@ describe('monetization-router', () => {
       expect(strategy.platform).toBe('unknown');
       expect(strategy.placements.length).toBe(3);
     });
+
+    it('returns tool-specific strategy for tool type', () => {
+      const strategy = getAdStrategy('web', 'tool');
+      expect(strategy.platform).toBe('web');
+      expect(strategy.placements.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('should sort routes by score descending', () => {
+    const idea = makeIdea('做一个游戏');
+    const routes = routeMonetization(idea);
+    for (let i = 1; i < routes.length; i++) {
+      expect(routes[i - 1].score).toBeGreaterThanOrEqual(routes[i].score);
+    }
+  });
+
+  it('should include revenue estimates for top routes', () => {
+    const idea = makeIdea('做一个游戏');
+    const routes = routeMonetization(idea);
+    const top3 = routes.slice(0, 3);
+    for (const route of top3) {
+      expect(route.estimatedRevenue).toBeDefined();
+    }
   });
 });
