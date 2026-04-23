@@ -79,4 +79,21 @@ describe('TemplateLoader', () => {
     const files = loadTemplate('ios-app');
     expect(files.length).toBeGreaterThan(0);
   });
+
+  it('loads pwa-game template', () => {
+    const files = loadTemplate('pwa-game');
+    expect(files.length).toBeGreaterThan(0);
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('manifest.json');
+  });
+
+  it('loads game-web template', () => {
+    const files = loadTemplate('game-web');
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  it('returns empty array for unknown template', () => {
+    const files = loadTemplate('unknown-template' as any);
+    expect(files.length).toBe(0);
+  });
 });

@@ -169,4 +169,22 @@ describe('telemetry', () => {
     expect(events.length).toBe(1);
     expect(events[0].data).toHaveLength(100000);
   });
+
+  it('tracks task completion events', async () => {
+    const { trackTaskComplete } = await importTelemetry();
+    trackTaskComplete('proj-1', 'task-1', 'mock', 1234);
+
+    const events = readEvents();
+    const taskEvents = events.filter((e) => e.event === 'task_complete');
+    expect(taskEvents.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('tracks task failure events', async () => {
+    const { trackTaskFail } = await importTelemetry();
+    trackTaskFail('proj-1', 'task-1', 'mock', 'error', 1234);
+
+    const events = readEvents();
+    const failEvents = events.filter((e) => e.event === 'task_fail');
+    expect(failEvents.length).toBeGreaterThanOrEqual(1);
+  });
 });

@@ -100,4 +100,22 @@ describe('IdeaEngine', () => {
     expect(result.success).toBe(true);
     expect(result.idea!.complexity).toBe('medium');
   });
+
+  it('should detect simple complexity', () => {
+    const result = parseIdea('做一个简单的计算器');
+    expect(result.success).toBe(true);
+    expect(result.idea!.complexity).toBe('simple');
+  });
+
+  it('should detect complex complexity', () => {
+    const result = parseIdea('做一个大型MMORPG游戏有100个关卡多人在线聊天系统');
+    expect(result.success).toBe(true);
+    expect(result.idea!.complexity).toBe('complex');
+  });
+
+  it('should generate keywords from input', () => {
+    const result = parseIdea('做一个蛇蛇大作战游戏');
+    expect(result.success).toBe(true);
+    expect(result.idea!.keywords.length).toBeGreaterThan(0);
+  });
 });

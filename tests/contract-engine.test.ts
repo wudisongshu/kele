@@ -210,5 +210,17 @@ describe('contract-engine', () => {
       expect(matched).not.toBeNull();
       expect(matched!.id).toBe('persistent-game');
     });
+
+    it('returns null for unknown contract', () => {
+      invalidateContractCache();
+      const matched = matchContract('something completely unrelated xyz123');
+      expect(matched).toBeNull();
+    });
+
+    it('matches by name substring', () => {
+      invalidateContractCache();
+      const matched = matchContract('做一个俄罗斯方块游戏');
+      expect(matched).not.toBeNull();
+    });
   });
 });
