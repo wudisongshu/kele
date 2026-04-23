@@ -157,5 +157,42 @@ describe('upgrade-engine', () => {
       expect(result.success).toBe(0);
       expect(result.failed).toBe(1);
     });
+
+    it('reports mixed success and failure', async () => {
+      const adapter = createMockAdapter();
+      const registry = createMockRegistry(adapter);
+      const db = createMockDb();
+      const project = createMockProject();
+      const tasks = [
+        createMockTask('task-1', 'sp-1'),
+        createMockTask('task-2', 'sp-missing'),
+      ];
+      const subProjects = [createMockSubProject('sp-1')];
+
+      const result = await batchUpgrade(tasks, subProjects, project, 'update', {
+        registry: registry as any,
+        db: db as any,
+      });
+
+      expect(result.success).toBe(1);
+      expect(result.failed).toBe(1);
+    });
+
+    it('handles empty upgrade request', async () => {
+      const adapter = createMockAdapter();
+      const registry = createMockRegistry(adapter);
+      const db = createMockDb();
+      const project = createMockProject();
+      const tasks = [createMockTask('task-1', 'sp-1')];
+      const subProjects = [createMockSubProject('sp-1')];
+
+      const result = await batchUpgrade(tasks, subProjects, project, '', {
+        registry: registry as any,
+        db: db as any,
+      });
+
+      expect(result.success).toBe(1);
+      expect(result.failed).toBe(0);
+    });
   });
 });

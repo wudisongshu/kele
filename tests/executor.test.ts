@@ -83,6 +83,17 @@ describe('Executor', () => {
 
       expect(ids.indexOf('a')).toBeLessThan(ids.indexOf('c'));
     });
+
+    it('should handle empty sub-project list', () => {
+      const sorted = sortSubProjects([]);
+      expect(sorted).toEqual([]);
+    });
+
+    it('should handle single sub-project without dependencies', () => {
+      const a = makeSubProject({ id: 'a', dependencies: [] });
+      const sorted = sortSubProjects([a]);
+      expect(sorted.map((s) => s.id)).toEqual(['a']);
+    });
   });
 
   describe('executeTask', () => {
@@ -128,6 +139,36 @@ describe('Executor', () => {
       const tasks = db.getTasks(project.id);
       expect(tasks.length).toBe(1);
       expect(tasks[0].status).toBe('completed');
+    });
+
+    it('should abort when signal is triggered', async () => {
+      const project = makeProject();
+      const sp = makeSubProject();
+      const task = makeTask();
+      const controller = new AbortController();
+      controller.abort();
+
+      db.saveProject(project);
+      db.saveSubProject(sp, project.id);
+
+      const result = await executeTask(task, sp, project, { registry, db, signal: controller.signal });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('aborted');
+    });
+
+    it('should track aiProvider after execution', async () => {
+      const project = makeProject();
+      const sp = makeSubProject();
+      const task = makeTask();
+
+      db.saveProject(project);
+      db.saveSubProject(sp, project.id);
+
+      await executeTask(task, sp, project, { registry, db });
+
+      expect(task.aiProvider).toBe('mock');
+      expect(task.status).toBe('completed');
     });
   });
 

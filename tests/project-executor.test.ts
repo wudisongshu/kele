@@ -138,4 +138,36 @@ describe('project-executor', () => {
     expect(result.completed).toBe(1);
     expect(result.failed).toBe(1);
   });
+
+  it('handles empty sub-project list', async () => {
+    const project = createMockProject();
+    project.subProjects = [];
+    project.tasks = [];
+    const db = createMockDb();
+    const registry = createMockRegistry();
+
+    const result = await executeProject(project, {
+      registry: registry as any,
+      db: db as any,
+    });
+
+    expect(result.completed).toBe(0);
+    expect(result.failed).toBe(0);
+    expect(result.aborted).toBe(false);
+  });
+
+  it('handles project with no pending tasks', async () => {
+    const project = createMockProject();
+    project.tasks = project.tasks.map((t: any) => ({ ...t, status: 'completed' }));
+    const db = createMockDb();
+    const registry = createMockRegistry();
+
+    const result = await executeProject(project, {
+      registry: registry as any,
+      db: db as any,
+    });
+
+    expect(result.completed).toBe(0);
+    expect(result.failed).toBe(0);
+  });
 });

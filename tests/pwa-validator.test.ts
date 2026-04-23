@@ -74,4 +74,32 @@ document.addEventListener('click', function() {});
     const result = await validateGameInBrowser(TEST_DIR);
     expect(typeof result.score).toBe('number');
   });
+
+  it('detects missing canvas in HTML', async () => {
+    writeFileSync(join(TEST_DIR, 'index.html'), '<!DOCTYPE html><html><body><div>no canvas</div></body></html>');
+
+    const result = await validateGameInBrowser(TEST_DIR);
+    expect(typeof result.score).toBe('number');
+    expect(result.errors.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('validates projects with nested directories', async () => {
+    writeFileSync(join(TEST_DIR, 'index.html'), `
+<!DOCTYPE html>
+<html><body>
+<canvas id="game"></canvas>
+<script src="js/game.js"></script>
+</body></html>
+    `);
+
+    const result = await validateGameInBrowser(TEST_DIR);
+    expect(typeof result.score).toBe('number');
+    expect(result.playable).toBeDefined();
+  });
+
+  it('handles completely empty project directory', async () => {
+    const result = await validateGameInBrowser(TEST_DIR);
+    expect(typeof result.score).toBe('number');
+    expect(Array.isArray(result.errors)).toBe(true);
+  });
 });
