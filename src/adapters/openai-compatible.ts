@@ -3,6 +3,7 @@ import type { ProviderConfig } from '../config/index.js';
 import { Agent } from 'undici';
 import { debugLog } from '../debug.js';
 import { getGlobalDebugLogger } from '../utils/debug-logger.js';
+import { APIError } from '../core/executor-errors.js';
 
 /**
  * OpenAI-Compatible AI Adapter
@@ -195,8 +196,13 @@ export class OpenAICompatibleAdapter implements AIAdapter {
 
     if (!response.ok) {
       const errorText = await response.text();
+      const preview = errorText.slice(0, 200);
       logger?.logError('adapter', new Error(`${this.name} API error (${response.status})`), { provider: this.name, status: response.status }).catch(() => { /* ignore */ });
-      throw new Error(`${this.name} API error (${response.status}): ${errorText}`);
+      throw new APIError(`${this.name} API error (${response.status})`, {
+        statusCode: response.status,
+        responsePreview: preview,
+        provider: this.name,
+      });
     }
 
     if (useStreaming) {

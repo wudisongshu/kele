@@ -18,8 +18,18 @@ import { matchContract } from './contract-engine.js';
 import { assembleProject } from './project-assembler.js';
 import { buildTaskPrompt, buildFixPrompt } from './prompt-builder.js';
 import { executeWithFallback, executeFixWithFallback } from './adapter-utils.js';
+import {
+  APIError,
+  ParseError,
+  FileError,
+  ValidationError,
+  TimeoutError,
+  buildSuggestion,
+} from './executor-errors.js';
 import { readFileSync, existsSync, readdirSync } from 'fs';
+import { mkdirSync } from 'fs';
 import { join } from 'path';
+import { homedir, tmpdir } from 'os';
 import { trackTaskComplete, trackTaskFail, trackFixAttempt } from './telemetry.js';
 import { analyzeFailure, runRecoveryWizard, buildSimplifiedDescription, type RecoveryMode } from './recovery-wizard.js';
 
@@ -607,15 +617,130 @@ async function runAIQualityReview(
   onProgress?.(`   ⚠️  AI 质量审查修复达到上限 (${MAX_AI_REVIEW_FIX_ATTEMPTS} 次)，保留当前结果`);
 }
 
-/** Custom error type for validation failures that should not be double-logged. */
-class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
+const RECOVERY_ATTEMPT_KEY = Symbol('recoveryAttempt');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase tracker — records which execution step succeeded last.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PhaseRecord {
+  name: string;
+  startTime: number;
+  endTime?: number;
+}
+
+class PhaseTracker {
+  private phases: PhaseRecord[] = [];
+
+  start(name: string): void {
+    this.phases.push({ name, startTime: Date.now() });
+  }
+
+  end(): void {
+    const current = this.phases[this.phases.length - 1];
+    if (current) current.endTime = Date.now();
+  }
+
+  get lastSuccessful(): PhaseRecord | undefined {
+    for (let i = this.phases.length - 1; i >= 0; i--) {
+      if (this.phases[i].endTime !== undefined) {
+        return this.phases[i];
+      }
+    }
+    return undefined;
+  }
+
+  formatLast(): string {
+    const p = this.lastSuccessful;
+    if (!p) return '无（任务启动前即失败）';
+    const elapsed = ((p.endTime! - p.startTime) / 1000).toFixed(1);
+    return `${p.name}（耗时 ${elapsed} 秒）`;
   }
 }
 
-const RECOVERY_ATTEMPT_KEY = Symbol('recoveryAttempt');
+// ─────────────────────────────────────────────────────────────────────────────
+// Error formatting — produces the human-friendly diagnostic block.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function formatExecutionError(taskTitle: string, err: unknown, tracker: PhaseTracker): string {
+  const error = err instanceof Error ? err : new Error(String(err));
+  const lines: string[] = [
+    ``,
+    `❌ 任务「${taskTitle}」执行失败`,
+    `🔍 错误类型: ${error.name}`,
+    `📍 最后成功步骤: ${tracker.formatLast()}`,
+  ];
+
+  // Detail line
+  const detail = error.message.slice(0, 300);
+  lines.push(`📝 详情: ${detail}`);
+
+  // Type-specific extra lines
+  if (error instanceof APIError) {
+    if (error.statusCode) {
+      lines.push(`📡 HTTP 状态码: ${error.statusCode}`);
+    }
+    if (error.responsePreview) {
+      lines.push(`📄 响应预览: ${error.responsePreview}`);
+    }
+    if (error.provider) {
+      lines.push(`🤖 Provider: ${error.provider}`);
+    }
+  } else if (error instanceof ParseError) {
+    if (error.rawResponse) {
+      lines.push(`📄 原始响应预览: ${error.rawResponse.slice(0, 300)}`);
+    }
+  } else if (error instanceof FileError) {
+    if (error.filePath) {
+      lines.push(`📁 文件路径: ${error.filePath}`);
+    }
+    if (error.code) {
+      lines.push(`🔢 错误码: ${error.code}`);
+    }
+  } else if (error instanceof ValidationError) {
+    if (error.validator) {
+      lines.push(`🔬 验证器: ${error.validator}`);
+    }
+    if (error.reasons && error.reasons.length > 0) {
+      lines.push(`📋 失败原因:`);
+      for (const r of error.reasons.slice(0, 5)) {
+        lines.push(`   • ${r}`);
+      }
+    }
+  } else if (error instanceof TimeoutError) {
+    if (error.timeoutMs) {
+      lines.push(`⏱️ 超时限制: ${(error.timeoutMs / 1000).toFixed(1)} 秒`);
+    }
+    if (error.elapsedMs) {
+      lines.push(`⏱️ 已耗时: ${(error.elapsedMs / 1000).toFixed(1)} 秒`);
+    }
+  }
+
+  // Suggestion
+  lines.push(`💡 建议: ${buildSuggestion(error)}`);
+
+  return lines.join('\n');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Setup-safe log directory
+// ─────────────────────────────────────────────────────────────────────────────
+
+function resolveLogRoot(subProject: SubProject): string {
+  if (existsSync(subProject.targetDir)) {
+    return subProject.targetDir;
+  }
+  // Fallback: use ~/.kele/logs/ or system temp dir
+  const homeDir = join(homedir(), '.kele', 'logs');
+  try {
+    mkdirSync(homeDir, { recursive: true });
+    return homeDir;
+  } catch {
+    const tempDir = join(tmpdir(), 'kele-setup-errors');
+    mkdirSync(tempDir, { recursive: true });
+    return tempDir;
+  }
+}
 
 /**
  * Handle task failure via the Recovery Wizard.
@@ -683,7 +808,9 @@ export async function executeTask(
 ): Promise<ExecuteResult> {
   const { registry, db, onProgress, signal } = options;
   const taskStartTime = Date.now();
-  const logger = new DebugLogger(subProject.targetDir, task.id);
+  const phaseTracker = new PhaseTracker();
+  const logRoot = resolveLogRoot(subProject);
+  const logger = new DebugLogger(logRoot, task.id);
   setGlobalDebugLogger(logger);
 
   // Check abort before starting
@@ -752,6 +879,7 @@ export async function executeTask(
     debugLog(`Executor Prompt [${subProject.name} / ${task.title}]`, prompt);
 
     // Phase 1: AI generation
+    phaseTracker.start('发送 AI prompt');
     onProgress?.(`   ${nextStep()} ✍️  Generating code...`);
     debugLog('AI generation start', JSON.stringify({ task: task.title, provider: route.provider }));
     await logger.logInput('executor', 'ai.generation.start', { task: task.title, provider: route.provider, promptLength: prompt.length });
@@ -760,6 +888,7 @@ export async function executeTask(
     const provider = aiResult.provider;
     task.aiProvider = provider as Task['aiProvider'];
     await logger.logOutput('executor', 'ai.generation.complete', { task: task.title, provider, outputLength: output.length });
+    phaseTracker.end();
 
     // Check abort after AI call
     if (signal?.aborted) {
@@ -777,13 +906,21 @@ export async function executeTask(
     db.saveTask(task, project.id);
 
     // Phase 2: File processing
+    phaseTracker.start('文件写入');
     debugLog('File processing start', JSON.stringify({ task: task.title, outputLength: output.length }));
     const fileRegistry = new SubProjectFileRegistry(subProject.targetDir);
-    const writtenFiles = await processOutput(ctx, output, prompt, provider, fileRegistry);
+    let writtenFiles: string[];
+    try {
+      writtenFiles = await processOutput(ctx, output, prompt, provider, fileRegistry);
+    } catch (fileErr) {
+      const fmsg = fileErr instanceof Error ? fileErr.message : String(fileErr);
+      throw new FileError(fmsg, { filePath: subProject.targetDir, cause: fileErr instanceof Error ? fileErr : undefined });
+    }
     await logger.logOutput('executor', 'file.write', { writtenFiles, count: writtenFiles.length });
     if (writtenFiles.length === 0) {
       throw new ValidationError('AI 返回空输出，未生成任何文件。这通常是因为 API 超时或返回了空响应。建议：(1) 检查网络连接和 API provider 状态，(2) 运行 kele retry 重试此任务，(3) 使用 kele --mock 快速测试。');
     }
+    phaseTracker.end();
 
     // After AI writes files, copy missing template files (e.g., manifest.json, sw.js, ads.txt)
     // This prevents AI from overwriting template scaffolding while ensuring nothing is missing.
@@ -795,12 +932,15 @@ export async function executeTask(
     }
 
     // Phase 3: Validation + runtime
+    phaseTracker.start('代码验证');
     debugLog('Validation start', JSON.stringify({ task: task.title }));
     const { validation, runtimePassed } = await validateAndFixRuntime(ctx, prompt, fileRegistry);
     debugLog('Validation result', JSON.stringify({ task: task.title, valid: validation.valid, runtimePassed }));
     await logger.logOutput('executor', 'validation.result', { valid: validation.valid, score: validation.score, runtimePassed });
+    phaseTracker.end();
 
     // Phase 4: Acceptance criteria
+    phaseTracker.start('验收测试');
     const hasAcceptanceCriteria = (subProject.acceptanceCriteria?.length || 0) > 0;
     if (hasAcceptanceCriteria) {
       await runAcceptanceValidation(ctx, prompt, validation.valid, runtimePassed, fileRegistry);
@@ -810,6 +950,7 @@ export async function executeTask(
       await runAIQualityReview(ctx, prompt, validation.valid, runtimePassed);
       await logger.logOutput('executor', 'review.ran', { type: 'legacy' });
     }
+    phaseTracker.end();
 
     // Phase 6: Performance analysis and auto-optimization
     if (CODING_TYPES.includes(subProject.type)) {
@@ -837,10 +978,12 @@ export async function executeTask(
     }
 
     // Phase 7: Assemble patches (index.patch.html -> index.html)
+    phaseTracker.start('项目组装');
     const assembly = assembleProject(subProject.targetDir);
     if (assembly.patched) {
       onProgress?.(`   🔧 Assembled ${assembly.patches.length} patch file(s) into index.html`);
     }
+    phaseTracker.end();
 
     const duration = Date.now() - taskStartTime;
     debugLog('Task complete', JSON.stringify({ task: task.title, duration, provider: task.aiProvider }));
@@ -850,8 +993,14 @@ export async function executeTask(
     setGlobalDebugLogger(null);
     return { success: true, output };
   } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
-    await logger.logError('executor', err instanceof Error ? err : new Error(String(err)), { taskId: task.id, phase: 'execution' });
+    const errorObj = err instanceof Error ? err : new Error(String(err));
+    await logger.logError('executor', errorObj, { taskId: task.id, phase: 'execution' });
+
+    // Pretty-print structured diagnostics
+    const diagnostic = formatExecutionError(task.title, err, phaseTracker);
+    onProgress?.(diagnostic);
+
+    const error = errorObj.message;
 
     // Recovery wizard: diagnose and offer repair options
     const recovery = await handleTaskFailure(task, subProject, project, options, error);
@@ -867,7 +1016,6 @@ export async function executeTask(
     task.error = finalError;
     db.saveTask(task, project.id);
     trackTaskFail(project.id, task.id, task.aiProvider || 'unknown', finalError, duration);
-    onProgress?.(`   ❌ Failed: ${finalError.slice(0, 200)}`);
     await logger.finalize('failed', { durationMs: duration, error: finalError });
     setGlobalDebugLogger(null);
     return { success: false, error: finalError };

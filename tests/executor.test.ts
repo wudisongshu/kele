@@ -3,7 +3,9 @@ import { sortSubProjects, executeTask } from '../src/core/executor.js';
 import { executeProject } from '../src/core/project-executor.js';
 import { ProviderRegistry, MockAdapter } from '../src/adapters/index.js';
 import { KeleDatabase } from '../src/db/index.js';
+import { APIError, ValidationError } from '../src/core/executor-errors.js';
 import type { Project, SubProject, Task, Idea } from '../src/types/index.js';
+import type { AIAdapter } from '../src/adapters/base.js';
 
 function makeIdea(overrides: Partial<Idea> = {}): Idea {
   return {
@@ -169,6 +171,105 @@ describe('Executor', () => {
 
       expect(task.aiProvider).toBe('mock');
       expect(task.status).toBe('completed');
+    });
+
+    it('should classify APIError and output structured diagnostics', async () => {
+      const throwingAdapter: AIAdapter = {
+        name: 'throwing',
+        isAvailable: () => true,
+        testConnection: async () => ({ ok: true }),
+        execute: async () => {
+          throw new APIError('OpenAI API error (502)', {
+            statusCode: 502,
+            responsePreview: '{"error":"gateway timeout"}',
+            provider: 'throwing',
+          });
+        },
+      };
+      const reg = new ProviderRegistry();
+      reg.register(throwingAdapter);
+
+      const project = makeProject();
+      const sp = makeSubProject();
+      const task = makeTask();
+      db.saveProject(project);
+      db.saveSubProject(sp, project.id);
+
+      const progress: string[] = [];
+      const result = await executeTask(task, sp, project, {
+        registry: reg,
+        db,
+        onProgress: (msg) => progress.push(msg),
+        recoveryMode: 'skip',
+      });
+
+      expect(result.success).toBe(false);
+      // Structured diagnostic should have been printed BEFORE recovery wizard
+      const diag = progress.find((m) => m.includes('❌ 任务'));
+      expect(diag).toBeDefined();
+      expect(diag).toContain('APIError');
+      expect(diag).toContain('502');
+      expect(diag).toContain('gateway timeout');
+      // API error happens during the first phase, so no phase has completed yet
+      expect(diag).toContain('无（任务启动前即失败）');
+    });
+
+    it('should classify ValidationError correctly', async () => {
+      // Force empty output by using an adapter that returns nothing parseable
+      const emptyAdapter: AIAdapter = {
+        name: 'empty',
+        isAvailable: () => true,
+        testConnection: async () => ({ ok: true }),
+        execute: async () => '',
+      };
+      const reg = new ProviderRegistry();
+      reg.register(emptyAdapter);
+
+      const project = makeProject();
+      const sp = makeSubProject();
+      const task = makeTask();
+      db.saveProject(project);
+      db.saveSubProject(sp, project.id);
+
+      const progress: string[] = [];
+      const result = await executeTask(task, sp, project, {
+        registry: reg,
+        db,
+        onProgress: (msg) => progress.push(msg),
+        recoveryMode: 'skip',
+      });
+
+      expect(result.success).toBe(false);
+      const diag = progress.find((m) => m.includes('❌ 任务'));
+      expect(diag).toBeDefined();
+      expect(diag).toContain('ValidationError');
+    });
+
+    it('should write setup errors to global log dir when targetDir does not exist', async () => {
+      const throwingAdapter: AIAdapter = {
+        name: 'throwing',
+        isAvailable: () => true,
+        testConnection: async () => ({ ok: true }),
+        execute: async () => {
+          throw new APIError('Setup API error (503)', { statusCode: 503, provider: 'throwing' });
+        },
+      };
+      const reg = new ProviderRegistry();
+      reg.register(throwingAdapter);
+
+      const project = makeProject();
+      const sp = makeSubProject({
+        type: 'setup',
+        targetDir: '/tmp/nonexistent-kele-setup-dir-' + Date.now(),
+      });
+      const task = makeTask();
+      db.saveProject(project);
+      db.saveSubProject(sp, project.id);
+
+      const result = await executeTask(task, sp, project, { registry: reg, db, recoveryMode: 'skip' });
+
+      expect(result.success).toBe(false);
+      // The DebugLogger should have been created without crashing even though targetDir doesn't exist
     });
   });
 

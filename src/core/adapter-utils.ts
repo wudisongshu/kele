@@ -1,5 +1,6 @@
 import type { AIAdapter } from '../adapters/base.js';
 import type { ProviderRegistry } from '../adapters/index.js';
+import { APIError, extractStatusCode } from './executor-errors.js';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = process.env.VITEST
@@ -85,7 +86,15 @@ export async function executeWithFallback(
 
   // kele principle: real API first. Do NOT silently fallback to mock.
   // Mock is only used when explicitly enabled via --mock flag.
-  throw lastErr;
+  if (lastErr instanceof APIError) {
+    throw lastErr;
+  }
+  const errMsg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  throw new APIError(errMsg, {
+    statusCode: extractStatusCode(errMsg),
+    provider: routeProvider,
+    cause: lastErr instanceof Error ? lastErr : undefined,
+  });
 }
 
 /**
@@ -125,5 +134,13 @@ export async function executeFixWithFallback(
     }
   }
 
-  throw lastErr;
+  if (lastErr instanceof APIError) {
+    throw lastErr;
+  }
+  const errMsg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  throw new APIError(errMsg, {
+    statusCode: extractStatusCode(errMsg),
+    provider: _routeProvider,
+    cause: lastErr instanceof Error ? lastErr : undefined,
+  });
 }
