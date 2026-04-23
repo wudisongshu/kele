@@ -143,5 +143,10 @@ describe('Security', () => {
     it('should handle input with only control chars', () => {
       expect(escapePromptInput('\x00\x01\x02')).toBe('');
     });
+
+    it('should preserve normal text', () => {
+      const normal = 'Hello World 123';
+      expect(escapePromptInput(normal)).toBe(normal);
+    });
   });
 });

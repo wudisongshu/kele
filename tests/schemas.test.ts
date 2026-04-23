@@ -254,5 +254,15 @@ describe('schemas', () => {
       const result = IntentSchema.safeParse({ intent: 'CREATE', confidence: 1.5 });
       expect(result.success).toBe(false);
     });
+
+    it('accepts confidence of 0', () => {
+      const result = IntentSchema.safeParse({ intent: 'CREATE', confidence: 0 });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts confidence of 1', () => {
+      const result = IntentSchema.safeParse({ intent: 'CREATE', confidence: 1 });
+      expect(result.success).toBe(true);
+    });
   });
 });

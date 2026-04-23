@@ -111,4 +111,12 @@ describe('executeFixWithFallback', () => {
     const registry = makeRegistry();
     await expect(executeFixWithFallback(registry, 'fix prompt', 'deepseek', primary)).rejects.toThrow('primary fail');
   });
+
+  it('returns output from successful adapter', async () => {
+    const primary = makeMockAdapter('success output');
+    const registry = makeRegistry();
+    const result = await executeWithFallback(registry, 'prompt', 'deepseek', primary);
+    expect(result.output).toBe('success output');
+    expect(result.provider).toBe('deepseek');
+  });
 });

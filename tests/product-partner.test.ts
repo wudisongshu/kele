@@ -279,5 +279,11 @@ describe('ProductPartner', () => {
       const formatted = formatProductPartnerReport(report);
       expect(formatted).toContain('蓝海');
     });
+
+    it('should include monetization strategy section', () => {
+      const report = generateProductPartnerReport('小游戏');
+      const formatted = formatProductPartnerReport(report);
+      expect(formatted).toContain('变现');
+    });
   });
 });
