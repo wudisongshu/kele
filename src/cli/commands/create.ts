@@ -259,6 +259,12 @@ async function handleCreateIntent(
   const rootDir = join(outputDir, projectName);
   mkdirSync(outputDir, { recursive: true });
 
+  // Debug/logs go into the project directory
+  const { setDebugDir } = await import('../../debug.js');
+  const { setLogDir } = await import('../../core/logger.js');
+  setDebugDir(rootDir);
+  setLogDir(rootDir);
+
   console.log('🧠 AI 正在分析项目结构...\n');
   const contract = matchContract(idea.rawText);
   if (contract) {

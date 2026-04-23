@@ -43,6 +43,11 @@ export function setupUpgradeCommand(program: Command): void {
         process.exit(1);
       }
 
+      const { setDebugDir } = await import('../../debug.js');
+      const { setLogDir } = await import('../../core/logger.js');
+      setDebugDir(project.rootDir);
+      setLogDir(project.rootDir);
+
       const tasks = db.getTasks(projectId);
       const originalTask = tasks.find((t) => t.id === taskId);
 

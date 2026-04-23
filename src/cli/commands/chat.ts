@@ -254,6 +254,11 @@ export function setupChatCommand(program: Command): void {
         process.exit(1);
       }
 
+      const { setDebugDir } = await import('../../debug.js');
+      const { setLogDir } = await import('../../core/logger.js');
+      setDebugDir(project.rootDir);
+      setLogDir(project.rootDir);
+
       await runRepl(project, db, options.debug, options.mock);
       db.close();
     });
