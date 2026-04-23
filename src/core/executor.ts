@@ -27,9 +27,7 @@ import {
   buildSuggestion,
 } from './executor-errors.js';
 import { readFileSync, existsSync, readdirSync } from 'fs';
-import { mkdirSync } from 'fs';
 import { join } from 'path';
-import { homedir, tmpdir } from 'os';
 import { trackTaskComplete, trackTaskFail, trackFixAttempt } from './telemetry.js';
 import { analyzeFailure, runRecoveryWizard, buildSimplifiedDescription, type RecoveryMode } from './recovery-wizard.js';
 
@@ -726,22 +724,6 @@ function formatExecutionError(taskTitle: string, err: unknown, tracker: PhaseTra
 // Setup-safe log directory
 // ─────────────────────────────────────────────────────────────────────────────
 
-function resolveLogRoot(subProject: SubProject): string {
-  if (existsSync(subProject.targetDir)) {
-    return subProject.targetDir;
-  }
-  // Fallback: use ~/.kele/logs/ or system temp dir
-  const homeDir = join(homedir(), '.kele', 'logs');
-  try {
-    mkdirSync(homeDir, { recursive: true });
-    return homeDir;
-  } catch {
-    const tempDir = join(tmpdir(), 'kele-setup-errors');
-    mkdirSync(tempDir, { recursive: true });
-    return tempDir;
-  }
-}
-
 /**
  * Handle task failure via the Recovery Wizard.
  * Limits to 1 recovery attempt per task to avoid infinite loops.
@@ -809,8 +791,7 @@ export async function executeTask(
   const { registry, db, onProgress, signal } = options;
   const taskStartTime = Date.now();
   const phaseTracker = new PhaseTracker();
-  const logRoot = resolveLogRoot(subProject);
-  const logger = new DebugLogger(logRoot, task.id);
+  const logger = new DebugLogger(subProject.targetDir, task.id);
   setGlobalDebugLogger(logger);
 
   // Check abort before starting
@@ -989,6 +970,12 @@ export async function executeTask(
     debugLog('Task complete', JSON.stringify({ task: task.title, duration, provider: task.aiProvider }));
     trackTaskComplete(project.id, task.id, task.aiProvider || 'unknown', duration);
     onProgress?.(`   ✅ Completed`);
+
+    // For setup tasks: after project dir is created, migrate global logs into it
+    if (isSetupTask && existsSync(subProject.targetDir)) {
+      await logger.migrateToProjectRoot(subProject.targetDir);
+    }
+
     await logger.finalize('success', { durationMs: duration, provider: task.aiProvider });
     setGlobalDebugLogger(null);
     return { success: true, output };

@@ -5,6 +5,7 @@ import { join } from 'path';
 import {
   sanitizeForLog,
   DebugLogger,
+  resolveLogRoot,
   setGlobalDebugLogger,
   getGlobalDebugLogger,
   withDebugLogger,
@@ -235,6 +236,51 @@ describe('debug-logger', () => {
       const content = readFileSync(join(sessionsDir, files[0]), 'utf-8');
       const lines = content.trim().split('\n');
       expect(JSON.parse(lines[lines.length - 1]).status).toBe('failed');
+    });
+  });
+
+  describe('resolveLogRoot', () => {
+    it('returns existing project root', () => {
+      expect(resolveLogRoot(tempDir)).toBe(tempDir);
+    });
+
+    it('falls back when project root does not exist', () => {
+      const nonexistent = '/tmp/kele-nonexistent-dir-' + Date.now();
+      const root = resolveLogRoot(nonexistent);
+      // Should be either ~/.kele/logs/ or /tmp/kele-logs
+      expect(root).not.toBe(nonexistent);
+      expect(existsSync(root)).toBe(true);
+    });
+  });
+
+  describe('migrateToProjectRoot', () => {
+    it('migrates log from temp dir to project dir after setup', async () => {
+      const projectDir = join(tmpdir(), 'kele-migrate-test-' + Date.now());
+      // logger created BEFORE project dir exists
+      const logger = new DebugLogger(projectDir, 'setup-task', { enabled: true });
+      await logger['_ready'];
+      await logger.logInput('test', 'event', { x: 1 });
+      await logger.finalize('success');
+
+      // At this point log is in temp/global dir
+      const beforePath = logger['logPath'];
+      expect(beforePath).not.toContain('kele-migrate-test');
+
+      // Now create the project dir (as if setup succeeded)
+      const actualProjectDir = mkdtempSync(projectDir + '-');
+      await logger.migrateToProjectRoot(actualProjectDir);
+
+      // Log should now be in project dir
+      const afterPath = logger['logPath'];
+      expect(afterPath).toContain('kele-migrate-test');
+      expect(existsSync(afterPath)).toBe(true);
+
+      // Symlink should exist in project dir
+      const latestPath = join(actualProjectDir, '.kele-logs', 'latest');
+      expect(existsSync(latestPath)).toBe(true);
+
+      // Cleanup
+      rmSync(actualProjectDir, { recursive: true, force: true });
     });
   });
 });

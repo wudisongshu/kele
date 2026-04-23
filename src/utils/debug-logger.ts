@@ -5,10 +5,11 @@
  * for post-mortem analysis. Each task/session gets its own .jsonl file.
  */
 
-import { appendFile, mkdir, writeFile, readdir, unlink, symlink, lstat, stat } from 'fs/promises';
+import { appendFile, mkdir, writeFile, readdir, unlink, symlink, lstat, stat, copyFile } from 'fs/promises';
 import { join, basename } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { randomBytes } from 'crypto';
+import { homedir, tmpdir } from 'os';
 import { isDebug } from '../debug.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,6 +95,30 @@ export interface DebugLoggerOptions {
   flushIntervalMs?: number;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Log-root resolution — handles the case where project dir does not exist yet.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function resolveLogRoot(projectRoot: string): string {
+  if (existsSync(projectRoot)) {
+    return projectRoot;
+  }
+  // Fallback 1: ~/.kele/logs/
+  const homeDir = join(homedir(), '.kele', 'logs');
+  try {
+    mkdirSync(homeDir, { recursive: true });
+    if (existsSync(homeDir)) {
+      return homeDir;
+    }
+  } catch { /* ignore */ }
+  // Fallback 2: system temp dir
+  const tempDir = join(tmpdir(), 'kele-logs');
+  try {
+    mkdirSync(tempDir, { recursive: true });
+  } catch { /* ignore */ }
+  return tempDir;
+}
+
 export class DebugLogger {
   private logPath: string;
   private taskId: string;
@@ -107,6 +132,8 @@ export class DebugLogger {
   private closed = false;
   private entryCount = 0;
   private _ready: Promise<void>;
+  private preferredRoot: string;
+  private actualRoot: string;
 
   constructor(
     projectRoot: string,
@@ -117,13 +144,15 @@ export class DebugLogger {
     this.enabled = options.enabled ?? isDebug();
     this.maxFiles = options.maxFiles ?? 20;
     this.bufferSize = options.bufferSize ?? 10;
+    this.preferredRoot = projectRoot;
+    this.actualRoot = resolveLogRoot(projectRoot);
 
-    const sessionsDir = join(projectRoot, '.kele-logs', 'sessions');
+    const sessionsDir = join(this.actualRoot, '.kele-logs', 'sessions');
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
     const shortId = randomBytes(4).toString('hex');
     this.logPath = join(sessionsDir, `${timestamp}-${shortId}.jsonl`);
 
-    this._ready = this._init(projectRoot);
+    this._ready = this._init(this.actualRoot);
   }
 
   private async _init(projectRoot: string): Promise<void> {
@@ -139,7 +168,8 @@ export class DebugLogger {
       version: '1.0',
       taskId: this.taskId,
       startTime: new Date().toISOString(),
-      projectRoot,
+      projectRoot: this.preferredRoot,
+      actualRoot: this.actualRoot,
     };
     await writeFile(this.logPath, JSON.stringify(sanitizeForLog(header)) + '\n', 'utf-8');
     this.entryCount = 1;
@@ -310,6 +340,40 @@ export class DebugLogger {
       const msg = err instanceof Error ? err.message : String(err);
       // eslint-disable-next-line no-console
       console.error(`[DebugLogger] Failed to write footer: ${msg}`);
+    }
+  }
+
+  /**
+   * Migrate the log file from the temporary global dir to the project dir.
+   * Called after a setup task successfully creates the project directory.
+   */
+  async migrateToProjectRoot(projectRoot: string): Promise<void> {
+    if (!this.enabled) return;
+    if (this.actualRoot === projectRoot) return; // already in the right place
+    if (!existsSync(projectRoot)) return; // project dir still doesn't exist
+
+    const targetSessions = join(projectRoot, '.kele-logs', 'sessions');
+    try {
+      await mkdir(targetSessions, { recursive: true });
+      const targetPath = join(targetSessions, basename(this.logPath));
+      await copyFile(this.logPath, targetPath);
+
+      // Update symlink in project dir
+      const latestPath = join(projectRoot, '.kele-logs', 'latest');
+      try {
+        const s = await lstat(latestPath).catch(() => null);
+        if (s) await unlink(latestPath);
+      } catch { /* ignore */ }
+      try {
+        await symlink(join('sessions', basename(this.logPath)), latestPath);
+      } catch { /* ignore */ }
+
+      this.actualRoot = projectRoot;
+      this.logPath = targetPath;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // eslint-disable-next-line no-console
+      console.error(`[DebugLogger] Failed to migrate log to project dir: ${msg}`);
     }
   }
 }
