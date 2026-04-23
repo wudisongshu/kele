@@ -28,6 +28,8 @@ out/
 
 # kele runtime
 .kele/
+.kele-debug/
+.kele-logs/
 .plans/
 
 # Generated projects (kele creates these for users)
