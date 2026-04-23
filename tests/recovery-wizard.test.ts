@@ -98,5 +98,42 @@ describe('recovery-wizard', () => {
       expect(simplified).toContain('timeout');
       expect(simplified).toContain('MINIMAL working version');
     });
+
+    it('handles empty original description', () => {
+      const simplified = buildSimplifiedDescription('', 'error');
+      expect(simplified).toContain('SIMPLIFIED VERSION');
+      expect(simplified).toContain('error');
+    });
+  });
+
+  describe('analyzeFailure', () => {
+    it('detects API key errors', () => {
+      const task: Task = {
+        id: 't1', title: 'Test', description: 'Build game',
+        status: 'failed', subProjectId: 'sp1', createdAt: '2024-01-01',
+      };
+      const diagnosis = analyzeFailure(task, 'invalid api key');
+      expect(diagnosis.type).toBe('unknown');
+      expect(diagnosis.suggestions.length).toBeGreaterThan(0);
+    });
+
+    it('detects network errors', () => {
+      const task: Task = {
+        id: 't1', title: 'Test', description: 'Build game',
+        status: 'failed', subProjectId: 'sp1', createdAt: '2024-01-01',
+      };
+      const diagnosis = analyzeFailure(task, 'ECONNREFUSED');
+      expect(diagnosis.type).toBe('ai_timeout');
+      expect(diagnosis.suggestions.some(s => s.action === 'retry')).toBe(true);
+    });
+
+    it('includes task title in diagnosis', () => {
+      const task: Task = {
+        id: 't1', title: 'Custom Task Title', description: 'Build game',
+        status: 'failed', subProjectId: 'sp1', createdAt: '2024-01-01',
+      };
+      const diagnosis = analyzeFailure(task, 'error');
+      expect(diagnosis.title).toContain('Custom Task Title');
+    });
   });
 });

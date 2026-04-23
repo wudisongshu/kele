@@ -193,4 +193,36 @@ ctx.fillRect(0,0,10,10);
     // Should still find patterns in JS files
     expect(result.score).toBeGreaterThanOrEqual(60);
   });
+
+  it('detects missing canvas element', () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+<script>
+document.addEventListener('click', () => {});
+let score = 0;
+</script>
+</body></html>`;
+    writeFileSync(join(TEST_DIR, 'index.html'), html);
+
+    const result = validateGamePlayability(TEST_DIR);
+    expect(result.playable).toBe(false);
+    expect(result.issues.some((i) => i.includes('canvas'))).toBe(true);
+  });
+
+  it('detects missing input handlers', () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+<canvas id="game"></canvas>
+<script>
+const ctx = document.getElementById('game').getContext('2d');
+ctx.fillRect(0,0,10,10);
+let score = 0;
+</script>
+</body></html>`;
+    writeFileSync(join(TEST_DIR, 'index.html'), html);
+
+    const result = validateGamePlayability(TEST_DIR);
+    expect(result.playable).toBe(false);
+    expect(result.issues.length).toBeGreaterThan(0);
+  });
 });

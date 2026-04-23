@@ -69,4 +69,22 @@ describe('logger', () => {
       expect(JSON.parse(output)).toEqual({ test: true });
     });
   });
+
+  describe('createProgressLogger', () => {
+    it('accumulates multiple JSON messages', () => {
+      const logger = createProgressLogger(true);
+      logger.log('first');
+      logger.log('second');
+      expect(logger.jsonOutput).toHaveLength(2);
+      expect(logger.jsonOutput[0].message).toBe('first');
+      expect(logger.jsonOutput[1].message).toBe('second');
+    });
+
+    it('warn method logs warnings', () => {
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const logger = createProgressLogger(false);
+      logger.warn('warning message');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('warning message'));
+    });
+  });
 });

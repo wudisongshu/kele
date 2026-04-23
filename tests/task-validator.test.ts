@@ -69,4 +69,34 @@ describe('TaskValidator', () => {
     expect(result.issues.some(i => i.includes('HACK'))).toBe(true);
     rmSync(dir, { recursive: true });
   });
+
+  it('detects STUB comments', () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, 'index.js'), 'function hello() { // STUB: implement later\n}', 'utf-8');
+    const result = validateTaskOutput(dir, 'test');
+    expect(result.issues.some(i => i.includes('STUB'))).toBe(true);
+    rmSync(dir, { recursive: true });
+  });
+
+  it('validates multiple files in directory', () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, 'a.js'), 'function a() {\n  const x = 1;\n  return x + 1;\n}\n', 'utf-8');
+    writeFileSync(join(dir, 'b.js'), 'function b() {\n  const y = 2;\n  return y + 2;\n}\n', 'utf-8');
+    const result = validateTaskOutput(dir, 'test');
+    expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.score).toBeLessThanOrEqual(100);
+    expect(Array.isArray(result.issues)).toBe(true);
+    rmSync(dir, { recursive: true });
+  });
+
+  it('handles non-JS files gracefully', () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, 'readme.md'), '# Hello\nThis is documentation for the project.', 'utf-8');
+    writeFileSync(join(dir, 'style.css'), 'body { color: red; background: blue; margin: 0; padding: 0; }', 'utf-8');
+    const result = validateTaskOutput(dir, 'test');
+    expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.score).toBeLessThanOrEqual(100);
+    expect(Array.isArray(result.issues)).toBe(true);
+    rmSync(dir, { recursive: true });
+  });
 });
