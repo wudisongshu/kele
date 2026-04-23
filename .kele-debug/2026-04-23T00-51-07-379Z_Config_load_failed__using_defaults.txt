@@ -1,0 +1,3 @@
+[Config load failed, using defaults]
+
+Unexpected token 'c', "corrupted" is not valid JSON

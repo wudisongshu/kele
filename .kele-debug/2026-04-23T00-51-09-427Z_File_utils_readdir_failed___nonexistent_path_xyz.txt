@@ -1,0 +1,3 @@
+[File utils readdir failed: /nonexistent/path/xyz]
+
+ENOENT: no such file or directory, scandir '/nonexistent/path/xyz'

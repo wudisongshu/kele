@@ -1,25 +1,32 @@
 /**
  * Persistent structured logging for kele.
- * Saves console output to ~/.kele/logs/ for post-mortem analysis.
+ * Saves console output to ./.kele-logs/ (project directory) for post-mortem analysis.
  */
 
 import { appendFileSync, mkdirSync, existsSync, statSync, renameSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import { debugLog } from '../debug.js';
 
-const LOG_DIR = join(homedir(), '.kele', 'logs');
+let _logDir = join(process.cwd(), '.kele-logs');
+
+export function setLogDir(dir: string): void {
+  _logDir = dir;
+}
+
+export function getLogDir(): string {
+  return _logDir;
+}
 
 function ensureLogDir(): void {
-  if (!existsSync(LOG_DIR)) {
-    mkdirSync(LOG_DIR, { recursive: true });
+  if (!existsSync(_logDir)) {
+    mkdirSync(_logDir, { recursive: true });
   }
 }
 
 function getLogFileName(): string {
   const now = new Date();
   const date = now.toISOString().split('T')[0];
-  return join(LOG_DIR, `kele-${date}.log`);
+  return join(_logDir, `kele-${date}.log`);
 }
 
 const MAX_LOG_SIZE_MB = 10;

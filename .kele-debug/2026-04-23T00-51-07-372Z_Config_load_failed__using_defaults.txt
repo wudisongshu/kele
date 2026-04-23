@@ -1,0 +1,3 @@
+[Config load failed, using defaults]
+
+Unexpected token 'o', "not valid json {{{" is not valid JSON

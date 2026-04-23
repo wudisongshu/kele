@@ -1,0 +1,3 @@
+[Incubator JSON parse failed]
+
+Unexpected token 'b', "bad json" is not valid JSON

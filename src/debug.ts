@@ -1,8 +1,8 @@
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 
-let _debugEnabled = false;
+let _debugEnabled = true;
+let _debugDir = join(process.cwd(), '.kele-debug');
 const _timers = new Map<string, number>();
 const _counters = new Map<string, number>();
 
@@ -10,11 +10,20 @@ export function setDebug(enabled: boolean): void {
   _debugEnabled = enabled;
 }
 
+export function setDebugDir(dir: string): void {
+  _debugDir = dir;
+}
+
+export function getDebugDir(): string {
+  return _debugDir;
+}
+
 export function isDebug(): boolean {
-  if (_debugEnabled) return true;
+  if (!_debugEnabled) return false;
+  if (process.env.KELE_DEBUG === '0') return false;
   if (process.env.KELE_DEBUG === '1') return true;
   if (process.env.DEBUG?.includes('kele')) return true;
-  return false;
+  return true;
 }
 
 /**
@@ -34,7 +43,7 @@ export function debugLog(label: string, content: string): void {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   // Save to file
-  const debugDir = join(homedir(), '.kele', 'debug');
+  const debugDir = _debugDir;
   if (!existsSync(debugDir)) {
     mkdirSync(debugDir, { recursive: true });
   }

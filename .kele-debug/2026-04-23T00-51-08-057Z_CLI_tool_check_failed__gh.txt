@@ -1,0 +1,3 @@
+[CLI tool check failed: gh]
+
+Command failed: gh --version

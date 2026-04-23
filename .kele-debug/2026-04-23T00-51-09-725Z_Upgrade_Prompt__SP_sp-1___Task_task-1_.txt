@@ -1,0 +1,59 @@
+[Upgrade Prompt [SP sp-1 / Task task-1]]
+
+You are a senior software engineer working on the project "Test Project".
+
+Sub-project: SP sp-1
+Description: A test sub-project
+Target directory: /tmp/nonexistent-upgrade-test
+User's original idea: "做一个测试工具"
+
+Task: Task task-1
+A test task
+
+## Current Implementation (from filesystem)
+
+Here is the ACTUAL current code in /tmp/nonexistent-upgrade-test:
+
+
+--- .gitignore ---
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+.kele/
+
+
+--- notes.md ---
+upgrade complete
+
+--- test.js ---
+console.log("upgraded")
+
+
+---
+
+## UPGRADE REQUEST
+
+The user wants to improve this task. Here is their specific request:
+
+"update"
+
+Please update the implementation to satisfy this request. Preserve all existing functionality that the user did NOT ask to change. Only modify what is necessary.
+
+CODE QUALITY REQUIREMENTS:
+1. Modularity: Each file has ONE clear responsibility.
+2. Naming: Use descriptive names. No abbreviations.
+3. Types: Use strict typing. No 'any' types.
+4. Error handling: Validate inputs, handle edge cases.
+5. Comments: Explain WHY, not WHAT.
+6. No bloat: No speculative abstractions.
+
+CRITICAL: Return your response as a JSON object:
+{
+  "files": [
+    { "path": "relative/path/to/file", "content": "file content here" }
+  ],
+  "notes": "optional notes about what changed and why"
+}

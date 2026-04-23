@@ -1,33 +1,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { logEvent, createProgressLogger, printJsonOutput } from '../src/core/logger.js';
+import { logEvent, createProgressLogger, printJsonOutput, setLogDir } from '../src/core/logger.js';
 import { existsSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
+import { tmpdir } from 'os';
+import { mkdtempSync } from 'fs';
 
-const LOG_DIR = join(homedir(), '.kele', 'logs');
+let TEST_LOG_DIR: string;
 
 describe('logger', () => {
   beforeEach(() => {
-    // Clean up log files before each test
-    if (existsSync(LOG_DIR)) {
-      const files = require('fs').readdirSync(LOG_DIR);
-      for (const f of files) {
-        if (f.startsWith('kele-') && f.endsWith('.log')) {
-          rmSync(join(LOG_DIR, f), { force: true });
-        }
-      }
-    }
+    TEST_LOG_DIR = mkdtempSync(join(tmpdir(), 'kele-logs-test-'));
+    setLogDir(TEST_LOG_DIR);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (existsSync(TEST_LOG_DIR)) {
+      const files = require('fs').readdirSync(TEST_LOG_DIR);
+      for (const f of files) {
+        if (f.startsWith('kele-') && f.endsWith('.log')) {
+          rmSync(join(TEST_LOG_DIR, f), { force: true });
+        }
+      }
+    }
   });
 
   describe('logEvent', () => {
     it('writes a log entry to file', () => {
       logEvent('info', 'test message', { key: 'value' });
       const date = new Date().toISOString().split('T')[0];
-      const logFile = join(LOG_DIR, `kele-${date}.log`);
+      const logFile = join(TEST_LOG_DIR, `kele-${date}.log`);
       expect(existsSync(logFile)).toBe(true);
       const content = readFileSync(logFile, 'utf-8');
       expect(content).toContain('test message');
@@ -37,7 +39,7 @@ describe('logger', () => {
     it('writes error level log', () => {
       logEvent('error', 'something went wrong');
       const date = new Date().toISOString().split('T')[0];
-      const logFile = join(LOG_DIR, `kele-${date}.log`);
+      const logFile = join(TEST_LOG_DIR, `kele-${date}.log`);
       const content = readFileSync(logFile, 'utf-8');
       expect(content).toContain('"level":"error"');
       expect(content).toContain('something went wrong');

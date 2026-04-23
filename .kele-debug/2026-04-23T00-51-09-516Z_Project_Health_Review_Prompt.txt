@@ -1,0 +1,34 @@
+[Project Health Review Prompt]
+
+You are kele's Project Director. Evaluate the overall health of this project based on completed and remaining work.
+
+Assess:
+1. Is the project on track to achieve its monetization goal?
+2. Does the completed work provide a solid foundation for remaining tasks?
+3. Are there any gaps or missing critical pieces?
+4. Should the scope of remaining tasks be adjusted (cut features, add missing pieces, reorder priorities)?
+5. For web projects: does the project have PWA support (manifest.json, Service Worker) for better user retention?
+
+Return ONLY a JSON object:
+{
+  "healthy": true or false,
+  "progress": "on-track|behind|ahead",
+  "concerns": ["specific concern 1", "concern 2"],
+  "recommendations": ["actionable recommendation 1", "rec 2"],
+  "scopeAdjustment": "Should remaining tasks be expanded, reduced, or reordered? Explain."
+}
+
+Project: "Test Project"
+Goal: "做一个测试游戏"
+Complexity: medium
+Monetization: web
+
+Completed sub-projects (1/2):
+- Setup: 21 files (.github, .gitignore, CNAME, SETUP.md, ads.txt) | Tasks: Init: completed
+
+Remaining sub-projects:
+- Core (development)
+
+Failed tasks: none
+
+Evaluate project health.

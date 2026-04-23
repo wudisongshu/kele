@@ -1,0 +1,3 @@
+[Task complete]
+
+{"task":"Setup task","duration":15,"provider":"mock"}

@@ -1,0 +1,3 @@
+[Task complete]
+
+{"task":"Initialize project structure","duration":20,"provider":"mock"}

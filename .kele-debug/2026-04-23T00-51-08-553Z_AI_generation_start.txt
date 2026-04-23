@@ -1,0 +1,3 @@
+[AI generation start]
+
+{"task":"Setup task","provider":"mock"}

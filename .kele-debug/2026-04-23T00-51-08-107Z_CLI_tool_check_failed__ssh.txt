@@ -1,0 +1,3 @@
+[CLI tool check failed: ssh]
+
+Command failed: ssh --version
