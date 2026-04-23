@@ -188,4 +188,12 @@ describe('config', () => {
     expect(config.providers).toEqual({});
     expect(config.autoYes).toBe(false);
   });
+
+  it('saves and loads provider config', async () => {
+    const { setProvider, loadConfig } = await importConfig();
+    setProvider('test-provider', { apiKey: 'test-key', baseURL: 'https://test.com', model: 'test-model' });
+    const config = loadConfig();
+    expect(config.providers['test-provider']).toBeDefined();
+    expect(config.providers['test-provider'].apiKey).toBe('test-key');
+  });
 });

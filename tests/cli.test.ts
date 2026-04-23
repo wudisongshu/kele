@@ -100,4 +100,12 @@ describe('mock adapter', () => {
     const result = await mock.execute('research snake game 分析');
     expect(result.toLowerCase()).toContain('贪吃蛇');
   });
+
+  it('returns match-3 game for match keywords', async () => {
+    const mock = new MockAdapter();
+    const result = await mock.execute('build a match-3 game core feature');
+    const parsed = JSON.parse(result);
+    expect(parsed.files.length).toBeGreaterThan(0);
+    expect(parsed.files[0].path).toBe('index.html');
+  });
 });

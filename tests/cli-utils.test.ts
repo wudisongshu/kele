@@ -82,4 +82,8 @@ describe('parseTimeout', () => {
     expect(parseTimeout('-1')).toBe(3000);
     expect(warnSpy).toHaveBeenCalled();
   });
+
+  it('parses timeout with number input', () => {
+    expect(parseTimeout(5000 as any)).toBe(5000);
+  });
 });

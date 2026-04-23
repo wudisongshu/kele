@@ -235,4 +235,17 @@ describe('applyAIOutput with whitelist', () => {
     expect(written).toContain('package.json');
     expect(written).not.toContain('forbidden.js');
   });
+
+  it('allows all files when no whitelist provided', () => {
+    const output = JSON.stringify({
+      files: [
+        { path: 'index.html', content: '<html></html>' },
+        { path: 'custom.js', content: 'console.log(1)' },
+      ],
+    });
+
+    const written = applyAIOutput(tmpDir, output);
+    expect(written).toContain('index.html');
+    expect(written).toContain('custom.js');
+  });
 });
