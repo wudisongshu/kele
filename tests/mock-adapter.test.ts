@@ -71,5 +71,33 @@ describe('MockAdapter', () => {
       expect(paths).toContain('manifest.json');
       expect(paths).toContain('sw.js');
     });
+
+    it('returns deployment files for deploy prompts', async () => {
+      const result = await adapter.execute('Deploy the app to production');
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveProperty('files');
+      expect(Array.isArray(parsed.files)).toBe(true);
+    });
+
+    it('returns monetization files for monetization prompts', async () => {
+      const result = await adapter.execute('Add ads and payment to the game');
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveProperty('files');
+      expect(Array.isArray(parsed.files)).toBe(true);
+    });
+
+    it('returns valid JSON for all prompt types', async () => {
+      const prompts = [
+        'Create a game',
+        'Write tests',
+        'Deploy app',
+        'Add monetization',
+        'Something else',
+      ];
+      for (const prompt of prompts) {
+        const result = await adapter.execute(prompt);
+        expect(() => JSON.parse(result)).not.toThrow();
+      }
+    });
   });
 });

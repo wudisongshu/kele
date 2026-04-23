@@ -60,4 +60,22 @@ describe('withRetry', () => {
     await expect(withRetry(fn, { maxAttempts: 1, delayMs: 10 })).rejects.toThrow('fail');
     expect(fn).toHaveBeenCalledTimes(1);
   });
+
+  it('retries with increasing attempt numbers', async () => {
+    const fn = vi.fn()
+      .mockRejectedValueOnce(new Error('fail 1'))
+      .mockRejectedValueOnce(new Error('fail 2'))
+      .mockResolvedValue('success');
+    const onError = vi.fn();
+    await withRetry(fn, { maxAttempts: 3, delayMs: 10, onError });
+    expect(onError).toHaveBeenCalledTimes(2);
+    expect(onError).toHaveBeenNthCalledWith(1, expect.objectContaining({ message: 'fail 1' }), 1);
+    expect(onError).toHaveBeenNthCalledWith(2, expect.objectContaining({ message: 'fail 2' }), 2);
+  });
+
+  it('returns rejected promise for synchronous errors', async () => {
+    const fn = vi.fn().mockImplementation(() => { throw new Error('sync fail'); });
+    await expect(withRetry(fn, { maxAttempts: 2, delayMs: 10 })).rejects.toThrow('sync fail');
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
 });

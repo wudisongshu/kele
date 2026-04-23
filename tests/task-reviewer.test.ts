@@ -194,5 +194,44 @@ describe('task-reviewer', () => {
       expect(fixTask.description).toContain('Add the missing file');
       expect(fixTask.id).toMatch(/^fix-/);
     });
+
+    it('creates fix task from PARTIAL review', () => {
+      const originalTask = createMockTask();
+      const review = {
+        verdict: 'PARTIAL' as const,
+        score: 5,
+        completeness: 'partial' as const,
+        meetsRequirements: false,
+        issues: ['Incomplete feature'],
+        fixInstructions: 'Finish the implementation',
+      };
+      const sp = createMockSubProject();
+
+      const fixTask = buildFixTask(originalTask, review, sp);
+
+      expect(fixTask.title).toContain('Fix:');
+      expect(fixTask.description).toContain('PARTIAL');
+      expect(fixTask.description).toContain('Incomplete feature');
+    });
+
+    it('generates fix task with correct structure', () => {
+      const originalTask = createMockTask();
+      const review = {
+        verdict: 'FAIL' as const,
+        score: 3,
+        completeness: 'missing' as const,
+        meetsRequirements: false,
+        issues: ['Issue'],
+        fixInstructions: 'Fix it',
+      };
+      const sp = createMockSubProject();
+
+      const fixTask = buildFixTask(originalTask, review, sp);
+
+      expect(fixTask.id).toMatch(/^fix-task-1-/);
+      expect(fixTask.complexity).toBe(originalTask.complexity);
+      expect(fixTask.version).toBe(1);
+      expect(fixTask.status).toBe('pending');
+    });
   });
 });

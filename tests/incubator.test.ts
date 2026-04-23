@@ -96,4 +96,22 @@ describe('Incubator', () => {
       expect(ids).toContain(expectedDevId);
     }
   });
+
+  it('should return success true for valid ideas', () => {
+    const idea = makeIdea({ type: 'tool', complexity: 'simple' });
+    const result = incubate(idea, '/tmp/test');
+
+    expect(result.success).toBe(true);
+    expect(result.subProjects).toBeDefined();
+    expect(result.subProjects!.length).toBeGreaterThan(0);
+  });
+
+  it('should assign correct target directories to sub-projects', () => {
+    const idea = makeIdea({ type: 'game', complexity: 'simple', monetization: 'web' });
+    const result = incubate(idea, '/tmp/test-game');
+
+    for (const sp of result.subProjects!) {
+      expect(sp.targetDir).toContain('/tmp/test-game');
+    }
+  });
 });
