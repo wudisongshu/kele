@@ -1,3 +1,0 @@
-[File writer extractJson validation failed]
-
-Expected property name or '}' in JSON at position 2

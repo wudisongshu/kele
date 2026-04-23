@@ -43,3 +43,12 @@ coverage/
 
 .node/
 .node/
+
+# AI 工具个人配置（不同开发者配置不同，且可能含敏感信息）
+.clinerules/
+.cursorrules
+.kimi/
+
+# AI 运行时数据（运行时生成，不应版本控制）
+context/
+memory/

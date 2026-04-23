@@ -1,3 +1,0 @@
-[CLI tool check failed: butler]
-
-Command failed: butler --version

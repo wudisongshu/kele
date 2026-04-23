@@ -1,3 +1,0 @@
-[Task start]
-
-{"task":"Setup task","subProject":"Test SubProject","type":"setup","totalSteps":4}

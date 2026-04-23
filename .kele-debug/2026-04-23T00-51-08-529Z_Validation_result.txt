@@ -1,3 +1,0 @@
-[Validation result]
-
-{"task":"Initialize project structure","valid":true,"runtimePassed":true}

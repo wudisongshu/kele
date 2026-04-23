@@ -1,3 +1,0 @@
-[AI generation start]
-
-{"task":"Test Task","provider":"mock"}

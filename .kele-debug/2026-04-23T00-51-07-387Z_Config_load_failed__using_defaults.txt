@@ -1,3 +1,0 @@
-[Config load failed, using defaults]
-
-Unexpected end of JSON input

@@ -1,3 +1,0 @@
-[Validation start]
-
-{"task":"Setup task"}

@@ -1,3 +1,0 @@
-[File processing start]
-
-{"task":"Setup task","outputLength":4304}

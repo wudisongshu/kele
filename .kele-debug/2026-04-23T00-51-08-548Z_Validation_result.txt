@@ -1,3 +1,0 @@
-[Validation result]
-
-{"task":"Test Task","valid":true,"runtimePassed":true}

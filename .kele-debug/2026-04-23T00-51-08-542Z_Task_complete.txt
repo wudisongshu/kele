@@ -1,3 +1,0 @@
-[Task complete]
-
-{"task":"Test Task","duration":6,"provider":"mock"}

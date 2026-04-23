@@ -1,3 +1,0 @@
-[Validation result]
-
-{"task":"Setup task","valid":true,"runtimePassed":true}

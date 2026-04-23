@@ -1,3 +1,0 @@
-[CLI tool check failed: cli]
-
-Command failed: cli --version

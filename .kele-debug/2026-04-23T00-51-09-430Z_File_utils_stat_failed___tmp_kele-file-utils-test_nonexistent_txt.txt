@@ -1,3 +1,0 @@
-[File utils stat failed: /tmp/kele-file-utils-test/nonexistent.txt]
-
-ENOENT: no such file or directory, stat '/tmp/kele-file-utils-test/nonexistent.txt'

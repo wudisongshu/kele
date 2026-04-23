@@ -1,3 +1,0 @@
-[Task start]
-
-{"task":"Initialize project structure","subProject":"Test SubProject","type":"development","totalSteps":6}

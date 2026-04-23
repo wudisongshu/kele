@@ -1,3 +1,0 @@
-[File processing start]
-
-{"task":"Test Task","outputLength":4304}
