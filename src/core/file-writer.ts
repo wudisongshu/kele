@@ -32,7 +32,7 @@ export interface ParsedOutput {
  * Patterns support simple glob-style wildcards (* matches any chars).
  */
 export const SUBPROJECT_FILE_WHITELIST: Record<string, string[]> = {
-  setup: ['package.json', 'vite.config.ts', '.gitignore', 'index.html', 'public/manifest.json', 'public/sw.js', 'manifest.json', 'sw.js'],
+  setup: ['package.json', 'vite.config.ts', '.gitignore', 'index.html', 'public/manifest.json', 'public/sw.js', 'manifest.json', 'sw.js', 'SETUP.md'],
   development: ['js/*.js', 'css/*.css', 'src/*.js', 'src/*.ts', 'assets/*'],
   production: ['js/*.js', 'css/*.css', 'src/*.js', 'src/*.ts', 'assets/*'],
   creation: ['js/*.js', 'css/*.css', 'src/*.js', 'src/*.ts', 'assets/*'],
@@ -42,7 +42,7 @@ export const SUBPROJECT_FILE_WHITELIST: Record<string, string[]> = {
   'ui-polish': ['css/*.css', 'assets/*', 'index.patch.html'],
 };
 
-function matchWhitelist(path: string, whitelist: string[]): boolean {
+export function matchWhitelist(path: string, whitelist: string[]): boolean {
   for (const pattern of whitelist) {
     const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*\*/g, '(.+)').replace(/\*/g, '([^/]+)') + '$');
     if (regex.test(path)) return true;

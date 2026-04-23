@@ -1,4 +1,5 @@
-import type { SubProject, Idea } from '../types/index.js';
+import type { SubProject, Idea, AcceptanceCriterion } from '../types/index.js';
+import { SUBPROJECT_FILE_WHITELIST, matchWhitelist } from './file-writer.js';
 
 export interface ValidationResult {
   valid: boolean;
@@ -108,6 +109,14 @@ export function validateIncubatorOutput(
     warnings.push('没有标记任何关键路径子项目');
   }
 
+  // 10. Acceptance criteria whitelist validation
+  for (const sp of subProjects) {
+    const cw = validateCriteriaAgainstWhitelist(sp.acceptanceCriteria || [], sp.type);
+    for (const w of cw.warnings) {
+      warnings.push(w);
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -203,4 +212,41 @@ export function estimateTotalDays(subProjects: SubProject[]): number {
     }
   }
   return total;
+}
+
+/**
+ * Validate acceptance criteria against the sub-project file whitelist.
+ * Criteria targeting files outside the whitelist are filtered out with warnings.
+ */
+export function validateCriteriaAgainstWhitelist(
+  criteria: AcceptanceCriterion[],
+  subProjectType: string,
+): { valid: boolean; filtered: AcceptanceCriterion[]; warnings: string[] } {
+  const whitelist = SUBPROJECT_FILE_WHITELIST[subProjectType];
+  if (!whitelist) {
+    // Unknown type — allow all (defensive)
+    return { valid: true, filtered: criteria, warnings: [] };
+  }
+
+  const filtered: AcceptanceCriterion[] = [];
+  const warnings: string[] = [];
+
+  for (const c of criteria) {
+    // Criteria without a target (e.g. some play-game checks) skip whitelist check
+    if (!c.target) {
+      filtered.push(c);
+      continue;
+    }
+
+    const allowed = matchWhitelist(c.target, whitelist);
+    if (!allowed) {
+      warnings.push(
+        `[WHITELIST] 验收标准 "${c.description}" 要求检查 ${c.target}，但 ${subProjectType} 子项目的白名单不包含此文件。该标准将被跳过。`,
+      );
+    } else {
+      filtered.push(c);
+    }
+  }
+
+  return { valid: warnings.length === 0, filtered, warnings };
 }

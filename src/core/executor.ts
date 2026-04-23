@@ -9,6 +9,7 @@ import { reviewTaskOutput } from './task-reviewer.js';
 
 import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
+import { validateCriteriaAgainstWhitelist } from './incubator-validator.js';
 import { validateGameInBrowser, quickGameCheck } from './game-validator-browser.js';
 import { matchContract } from './contract-engine.js';
 import { assembleProject } from './project-assembler.js';
@@ -427,8 +428,20 @@ async function runAcceptanceValidation(
   const criteria = subProject.acceptanceCriteria || [];
   if (criteria.length === 0) return;
 
-  onProgress?.(`   🧪 执行孵化器验收标准 (${criteria.length} 项)...`);
-  const acceptance = runAcceptanceCriteria(subProject);
+  // Filter criteria against whitelist before execution to prevent infinite repair loops
+  const { filtered: validCriteria, warnings: whitelistWarnings } = validateCriteriaAgainstWhitelist(criteria, subProject.type);
+  if (whitelistWarnings.length > 0) {
+    for (const w of whitelistWarnings) {
+      onProgress?.(`      ⚠️ ${w}`);
+    }
+  }
+  if (validCriteria.length === 0) {
+    onProgress?.(`   🧪 孵化器验收标准全部被白名单过滤，跳过验收`);
+    return;
+  }
+
+  onProgress?.(`   🧪 执行孵化器验收标准 (${validCriteria.length} 项)...`);
+  const acceptance = runAcceptanceCriteria(subProject, validCriteria);
 
   if (acceptance.passed) {
     onProgress?.(`   ✅ 验收通过 (评分: ${acceptance.score}/100)`);

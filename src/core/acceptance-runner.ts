@@ -29,8 +29,8 @@ export interface CriterionResult {
 /**
  * Run all acceptance criteria for a sub-project.
  */
-export function runAcceptanceCriteria(subProject: SubProject): AcceptanceResult {
-  const criteria = subProject.acceptanceCriteria || [];
+export function runAcceptanceCriteria(subProject: SubProject, overrideCriteria?: AcceptanceCriterion[]): AcceptanceResult {
+  const criteria = overrideCriteria || subProject.acceptanceCriteria || [];
 
   if (criteria.length === 0) {
     // No criteria defined — auto-pass with warning
