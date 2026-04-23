@@ -226,5 +226,12 @@ document.addEventListener('keydown', function() {});
       expect(result.ok).toBe(true);
       expect(result.issues).toHaveLength(0);
     });
+
+    it('detects missing canvas element', () => {
+      writeFileSync(join(TEST_DIR, 'index.html'), '<html><body><script src="game.js"></script></body></html>');
+      writeFileSync(join(TEST_DIR, 'game.js'), 'console.log(1)');
+      const result = quickGameCheck(TEST_DIR);
+      expect(result.issues.some((i) => i.includes('canvas'))).toBe(true);
+    });
   });
 });

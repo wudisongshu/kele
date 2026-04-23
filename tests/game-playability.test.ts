@@ -166,4 +166,16 @@ describe('formatPlayabilityScore', () => {
     });
     expect(formatted).toContain('优秀');
   });
+
+  it('marks low scores with warnings', () => {
+    const formatted = formatPlayabilityScore({
+      total: 30,
+      categories: [],
+      suggestions: ['need improvement'],
+      verdict: 'poor',
+      gameType: 'snake',
+    });
+    expect(formatted).toContain('30');
+    expect(formatted).toContain('need improvement');
+  });
 });

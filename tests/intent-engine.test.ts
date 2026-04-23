@@ -156,5 +156,17 @@ describe('parseIntent', () => {
       expect(result.type).toBe('CREATE');
       expect((result as any).idea).toBe('做一个记账工具');
     });
+
+    it('heuristic detects DELETE intent', async () => {
+      const adapter = createFailingAdapter();
+      const result = await parseIntent('删除这个项目', adapter);
+      expect(result.type).toBe('DELETE');
+    });
+
+    it('heuristic detects QUESTION intent', async () => {
+      const adapter = createFailingAdapter();
+      const result = await parseIntent('怎么使用这个工具', adapter);
+      expect(result.type).toBe('QUESTION');
+    });
   });
 });

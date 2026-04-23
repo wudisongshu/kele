@@ -157,4 +157,12 @@ describe('estimateTotalDays', () => {
     const sps = [makeSP(), makeSP()];
     expect(estimateTotalDays(sps)).toBe(0);
   });
+
+  it('handles mixed units in effort estimation', () => {
+    const sps = [
+      makeSP({ estimatedEffort: '2 days' }),
+      makeSP({ estimatedEffort: '8 hours' }),
+    ];
+    expect(estimateTotalDays(sps)).toBeGreaterThan(0);
+  });
 });
