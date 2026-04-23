@@ -207,5 +207,10 @@ describe('platform-knowledge', () => {
     it('returns empty string for unknown platform', () => {
       expect(getDeployableConfigTemplate('unknown')).toBe('');
     });
+
+    it('returns template for steam', () => {
+      const text = getDeployableConfigTemplate('steam');
+      expect(text.length).toBeGreaterThan(0);
+    });
   });
 });

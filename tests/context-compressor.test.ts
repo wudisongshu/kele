@@ -322,4 +322,15 @@ describe('generateProjectSummary (file-writer)', () => {
     const summary = generateProjectSummary('/nonexistent/path');
     expect(summary).toBe('');
   });
+
+  it('summarizes directory with multiple files', () => {
+    const spDir = join(TEST_DIR, 'summary-sp4');
+    mkdirSync(spDir, { recursive: true });
+    writeFileSync(join(spDir, 'a.js'), 'const a = 1;');
+    writeFileSync(join(spDir, 'b.js'), 'const b = 2;');
+
+    const summary = generateProjectSummary(spDir, 'SP4', 'desc');
+    expect(summary).toContain('a.js');
+    expect(summary).toContain('b.js');
+  });
 });

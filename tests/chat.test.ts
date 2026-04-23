@@ -363,4 +363,12 @@ describe('CLI command setup', () => {
     const commands = program.commands.map((c) => c.name());
     expect(commands).toContain('chat');
   });
+
+  it('chat command has project-id argument', () => {
+    const program = new Command();
+    setupChatCommand(program);
+    const chatCmd = program.commands.find((c) => c.name() === 'chat')!;
+    const args = chatCmd.registeredArguments.map((a) => a.name());
+    expect(args).toContain('project-id');
+  });
 });

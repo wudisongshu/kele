@@ -237,4 +237,21 @@ describe('AcceptanceRunner', () => {
     expect(result.results[0].passed).toBe(true);
     expect(result.results[0].actual).toContain('script.js');
   });
+
+  it('should fail when critical criterion is not met', () => {
+    subProject.acceptanceCriteria = [
+      {
+        description: 'Must have nonexistent file',
+        type: 'structural',
+        action: 'verify-file',
+        target: 'nonexistent.txt',
+        expected: 'file exists',
+        critical: true,
+      },
+    ];
+
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(false);
+    expect(result.results[0].passed).toBe(false);
+  });
 });
