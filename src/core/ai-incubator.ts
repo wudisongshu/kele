@@ -1,6 +1,7 @@
 import type { AIAdapter } from '../adapters/base.js';
 import type { Idea, SubProject } from '../types/index.js';
-import { debugLog } from '../debug.js';
+import { debugLog, isDebug } from '../debug.js';
+import { DebugLogger, setGlobalDebugLogger } from '../utils/debug-logger.js';
 import { safeJsonParse } from './json-utils.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
 import { IncubationResponseSchema } from './schemas.js';
@@ -177,6 +178,9 @@ export async function incubateWithAI(
   onProgress?: (msg: string) => void,
   contract?: Contract,
 ): Promise<AIIncubateResult> {
+  const logger = new DebugLogger(rootDir, `incubate-${idea.id ?? Date.now()}`, { enabled: isDebug() });
+  setGlobalDebugLogger(logger);
+
   const validationMeta = {
     localValid: false,
     localErrors: [] as string[],
@@ -185,6 +189,13 @@ export async function incubateWithAI(
     aiIssues: [] as string[],
     revisions: 0,
   };
+
+  await logger.logInput('incubator', 'incubate.start', {
+    idea: idea.rawText.slice(0, 500),
+    complexity: idea.complexity,
+    type: idea.type,
+    hasContract: !!contract,
+  });
 
   // kele principle: no timeouts. Wait indefinitely for AI to respond.
 
@@ -203,17 +214,24 @@ export async function incubateWithAI(
     result = await tryIncubate(idea, rootDir, adapter, onToken, contract);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
+    await logger.logError('incubator', err instanceof Error ? err : new Error(String(err)));
+    await logger.finalize('failed');
+    setGlobalDebugLogger(null);
     return { success: false, error, validation: validationMeta };
   }
   if (!result.success) {
+    await logger.finalize('failed', { reason: 'tryIncubate returned success:false' });
+    setGlobalDebugLogger(null);
     return { ...result, validation: validationMeta };
   }
+  await logger.logOutput('incubator', 'incubate.plan', { subProjectsCount: result.subProjects?.length, monetizationPath: result.monetizationPath });
 
   // --- Local validation (free, fast) — infinite fix loop ---
   let localValidation = await validateIncubatorOutput(result.subProjects!, idea, rootDir);
   validationMeta.localValid = localValidation.valid;
   validationMeta.localErrors = localValidation.errors;
   validationMeta.localWarnings = localValidation.warnings;
+  await logger.logIntermediate('incubator', 'local.validation', { valid: localValidation.valid, errors: localValidation.errors.length, warnings: localValidation.warnings.length });
 
   let fixAttempt = 1;
   while (!localValidation.valid && fixAttempt <= MAX_LOCAL_FIX_ATTEMPTS) {
@@ -304,6 +322,12 @@ export async function incubateWithAI(
     validationMeta.aiApproved = true;
   }
 
+  await logger.finalize('success', {
+    revisions: validationMeta.revisions,
+    localValid: validationMeta.localValid,
+    aiApproved: validationMeta.aiApproved,
+  });
+  setGlobalDebugLogger(null);
   return {
     ...result,
     validation: validationMeta,

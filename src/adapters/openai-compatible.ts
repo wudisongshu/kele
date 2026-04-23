@@ -2,6 +2,7 @@ import type { AIAdapter } from './base.js';
 import type { ProviderConfig } from '../config/index.js';
 import { Agent } from 'undici';
 import { debugLog } from '../debug.js';
+import { getGlobalDebugLogger } from '../utils/debug-logger.js';
 
 /**
  * OpenAI-Compatible AI Adapter
@@ -182,6 +183,8 @@ export class OpenAICompatibleAdapter implements AIAdapter {
       body.stream = true;
     }
 
+    const logger = getGlobalDebugLogger();
+
     const response = await fetch(`${this.config.baseURL}/chat/completions`, {
       method: 'POST',
       headers,
@@ -192,6 +195,7 @@ export class OpenAICompatibleAdapter implements AIAdapter {
 
     if (!response.ok) {
       const errorText = await response.text();
+      logger?.logError('adapter', new Error(`${this.name} API error (${response.status})`), { provider: this.name, status: response.status }).catch(() => { /* ignore */ });
       throw new Error(`${this.name} API error (${response.status}): ${errorText}`);
     }
 
@@ -306,6 +310,12 @@ export class OpenAICompatibleAdapter implements AIAdapter {
         const elapsed = ((Date.now() - firstTokenTime) / 1000).toFixed(1);
         console.log(`      ✅ 流式生成完成，共 ${tokenCount} 个 token，用时 ${elapsed} 秒`);
       }
+
+      getGlobalDebugLogger()?.logOutput('adapter', 'stream.complete', {
+        provider: this.name,
+        tokenCount,
+        contentLength: content.length,
+      }).catch(() => { /* ignore */ });
 
       return content;
     } finally {

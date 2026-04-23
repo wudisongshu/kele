@@ -5,6 +5,7 @@ import { applyAIOutput, parseAIOutput, SubProjectFileRegistry, SUBPROJECT_FILE_W
 import { validateTaskOutput } from './task-validator.js';
 import { copyTemplate, getTemplateType } from './template-loader.js';
 import { debugLog } from '../debug.js';
+import { DebugLogger, setGlobalDebugLogger, getGlobalDebugLogger } from '../utils/debug-logger.js';
 import { reviewTaskOutput } from './task-reviewer.js';
 
 import { runProject } from './run-validator.js';
@@ -97,6 +98,7 @@ async function callAI(ctx: ExecutionContext, prompt: string): Promise<{ output: 
   const { registry, onProgress, signal } = ctx;
   const route = registry.route(ctx.task.complexity);
   ctx.task.aiProvider = route.provider;
+  const logger = getGlobalDebugLogger();
 
   let firstTokenReceived = false;
   let tokenCount = 0;
@@ -114,12 +116,23 @@ async function callAI(ctx: ExecutionContext, prompt: string): Promise<{ output: 
     }
   };
 
+  const modelInfo = route.adapter.getModelInfo?.();
+  await logger?.logAIRequest(
+    { user: prompt.slice(0, 5000) },
+    { provider: route.provider, model: modelInfo?.name },
+  );
+
   const result = await executeWithFallback(registry, prompt, route.provider, route.adapter, onToken, onProgress, signal);
   const elapsed = Date.now() - startTime;
   const elapsedSec = Math.round(elapsed / 1000);
   if (elapsedSec > 10) {
     onProgress?.(`   ⏱️  生成耗时 ${elapsedSec} 秒`);
   }
+  await logger?.logAIResponse(
+    result.output.slice(0, 10000),
+    elapsed,
+    { tokenUsage: { total: tokenCount } },
+  );
   return result;
 }
 
@@ -670,10 +683,14 @@ export async function executeTask(
 ): Promise<ExecuteResult> {
   const { registry, db, onProgress, signal } = options;
   const taskStartTime = Date.now();
+  const logger = new DebugLogger(subProject.targetDir, task.id);
+  setGlobalDebugLogger(logger);
 
   // Check abort before starting
   if (signal?.aborted) {
     onProgress?.(`   ⏹️  Task cancelled: ${task.title}`);
+    await logger.finalize('aborted');
+    setGlobalDebugLogger(null);
     return { success: false, error: 'Execution aborted by user' };
   }
 
@@ -683,6 +700,13 @@ export async function executeTask(
     task.status = 'running';
     db.saveTask(task, project.id);
     onProgress?.(`🔄 [${subProject.name}] ${task.title}`);
+
+    await logger.logInput('executor', 'task.start', {
+      taskTitle: task.title,
+      subProject: subProject.name,
+      subProjectType: subProject.type,
+      complexity: task.complexity,
+    });
 
     // Progress step tracker
     let step = 0;
@@ -730,10 +754,12 @@ export async function executeTask(
     // Phase 1: AI generation
     onProgress?.(`   ${nextStep()} ✍️  Generating code...`);
     debugLog('AI generation start', JSON.stringify({ task: task.title, provider: route.provider }));
+    await logger.logInput('executor', 'ai.generation.start', { task: task.title, provider: route.provider, promptLength: prompt.length });
     const aiResult = await callAI(ctx, prompt);
     const output = aiResult.output;
     const provider = aiResult.provider;
     task.aiProvider = provider as Task['aiProvider'];
+    await logger.logOutput('executor', 'ai.generation.complete', { task: task.title, provider, outputLength: output.length });
 
     // Check abort after AI call
     if (signal?.aborted) {
@@ -741,6 +767,8 @@ export async function executeTask(
       task.error = 'Execution aborted by user';
       db.saveTask(task, project.id);
       onProgress?.(`   ⏹️  Task aborted: ${task.title}`);
+      await logger.finalize('aborted');
+      setGlobalDebugLogger(null);
       return { success: false, error: 'Execution aborted by user' };
     }
 
@@ -752,6 +780,7 @@ export async function executeTask(
     debugLog('File processing start', JSON.stringify({ task: task.title, outputLength: output.length }));
     const fileRegistry = new SubProjectFileRegistry(subProject.targetDir);
     const writtenFiles = await processOutput(ctx, output, prompt, provider, fileRegistry);
+    await logger.logOutput('executor', 'file.write', { writtenFiles, count: writtenFiles.length });
     if (writtenFiles.length === 0) {
       throw new ValidationError('AI 返回空输出，未生成任何文件。这通常是因为 API 超时或返回了空响应。建议：(1) 检查网络连接和 API provider 状态，(2) 运行 kele retry 重试此任务，(3) 使用 kele --mock 快速测试。');
     }
@@ -769,14 +798,17 @@ export async function executeTask(
     debugLog('Validation start', JSON.stringify({ task: task.title }));
     const { validation, runtimePassed } = await validateAndFixRuntime(ctx, prompt, fileRegistry);
     debugLog('Validation result', JSON.stringify({ task: task.title, valid: validation.valid, runtimePassed }));
+    await logger.logOutput('executor', 'validation.result', { valid: validation.valid, score: validation.score, runtimePassed });
 
     // Phase 4: Acceptance criteria
     const hasAcceptanceCriteria = (subProject.acceptanceCriteria?.length || 0) > 0;
     if (hasAcceptanceCriteria) {
       await runAcceptanceValidation(ctx, prompt, validation.valid, runtimePassed, fileRegistry);
+      await logger.logOutput('executor', 'acceptance.ran', { criteriaCount: subProject.acceptanceCriteria!.length });
     } else {
       // Phase 5: Legacy AI review
       await runAIQualityReview(ctx, prompt, validation.valid, runtimePassed);
+      await logger.logOutput('executor', 'review.ran', { type: 'legacy' });
     }
 
     // Phase 6: Performance analysis and auto-optimization
@@ -814,13 +846,18 @@ export async function executeTask(
     debugLog('Task complete', JSON.stringify({ task: task.title, duration, provider: task.aiProvider }));
     trackTaskComplete(project.id, task.id, task.aiProvider || 'unknown', duration);
     onProgress?.(`   ✅ Completed`);
+    await logger.finalize('success', { durationMs: duration, provider: task.aiProvider });
+    setGlobalDebugLogger(null);
     return { success: true, output };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
+    await logger.logError('executor', err instanceof Error ? err : new Error(String(err)), { taskId: task.id, phase: 'execution' });
 
     // Recovery wizard: diagnose and offer repair options
     const recovery = await handleTaskFailure(task, subProject, project, options, error);
     if (recovery.recovered) {
+      await logger.finalize('success', { recovered: true });
+      setGlobalDebugLogger(null);
       return recovery.result!;
     }
 
@@ -831,6 +868,8 @@ export async function executeTask(
     db.saveTask(task, project.id);
     trackTaskFail(project.id, task.id, task.aiProvider || 'unknown', finalError, duration);
     onProgress?.(`   ❌ Failed: ${finalError.slice(0, 200)}`);
+    await logger.finalize('failed', { durationMs: duration, error: finalError });
+    setGlobalDebugLogger(null);
     return { success: false, error: finalError };
   }
 }

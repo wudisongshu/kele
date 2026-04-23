@@ -3,6 +3,7 @@ import { dirname, join, basename } from 'path';
 import { sanitizeFilePath } from './security.js';
 import { extractJson as extractJsonFromUtils } from './json-utils.js';
 import { debugLog } from '../debug.js';
+import { getGlobalDebugLogger } from '../utils/debug-logger.js';
 
 /**
  * FileWriter — parses AI output and writes files to disk.
@@ -313,6 +314,14 @@ export function writeFiles(
     const lines = content.split('\n').length;
     onProgress?.(`      📄 ${relativePath} — ${sizeKb}KB, ${lines} lines`);
     written.push(relativePath);
+
+    const logger = getGlobalDebugLogger();
+    logger?.logIntermediate('file-writer', 'file.write', {
+      path: relativePath,
+      sizeBytes: content.length,
+      lines,
+      subProjectType,
+    }).catch(() => { /* ignore */ });
   }
 
   if (parsed.notes && parsed.notes.trim().length > 0) {

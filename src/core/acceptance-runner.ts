@@ -10,6 +10,7 @@ import type { AcceptanceCriterion, SubProject } from '../types/index.js';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { debugLog } from '../debug.js';
+import { getGlobalDebugLogger } from '../utils/debug-logger.js';
 
 export interface AcceptanceResult {
   /** Overall pass/fail */
@@ -168,6 +169,17 @@ export function runAcceptanceCriteria(subProject: SubProject, overrideCriteria?:
   // Pass if all critical criteria pass AND score >= 70
   const allCriticalPass = criticalTotal === 0 || criticalPassed === criticalTotal;
   const passed = allCriticalPass && score >= 70;
+
+  const logger = getGlobalDebugLogger();
+  logger?.logOutput('acceptance-runner', 'acceptance.result', {
+    passed,
+    score,
+    criticalPassed,
+    criticalTotal,
+    nonCriticalPassed,
+    nonCriticalTotal,
+    resultCount: results.length,
+  }).catch(() => { /* ignore */ });
 
   return { passed, score, results };
 }
