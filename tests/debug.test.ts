@@ -85,4 +85,12 @@ describe('debug', () => {
     debugCounter('c2');
     expect(debugCounterGet('c2')).toBe(0);
   });
+
+  it('debugTimerEnd handles unknown timer gracefully', () => {
+    setDebug(true);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    debugTimerEnd('nonexistent');
+    expect(logSpy).not.toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
 });

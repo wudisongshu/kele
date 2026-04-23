@@ -89,4 +89,12 @@ describe('createMockRegistry', () => {
     expect(available).toEqual(['mock']);
     expect(registry.get('mock')).toBeDefined();
   });
+
+  it('mock adapter returns responses', async () => {
+    const registry = createMockRegistry();
+    const mock = registry.get('mock')!;
+    const result = await mock.execute('test');
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
 });

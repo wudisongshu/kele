@@ -83,4 +83,12 @@ describe('findRunEntry', () => {
     const entry = findRunEntry(tempDir);
     expect(entry.type).toBe('none');
   });
+
+  it('detects miniprogram via app.json in subdirectory', () => {
+    const mpDir = join(tempDir, 'mini');
+    mkdirSync(mpDir);
+    writeFileSync(join(mpDir, 'app.json'), '{}');
+    const entry = findRunEntry(tempDir);
+    expect(entry.type).toBe('miniprogram');
+  });
 });

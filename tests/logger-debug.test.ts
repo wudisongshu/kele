@@ -48,4 +48,14 @@ describe('Logger debug method', () => {
   it('logEvent should accept debug level', () => {
     expect(() => logEvent('debug', 'debug test')).not.toThrow();
   });
+
+  it('warn method works in text mode', () => {
+    const logger = createProgressLogger(false);
+    expect(() => logger.warn('warning')).not.toThrow();
+  });
+
+  it('error method works in text mode', () => {
+    const logger = createProgressLogger(false);
+    expect(() => logger.error('error msg')).not.toThrow();
+  });
 });
