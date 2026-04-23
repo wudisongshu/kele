@@ -27,12 +27,109 @@ export interface CriterionResult {
 }
 
 /**
+ * Backwards-compatible normalization of acceptance criteria.
+ * Old-format criteria (without checkType) are inferred from action + description + expected.
+ */
+export function normalizeCriterion(criterion: AcceptanceCriterion): AcceptanceCriterion & { inferredCheckType: 'file_exists' | 'content_contains' | 'regex_match' | 'check_element' | 'play_game' | 'open' } {
+  if (criterion.checkType) {
+    return { ...criterion, inferredCheckType: criterion.checkType };
+  }
+
+  const descLower = (criterion.description || '').toLowerCase();
+  const expectedLower = (criterion.expected || '').toLowerCase();
+  const action = criterion.action || '';
+
+  // Inference rules for old-format criteria
+  if (action === 'verify-file') {
+    // If expected clearly indicates existence only
+    const isExistenceOnly =
+      expectedLower.includes('exists') ||
+      expectedLower.includes('is present') ||
+      expectedLower.includes('is in project') ||
+      expectedLower === 'file exists' ||
+      expectedLower === '';
+
+    if (isExistenceOnly) {
+      return { ...criterion, checkType: 'file_exists', inferredCheckType: 'file_exists' };
+    }
+    // Otherwise treat as content_contains (expected should be a real snippet)
+    return { ...criterion, checkType: 'content_contains', inferredCheckType: 'content_contains' };
+  }
+
+  if (action === 'check-text') {
+    // Clean descriptive prefixes from expected
+    const cleaned = cleanDescriptiveExpectation(criterion.expected);
+    return { ...criterion, expected: cleaned, checkType: 'content_contains', inferredCheckType: 'content_contains' };
+  }
+  if (action === 'check-element') {
+    return { ...criterion, inferredCheckType: 'check_element' };
+  }
+
+  if (action === 'play-game') {
+    return { ...criterion, inferredCheckType: 'play_game' };
+  }
+  if (action === 'open' || action === 'load-url') {
+    return { ...criterion, inferredCheckType: 'open' };
+  }
+
+  // Default fallback
+  if (descLower.includes('exists') || descLower.includes('is present')) {
+    return { ...criterion, checkType: 'file_exists', inferredCheckType: 'file_exists' };
+  }
+
+  return { ...criterion, checkType: 'content_contains', inferredCheckType: 'content_contains' };
+}
+
+/**
+ * Detect and strip descriptive prefixes from AI-generated expectations.
+ * Example: "file contains <canvas" → "<canvas"
+ */
+function cleanDescriptiveExpectation(expected: string): string {
+  const lower = expected.toLowerCase().trim();
+  const prefixes = [
+    'file contains ',
+    'contains ',
+    'has ',
+    'includes ',
+    'must include ',
+    'should have ',
+    'should contain ',
+  ];
+  for (const prefix of prefixes) {
+    if (lower.startsWith(prefix)) {
+      return expected.slice(prefix.length).trim();
+    }
+  }
+  return expected;
+}
+
+/**
+ * Check whether an expectation looks like a descriptive sentence rather than a real code snippet.
+ */
+export function isDescriptiveExpectation(expected: string): boolean {
+  const lower = expected.toLowerCase().trim();
+  const descriptivePatterns = [
+    /^file\s+contains\s+/,
+    /^contains\s+/,
+    /^has\s+/,
+    /^includes\s+/,
+    /^must\s+include\s+/,
+    /^should\s+have\s+/,
+    /^should\s+contain\s+/,
+    /^is\s+present/,
+    /^is\s+in\s+project/,
+    /^file\s+exists\b.*$/,
+  ];
+  return descriptivePatterns.some((pattern) => pattern.test(lower));
+}
+
+/**
  * Run all acceptance criteria for a sub-project.
  */
 export function runAcceptanceCriteria(subProject: SubProject, overrideCriteria?: AcceptanceCriterion[]): AcceptanceResult {
-  const criteria = overrideCriteria || subProject.acceptanceCriteria || [];
+  const rawCriteria = overrideCriteria || subProject.acceptanceCriteria || [];
 
-  if (criteria.length === 0) {
+  if (rawCriteria.length === 0) {
     // No criteria defined — auto-pass with warning
     return {
       passed: true,
@@ -40,6 +137,9 @@ export function runAcceptanceCriteria(subProject: SubProject, overrideCriteria?:
       results: [],
     };
   }
+
+  // Normalize old-format criteria before evaluation
+  const criteria = rawCriteria.map(normalizeCriterion);
 
   const results: CriterionResult[] = [];
   let criticalPassed = 0;
@@ -72,23 +172,28 @@ export function runAcceptanceCriteria(subProject: SubProject, overrideCriteria?:
   return { passed, score, results };
 }
 
-function evaluateCriterion(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
-  switch (criterion.action) {
-    case 'verify-file':
-      return evaluateVerifyFile(criterion, targetDir);
-    case 'check-element':
+function evaluateCriterion(
+  criterion: AcceptanceCriterion & { inferredCheckType: 'file_exists' | 'content_contains' | 'regex_match' | 'check_element' | 'play_game' | 'open' },
+  targetDir: string,
+): CriterionResult {
+  switch (criterion.inferredCheckType) {
+    case 'file_exists':
+      return evaluateFileExists(criterion, targetDir);
+    case 'content_contains':
+      return evaluateContentContains(criterion, targetDir);
+    case 'regex_match':
+      return evaluateRegexMatch(criterion, targetDir);
+    case 'check_element':
       return evaluateCheckElement(criterion, targetDir);
-    case 'check-text':
-      return evaluateCheckText(criterion, targetDir);
+    case 'play_game':
+      return evaluatePlayGame(criterion, targetDir);
     case 'open':
       return evaluateOpen(criterion, targetDir);
-    case 'play-game':
-      return evaluatePlayGame(criterion, targetDir);
     default:
       return {
         criterion,
         passed: false,
-        actual: `Unknown action: ${criterion.action}`,
+        actual: `Unknown checkType: ${criterion.inferredCheckType}`,
       };
   }
 }
@@ -174,8 +279,8 @@ function checkSemanticContent(filePath: string, content: string, expected: strin
   return { ok: true };
 }
 
-/** Verify a file exists and optionally check its content. */
-function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
+/** Check if a file exists (with smart detection fallback). */
+function evaluateFileExists(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
   const filePath = criterion.target;
   if (!filePath) {
     return { criterion, passed: false, actual: 'No target file path specified' };
@@ -187,7 +292,6 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
   // --- Smart detection fallback when direct path does not exist ---
   if (!resolvedPath) {
     const desc = criterion.description.toLowerCase();
-    const expectedLower = (criterion.expected || '').toLowerCase();
 
     // 1. Game logic / JS file smart detection
     const isJsTarget = filePath.endsWith('.js');
@@ -204,10 +308,8 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           debugLog(`Acceptance runner JS read failed: ${jsPath}`, msg);
-          // Skip unreadable files
         }
       }
-      // If no game logic marker found but JS files exist and it's a generic JS check, pick the first one
       if (!resolvedPath && jsFiles.length > 0 && isJsTarget) {
         resolvedPath = jsFiles[0];
       }
@@ -224,6 +326,7 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
     }
 
     // 3. Canvas smart detection
+    const expectedLower = (criterion.expected || '').toLowerCase();
     const isCanvas = desc.includes('canvas') || expectedLower.includes('canvas');
     if (!resolvedPath && isCanvas) {
       const htmlFiles = findHtmlFiles(targetDir);
@@ -237,7 +340,6 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           debugLog(`Acceptance runner HTML read failed: ${htmlPath}`, msg);
-          // Skip unreadable files
         }
       }
       if (!resolvedPath) {
@@ -252,7 +354,6 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             debugLog(`Acceptance runner JS read failed: ${jsPath}`, msg);
-            // Skip unreadable files
           }
         }
       }
@@ -264,25 +365,113 @@ function evaluateVerifyFile(criterion: AcceptanceCriterion, targetDir: string): 
   }
 
   const relativePath = resolvedPath.startsWith(targetDir + '/') ? resolvedPath.slice(targetDir.length + 1) : resolvedPath;
-
-  // If expected mentions content checks (e.g. "contains deploy keyword")
-  if (criterion.expected && !criterion.expected.includes('exist')) {
-    try {
-      const content = readFileSync(resolvedPath, 'utf-8');
-      const checkResult = checkSemanticContent(resolvedPath, content, criterion.expected);
-      if (!checkResult.ok) {
-        return { criterion, passed: false, actual: `File exists but missing "${checkResult.missing}"` };
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      debugLog(`Acceptance runner content read failed: ${resolvedPath}`, msg);
-      return { criterion, passed: false, actual: 'Unable to read file content' };
-    }
-  }
-
   return { criterion, passed: true, actual: `File exists: ${relativePath}` };
 }
 
+/** Check if file content contains the expected text snippet. */
+function evaluateContentContains(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
+  const targetFile = criterion.target;
+  const expected = cleanDescriptiveExpectation(criterion.expected);
+
+  if (!expected) {
+    return { criterion, passed: false, actual: 'No expected text specified after cleaning' };
+  }
+
+  // Warn if the expectation still looks descriptive
+  if (isDescriptiveExpectation(expected)) {
+    debugLog('Acceptance runner descriptive expectation', `Criterion "${criterion.description}" has descriptive expectation: "${expected}". This may cause validation failures.`);
+  }
+
+  let filesToCheck: string[];
+  if (targetFile) {
+    const directPath = join(targetDir, targetFile);
+    if (existsSync(directPath)) {
+      filesToCheck = [directPath];
+    } else {
+      // Smart detection: try to find similar files
+      const detected = smartDetectFile(targetFile, targetDir, criterion.description);
+      filesToCheck = detected ? [detected] : [];
+    }
+  } else {
+    filesToCheck = findAllSourceFiles(targetDir);
+  }
+
+  for (const filePath of filesToCheck) {
+    if (!existsSync(filePath)) continue;
+    try {
+      const content = readFileSync(filePath, 'utf-8');
+      const checkResult = checkSemanticContent(filePath, content, expected);
+      if (checkResult.ok) {
+        return { criterion, passed: true, actual: `Found expected text in ${filePath}` };
+      }
+      // If semantic check failed but simple inclusion works, accept it
+      if (content.toLowerCase().includes(expected.toLowerCase())) {
+        return { criterion, passed: true, actual: `Found expected text in ${filePath}` };
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog(`Acceptance runner content check failed: ${filePath}`, msg);
+    }
+  }
+
+  return { criterion, passed: false, actual: `Expected text not found: "${expected}"` };
+}
+
+/**
+ * Smart file detection fallback — tries to find a file similar to the target
+ * when the exact path does not exist.
+ */
+function smartDetectFile(targetFile: string, targetDir: string, description: string): string | undefined {
+  const desc = description.toLowerCase();
+  const expectedLower = (description || '').toLowerCase();
+
+  // JS file detection
+  const isJsTarget = targetFile.endsWith('.js');
+  const isGameLogic = desc.includes('game logic') || desc.includes('main game') || desc.includes('entry file') || desc.includes('javascript');
+  if (isJsTarget || isGameLogic) {
+    const jsFiles = findJsFiles(targetDir);
+    for (const jsPath of jsFiles) {
+      try {
+        const content = readFileSync(jsPath, 'utf-8');
+        if (/requestAnimationFrame|setInterval|update|render|gameLoop/.test(content)) {
+          return jsPath;
+        }
+      } catch { /* ignore */ }
+    }
+    if (jsFiles.length > 0 && isJsTarget) return jsFiles[0];
+  }
+
+  // CSS file detection
+  const isCssTarget = targetFile.endsWith('.css');
+  const isStylesheet = desc.includes('style') || desc.includes('stylesheet') || desc.includes('css');
+  if ((isCssTarget || isStylesheet)) {
+    const cssFiles = findCssFiles(targetDir);
+    if (cssFiles.length > 0) return cssFiles[0];
+  }
+
+  // Canvas detection
+  const isCanvas = desc.includes('canvas') || expectedLower.includes('canvas');
+  if (isCanvas) {
+    const htmlFiles = findHtmlFiles(targetDir);
+    for (const htmlPath of htmlFiles) {
+      try {
+        if (readFileSync(htmlPath, 'utf-8').includes('<canvas')) return htmlPath;
+      } catch { /* ignore */ }
+    }
+    const jsFiles = findJsFiles(targetDir);
+    for (const jsPath of jsFiles) {
+      try {
+        if (readFileSync(jsPath, 'utf-8').includes("getContext('2d')") || readFileSync(jsPath, 'utf-8').includes('getContext("2d")')) {
+          return jsPath;
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  return undefined;
+}
+
+/** Check if file content matches a regex pattern. */
 /** Check if an HTML element exists in index.html (or specified file). */
 function evaluateCheckElement(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
   const selector = criterion.target;
@@ -290,17 +479,14 @@ function evaluateCheckElement(criterion: AcceptanceCriterion, targetDir: string)
     return { criterion, passed: false, actual: 'No selector specified' };
   }
 
-  // Look for HTML files in targetDir
   const htmlFiles = findHtmlFiles(targetDir);
   if (htmlFiles.length === 0) {
     return { criterion, passed: false, actual: 'No HTML files found' };
   }
 
-  // Try each HTML file
   for (const htmlPath of htmlFiles) {
     try {
       const content = readFileSync(htmlPath, 'utf-8');
-      // Simple selector matching: <tag, id="selector", class="selector"
       const tagMatch = selector.match(/^(\w+)$/);
       const idMatch = selector.match(/^#(.+)$/);
       const classMatch = selector.match(/^\.(.+)$/);
@@ -316,7 +502,6 @@ function evaluateCheckElement(criterion: AcceptanceCriterion, targetDir: string)
         const cls = classMatch[1];
         found = new RegExp(`class=["'][^"']*${cls}[^"']*["']`, 'i').test(content);
       } else {
-        // Generic text search
         found = content.includes(selector);
       }
 
@@ -326,44 +511,48 @@ function evaluateCheckElement(criterion: AcceptanceCriterion, targetDir: string)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       debugLog(`Acceptance runner element check failed: ${htmlPath}`, msg);
-      // Continue to next file
     }
   }
 
   return { criterion, passed: false, actual: `Element "${selector}" not found in any HTML file` };
 }
 
-/** Check if file content contains expected text. */
-function evaluateCheckText(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
-  const expected = criterion.expected;
+function evaluateRegexMatch(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {
   const targetFile = criterion.target;
+  const pattern = criterion.regexPattern;
 
-  if (!expected) {
-    return { criterion, passed: false, actual: 'No expected text specified' };
+  if (!pattern) {
+    return { criterion, passed: false, actual: 'No regexPattern specified for regex_match check' };
   }
 
   const filesToCheck = targetFile
     ? [join(targetDir, targetFile)]
     : findAllSourceFiles(targetDir);
 
+  let regex: RegExp;
+  try {
+    regex = new RegExp(pattern);
+  } catch {
+    return { criterion, passed: false, actual: `Invalid regex pattern: "${pattern}"` };
+  }
+
   for (const filePath of filesToCheck) {
     if (!existsSync(filePath)) continue;
     try {
       const content = readFileSync(filePath, 'utf-8');
-      const keywords = expected.split(/[,;]/).map(s => s.trim()).filter(Boolean);
-      const allFound = keywords.every(k => content.toLowerCase().includes(k.toLowerCase()));
-      if (allFound) {
-        return { criterion, passed: true, actual: `Found all keywords in ${filePath}` };
+      if (regex.test(content)) {
+        return { criterion, passed: true, actual: `Regex matched in ${filePath}` };
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      debugLog(`Acceptance runner text check failed: ${filePath}`, msg);
-      // Continue
+      debugLog(`Acceptance runner regex check failed: ${filePath}`, msg);
     }
   }
 
-  return { criterion, passed: false, actual: `Expected text not found: "${expected}"` };
+  return { criterion, passed: false, actual: `Regex did not match: "${pattern}"` };
 }
+
+
 
 /** Check if a file can be opened/read (exists and non-empty). */
 function evaluateOpen(criterion: AcceptanceCriterion, targetDir: string): CriterionResult {

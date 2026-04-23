@@ -25,8 +25,10 @@ export const AcceptanceCriterionSchema = z.object({
   description: z.string().min(1),
   type: z.enum(['functional', 'visual', 'performance', 'compatibility', 'security']),
   action: z.enum(['open', 'click', 'check-text', 'check-element', 'play-game', 'load-url', 'verify-file']),
+  checkType: z.enum(['file_exists', 'content_contains', 'regex_match']).optional(),
   target: z.string().optional(),
   expected: z.string().min(1),
+  regexPattern: z.string().optional(),
   critical: z.boolean(),
 });
 

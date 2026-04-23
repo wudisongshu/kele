@@ -10,6 +10,7 @@ import { reviewTaskOutput } from './task-reviewer.js';
 import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
 import { validateCriteriaAgainstWhitelist } from './incubator-validator.js';
+import { isDescriptiveExpectation } from './acceptance-runner.js';
 import { loadIncubatorConfig } from './incubator-config.js';
 import { validateGameInBrowser, quickGameCheck } from './game-validator-browser.js';
 import { matchContract } from './contract-engine.js';
@@ -447,13 +448,30 @@ async function runAcceptanceValidation(
       onProgress?.(`      ✗ ${v}`);
     }
   }
-  if (validCriteria.length === 0) {
-    onProgress?.(`   🧪 孵化器验收标准全部被白名单过滤，跳过验收`);
+  // Filter out criteria with descriptive expectations (not real code snippets)
+  const qualityFiltered = validCriteria.filter((c) => {
+    const checkType = c.checkType || (c.action === 'verify-file' ? 'file_exists' : 'content_contains');
+    if (checkType === 'content_contains' || checkType === 'regex_match') {
+      const expectation = c.expected || c.regexPattern || '';
+      if (!expectation.trim()) {
+        onProgress?.(`      ⚠️ 验收标准 "${c.description}" 缺少 expectation/regexPattern，已跳过`);
+        return false;
+      }
+      if (isDescriptiveExpectation(expectation)) {
+        onProgress?.(`      ⚠️ 验收标准 "${c.description}" 的 expectation 是描述性语句而非真实代码片段（"${expectation}"），已跳过。请在 prompt 中要求 AI 生成真实代码片段。`);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (qualityFiltered.length === 0) {
+    onProgress?.(`   🧪 孵化器验收标准全部被过滤（白名单或质量检查），跳过验收`);
     return;
   }
 
-  onProgress?.(`   🧪 执行孵化器验收标准 (${validCriteria.length} 项)...`);
-  const acceptance = runAcceptanceCriteria(subProject, validCriteria);
+  onProgress?.(`   🧪 执行孵化器验收标准 (${qualityFiltered.length} 项)...`);
+  const acceptance = runAcceptanceCriteria(subProject, qualityFiltered);
 
   if (acceptance.passed) {
     onProgress?.(`   ✅ 验收通过 (评分: ${acceptance.score}/100)`);

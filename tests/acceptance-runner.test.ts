@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { runAcceptanceCriteria } from '../src/core/acceptance-runner.js';
+import { runAcceptanceCriteria, normalizeCriterion, isDescriptiveExpectation } from '../src/core/acceptance-runner.js';
 import type { SubProject } from '../src/types/index.js';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -253,5 +253,115 @@ describe('AcceptanceRunner', () => {
     const result = runAcceptanceCriteria(subProject);
     expect(result.passed).toBe(false);
     expect(result.results[0].passed).toBe(false);
+  });
+});
+
+
+describe('normalizeCriterion', () => {
+  it('infers file_exists from verify-file + existence expected', () => {
+    const c = normalizeCriterion({
+      description: 'index.html exists', type: 'functional', action: 'verify-file',
+      target: 'index.html', expected: 'file exists', critical: true,
+    });
+    expect(c.inferredCheckType).toBe('file_exists');
+  });
+
+  it('infers file_exists from verify-file + "is present" expected', () => {
+    const c = normalizeCriterion({
+      description: 'Setup doc', type: 'functional', action: 'verify-file',
+      target: 'SETUP.md', expected: 'SETUP.md is present in project root', critical: true,
+    });
+    expect(c.inferredCheckType).toBe('file_exists');
+  });
+
+  it('infers content_contains from check-text', () => {
+    const c = normalizeCriterion({
+      description: 'Has canvas', type: 'visual', action: 'check-text',
+      target: 'index.html', expected: 'file contains <canvas', critical: true,
+    });
+    expect(c.inferredCheckType).toBe('content_contains');
+    expect(c.expected).toBe('<canvas');
+  });
+
+  it('infers content_contains from verify-file + non-existence expected', () => {
+    const c = normalizeCriterion({
+      description: 'Has getContext', type: 'functional', action: 'verify-file',
+      target: 'game.js', expected: 'contains getContext', critical: true,
+    });
+    expect(c.inferredCheckType).toBe('content_contains');
+  });
+
+  it('preserves explicit checkType when provided', () => {
+    const c = normalizeCriterion({
+      description: 'X', type: 'functional', action: 'verify-file',
+      checkType: 'content_contains', target: 'a.js', expected: 'foo', critical: true,
+    });
+    expect(c.inferredCheckType).toBe('content_contains');
+  });
+
+  it('detects descriptive expectations', () => {
+    expect(isDescriptiveExpectation('file contains <canvas')).toBe(true);
+    expect(isDescriptiveExpectation('has viewport')).toBe(true);
+    expect(isDescriptiveExpectation('must include cookie')).toBe(true);
+    expect(isDescriptiveExpectation('<canvas id="game"')).toBe(false);
+    expect(isDescriptiveExpectation('import { foo }')).toBe(false);
+  });
+});
+
+describe('runAcceptanceCriteria with checkType', () => {
+  let tmpDir: string;
+  let subProject: SubProject;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'kele-acceptance-v2-'));
+    subProject = {
+      id: 'test-sp', name: 'Test', description: 'For testing', type: 'development',
+      targetDir: tmpDir, dependencies: [], status: 'pending', createdAt: new Date().toISOString(),
+    };
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('file_exists only checks existence, not content', () => {
+    writeFileSync(join(tmpDir, 'index.html'), '<html></html>');
+    subProject.acceptanceCriteria = [{
+      description: 'index.html exists', type: 'functional', action: 'verify-file',
+      checkType: 'file_exists', target: 'index.html', expected: 'index.html is present in project root', critical: true,
+    }];
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
+    expect(result.results[0].actual).toContain('File exists');
+  });
+
+  it('content_contains matches real code snippet', () => {
+    writeFileSync(join(tmpDir, 'index.html'), '<!DOCTYPE html><html><body><canvas id="game"></canvas></body></html>');
+    subProject.acceptanceCriteria = [{
+      description: 'Canvas exists', type: 'visual', action: 'check-text',
+      checkType: 'content_contains', target: 'index.html', expected: '<canvas id="game">', critical: true,
+    }];
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
+  });
+
+  it('content_contains cleans descriptive prefix', () => {
+    writeFileSync(join(tmpDir, 'index.html'), '<meta name="viewport" content="width=device-width">');
+    subProject.acceptanceCriteria = [{
+      description: 'Viewport meta', type: 'visual', action: 'check-text',
+      target: 'index.html', expected: 'file contains viewport', critical: true,
+    }];
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
+  });
+
+  it('regex_match uses pattern', () => {
+    writeFileSync(join(tmpDir, 'index.html'), '<meta name="viewport" content="width=device-width">');
+    subProject.acceptanceCriteria = [{
+      description: 'Viewport regex', type: 'visual', action: 'check-text',
+      checkType: 'regex_match', target: 'index.html', expected: '', regexPattern: '<meta[^>]+viewport', critical: true,
+    }];
+    const result = runAcceptanceCriteria(subProject);
+    expect(result.passed).toBe(true);
   });
 });

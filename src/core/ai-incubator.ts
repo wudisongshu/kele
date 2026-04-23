@@ -67,8 +67,9 @@ Return ONLY a JSON object in this exact format:
           "description": "What kele must verify after this sub-project is built",
           "type": "functional|visual|performance|compatibility|security",
           "action": "How kele checks it: 'open', 'click', 'check-text', 'check-element', 'play-game', 'load-url', 'verify-file'",
+          "checkType": "file_exists|content_contains|regex_match — REQUIRED for kele to validate correctly",
           "target": "Selector, URL, file path, or coordinate for the action",
-          "expected": "What kele should observe to consider this criterion PASSED",
+          "expected": "MUST be a real code/text fragment found in the file, NOT a descriptive sentence. Example: '<canvas' NOT 'file contains <canvas'",
           "critical": true
         }
       ]
@@ -84,6 +85,29 @@ Return ONLY a JSON object in this exact format:
   "reasoning": "Brief explanation of why you chose this structure",
   "selfReviewNotes": "What you changed during Pass 2 review and why"
 }
+
+## Acceptance Criteria Format Rules (CRITICAL — validation will FAIL if not followed)
+Each acceptance criterion MUST use the correct checkType and provide real code fragments:
+
+- "checkType": "file_exists" — ONLY checks if the file exists. Do NOT provide content checks.
+  * action: "verify-file"
+  * expected: "index.html exists" or any short existence phrase
+  * Example: target="index.html", checkType="file_exists", expected="file exists"
+
+- "checkType": "content_contains" — Checks if the file contains a specific text snippet.
+  * action: "check-text" or "check-element" or "verify-file"
+  * expected: MUST be the ACTUAL code/text fragment that appears in the file (max 80 chars)
+  * CORRECT: expected="<canvas id=\\"game\\">"
+  * CORRECT: expected="<meta name=\\"viewport\\""
+  * CORRECT: expected="import { gameLoop }"
+  * WRONG:   expected="file contains <canvas"
+  * WRONG:   expected="has viewport meta tag"
+  * WRONG:   expected="should include cookie-consent"
+  * The description field is for humans ONLY — kele's validator does NOT read description for matching.
+
+- "checkType": "regex_match" — Uses a regex to match file content.
+  * regexPattern: must be a valid JavaScript RegExp string (no flags needed)
+  * Example: regexPattern="<meta[^>]+viewport"
 
 ## Rules
 1. ALWAYS include a "project-setup" sub-project first (type: setup, dependencies: [], criticalPath: true)
