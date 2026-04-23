@@ -176,7 +176,7 @@ async function runRepl(project: Project, db: KeleDatabase, _debug: boolean, mock
     console.log(`   🎯 意图: ${intent.type}`);
 
     // Show estimated token cost for AI operations
-    const promptForEstimate = buildChatPrompt(ctx, trimmed, fullProject);
+    const promptForEstimate = await buildChatPrompt(ctx, trimmed, fullProject);
     const estimatedTokens = estimateTokenCost(promptForEstimate);
     if (['MODIFY', 'ADD', 'QUESTION', 'UPGRADE'].includes(intent.type)) {
       console.log(`   💰 预估 Token: ~${estimatedTokens}（约 ${Math.ceil(estimatedTokens / 1000)}K）`);

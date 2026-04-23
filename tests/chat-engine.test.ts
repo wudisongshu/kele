@@ -74,7 +74,7 @@ describe('chat-engine', () => {
   });
 
   describe('buildChatPrompt', () => {
-    it('includes project name and user input', () => {
+    it('includes project name and user input', async () => {
       const project: Project = {
         id: 'p1',
         name: 'Test Game',
@@ -87,13 +87,13 @@ describe('chat-engine', () => {
         updatedAt: new Date().toISOString(),
       };
       const ctx = createChatContext('p1');
-      const prompt = buildChatPrompt(ctx, 'how do I run this?', project);
+      const prompt = await buildChatPrompt(ctx, 'how do I run this?', project);
       expect(prompt).toContain('Test Game');
       expect(prompt).toContain('how do I run this?');
       expect(prompt).toContain('No previous conversation.');
     });
 
-    it('includes sub-project names', () => {
+    it('includes sub-project names', async () => {
       const project: Project = {
         id: 'p1',
         name: 'Test Game',
@@ -108,11 +108,11 @@ describe('chat-engine', () => {
         updatedAt: new Date().toISOString(),
       };
       const ctx = createChatContext('p1');
-      const prompt = buildChatPrompt(ctx, 'hello', project);
+      const prompt = await buildChatPrompt(ctx, 'hello', project);
       expect(prompt).toContain('Core Game');
     });
 
-    it('includes conversation history in prompt', () => {
+    it('includes conversation history in prompt', async () => {
       const project: Project = {
         id: 'p1',
         name: 'Test Game',
@@ -127,7 +127,7 @@ describe('chat-engine', () => {
       const ctx = createChatContext('p1');
       addTurn(ctx, 'user', 'previous question');
       addTurn(ctx, 'assistant', 'previous answer');
-      const prompt = buildChatPrompt(ctx, 'new question', project);
+      const prompt = await buildChatPrompt(ctx, 'new question', project);
       expect(prompt).toContain('previous question');
       expect(prompt).toContain('previous answer');
     });

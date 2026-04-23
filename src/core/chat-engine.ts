@@ -13,6 +13,7 @@ import type { UserIntent } from './intent-engine.js';
 import { upgradeTask } from './upgrade-engine.js';
 import { executeTask } from './executor.js';
 import { planTasks } from './task-planner.js';
+import { PromptTemplate } from '../incubator/prompt-template.js';
 import { runProject } from './run-validator.js';
 import {
   getDeployStrategy,
@@ -93,28 +94,25 @@ export function estimateTokenCost(text: string): number {
 /**
  * Build a prompt that includes project context + conversation history + current input.
  */
-export function buildChatPrompt(
+export async function buildChatPrompt(
   ctx: ChatContext,
   userInput: string,
   project: Project
-): string {
+): Promise<string> {
   const historySummary = summarizeHistory(ctx.history);
   const subProjectNames = project.subProjects.map((sp) => `- ${sp.name} (${sp.type})`).join('\n');
 
-  return `You are kele, an AI assistant that helps users turn ideas into products.
-
-CURRENT PROJECT: "${project.name}"
-Original idea: ${project.idea.rawText}
-Type: ${project.idea.type}
-Monetization: ${project.idea.monetization}
-Sub-projects:\n${subProjectNames || 'None yet'}
-
-CONVERSATION HISTORY (last ${ctx.history.length} turns):
-${historySummary}
-
-USER'S CURRENT MESSAGE: "${userInput}"
-
-INSTRUCTION: Respond concisely and helpfully. If the user wants code changes, describe what you would do. If they ask a question, answer directly. Reference "this project" or "the game" when appropriate — you know the context.`;
+  const template = new PromptTemplate();
+  return await template.getSystemMessage('chat', {
+    projectName: project.name,
+    projectIdea: project.idea.rawText,
+    projectType: project.idea.type,
+    projectMonetization: project.idea.monetization,
+    subProjects: subProjectNames || 'None yet',
+    historyLength: String(ctx.history.length),
+    historySummary,
+    userInput,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -226,7 +224,7 @@ export async function handleChatIntent(
 
     case 'QUESTION': {
       onProgress?.(`❓ 识别到咨询意图`);
-      const prompt = buildChatPrompt(ctx, intent.question, project);
+      const prompt = await buildChatPrompt(ctx, intent.question, project);
       const route = registry.route('simple');
       try {
         const answer = await route.adapter.execute(prompt);
@@ -314,7 +312,7 @@ export async function handleChatIntent(
 
     default: {
       // For CREATE, CONFIG, DELETE, CHAT — just have AI respond
-      const prompt = buildChatPrompt(ctx, intent.type === 'CHAT' ? intent.message : JSON.stringify(intent), project);
+      const prompt = await buildChatPrompt(ctx, intent.type === 'CHAT' ? intent.message : JSON.stringify(intent), project);
       const route = registry.route('simple');
       try {
         const answer = await route.adapter.execute(prompt);

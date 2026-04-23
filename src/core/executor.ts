@@ -706,7 +706,7 @@ export async function executeTask(
       // Ignore read errors (e.g. dir does not exist)
     }
 
-    const prompt = buildTaskPrompt(task, subProject, project, existingFileTree || undefined);
+    const prompt = await buildTaskPrompt(task, subProject, project, existingFileTree || undefined);
     debugLog(`Executor Prompt [${subProject.name} / ${task.title}]`, prompt);
 
     // Phase 1: AI generation

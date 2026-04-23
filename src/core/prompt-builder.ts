@@ -13,6 +13,8 @@ import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { buildProjectContext, shouldCompress } from './context-compressor.js';
 import { matchContract, buildContractPrompt } from './contract-engine.js';
+import { PromptTemplate } from '../incubator/prompt-template.js';
+import { SUBPROJECT_FILE_WHITELIST } from './file-writer.js';
 
 const CODE_QUALITY_RULES = `CODE QUALITY REQUIREMENTS (all generated code MUST follow these rules):
 1. COMPLETE IMPLEMENTATION: You MUST generate FULLY WORKING code. NO stubs, NO TODOs, NO placeholder functions. Every function must do something real.
@@ -59,7 +61,7 @@ function getProjectFileTree(targetDir: string, maxDepth = 2): string {
   return lines.length > 0 ? lines.join('\n') : '';
 }
 
-export function buildTaskPrompt(task: Task, subProject: SubProject, project: Project, existingFileTree?: string): string {
+export async function buildTaskPrompt(task: Task, subProject: SubProject, project: Project, existingFileTree?: string): Promise<string> {
   const isSetup = subProject.type === 'setup';
   const templateType = getTemplateType(project.idea.monetization);
   const templateDesc = getTemplateDescription(templateType);
@@ -98,37 +100,17 @@ export function buildTaskPrompt(task: Task, subProject: SubProject, project: Pro
     : '';
 
   // Sub-project file whitelist — prevents each sub-project from generating a full project
+  const template = new PromptTemplate();
   let whitelistWarning = '';
-  switch (subProject.type) {
-    case 'setup':
-      whitelistWarning = `\n⚠️ FILE WHITELIST (SETUP): You can ONLY generate these files. Any other file will be discarded:\n` +
-        `- package.json\n- vite.config.ts\n- .gitignore\n- index.html (basic skeleton with <canvas id="game"> and <script src="js/game.js">)\n- public/manifest.json\n- public/sw.js\n\n` +
-        `Do NOT write game logic code. Do NOT write CSS styles.\n`;
-      break;
-    case 'development':
-    case 'production':
-    case 'creation':
-      whitelistWarning = `\n⚠️ FILE WHITELIST (CORE DEV): You can ONLY generate these files. Any other file will be discarded:\n` +
-        `- js/*.js (game logic files)\n- css/*.css (stylesheets)\n- src/*.js / src/*.ts\n- assets/* (images, sounds)\n\n` +
-        `Do NOT generate package.json, manifest.json, sw.js, or .gitignore — setup already created them.\n` +
-        `Do NOT generate index.html. The existing index.html already references your JS files.\n`;
-      break;
-    case 'testing':
-      whitelistWarning = `\n⚠️ FILE WHITELIST (TESTING): You can ONLY generate these files. Any other file will be discarded:\n` +
-        `- tests/*.test.js\n- tests/*.test.ts\n- test-utils.js\n\n` +
-        `Do NOT write application code or configuration files.\n`;
-      break;
-    case 'deployment':
-      whitelistWarning = `\n⚠️ FILE WHITELIST (DEPLOYMENT): You can ONLY generate these files. Any other file will be discarded:\n` +
-        `- .github/workflows/*.yml\n- CNAME\n- SETUP.md\n- MONETIZATION.md\n\n` +
-        `Do NOT generate any game code. Do NOT generate index.html. Do NOT generate js/css files.\n`;
-      break;
-    case 'monetization':
-      whitelistWarning = `\n⚠️ FILE WHITELIST (MONETIZATION): You can ONLY generate these files. Any other file will be discarded:\n` +
-        `- ads.txt\n- js/ads.js\n- MONETIZATION.md\n\n` +
-        `If you need to add ad containers to index.html, generate a file named index.patch.html containing ONLY the HTML snippets to insert (e.g., <div id="ad-banner">). Do NOT generate a full index.html.\n` +
-        `Do NOT write game core logic. Do NOT overwrite existing game files.\n`;
-      break;
+  if (SUBPROJECT_FILE_WHITELIST[subProject.type]) {
+    whitelistWarning = '\n⚠️ FILE WHITELIST (' + subProject.type.toUpperCase() + '):\n' +
+      await template.getSystemMessage(subProject.type, {
+        subprojectType: subProject.type,
+        projectName: project.name,
+        projectRoot: subProject.targetDir,
+        whitelist: SUBPROJECT_FILE_WHITELIST[subProject.type],
+        commonRules: '',
+      });
   }
 
   const baseContext = `You are a senior software engineer working on the project "${escapePromptInput(project.name)}".

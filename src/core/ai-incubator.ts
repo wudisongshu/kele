@@ -5,6 +5,7 @@ import { safeJsonParse } from './json-utils.js';
 import { validateIncubatorOutput } from './incubator-validator.js';
 import { IncubationResponseSchema } from './schemas.js';
 import { buildContractPrompt, type Contract } from './contract-engine.js';
+import { PromptTemplate } from '../incubator/prompt-template.js';
 
 const MAX_LOCAL_FIX_ATTEMPTS = 3;
 const MAX_AI_REVIEW_ATTEMPTS = 2;
@@ -83,46 +84,6 @@ Return ONLY a JSON object in this exact format:
   "reasoning": "Brief explanation of why you chose this structure",
   "selfReviewNotes": "What you changed during Pass 2 review and why"
 }
-
-## Acceptance Criteria Rules (UPDATED — CRITICAL)
-Each sub-project MUST include 3-7 acceptance criteria that kele can EXECUTE automatically.
-**STRICT WHITELIST RULE: Each acceptance criterion MUST ONLY check files that belong to its sub-project type's whitelist. Criteria that target files outside the whitelist will be AUTOMATICALLY DISCARDED and will NEVER pass.**
-
-- **setup whitelist**: package.json, vite.config.ts, .gitignore, index.html, public/manifest.json, public/sw.js, manifest.json, sw.js, SETUP.md
-  - Allowed checks: verify-file ("index.html exists"), check-text ("index.html contains <canvas"), check-element ("viewport meta tag")
-  - FORBIDDEN for setup: js/*.js, css/*.css, .github/workflows/*, ads.txt, adsense.html, MONETIZE.md — these belong to other sub-project types
-- **development whitelist**: js/*.js, css/*.css, src/*.js, src/*.ts, assets/*
-  - Allowed checks: verify-file ("js/game.js exists"), check-text ("css/style.css contains @media")
-  - FORBIDDEN for development: .github/workflows/*, ads.txt, adsense.html, SETUP.md
-- **deployment whitelist**: .github/workflows/*.yml, .github/workflows/*.yaml, CNAME, SETUP.md, MONETIZATION.md, MONETIZE.md
-  - Allowed checks: verify-file (".github/workflows/deploy.yml exists"), check-text ("deploy.yml contains actions/deploy-pages")
-- **monetization whitelist**: ads.txt, adsense.html, js/ads.js, MONETIZATION.md, MONETIZE.md, index.patch.html
-  - Allowed checks: verify-file ("ads.txt exists"), check-text ("adsense.html contains adsbygoogle script")
-
-Concrete examples:
-- For **setup**: verify-file ("package.json exists"), check-text ("index.html has canvas element"), verify-file ("SETUP.md exists")
-- For **development**: play-game checks ("canvas renders 8x8 grid", "clicking a gem selects it", "swapping adjacent gems triggers match detection", "3+ matches eliminate and score updates", "gravity refills the board"), verify-file ("js/game.js exists"), verify-file ("css/style.css exists")
-- For **deployment** (web/H5):
-  - verify-file: ".github/workflows/deploy.yml exists" (critical)
-  - check-text: ".github/workflows/deploy.yml contains actions/deploy-pages" (critical)
-  - check-text: ".github/workflows/deploy.yml contains actions/checkout" (critical)
-  - check-text: ".github/workflows/deploy.yml contains upload-pages-artifact" (critical)
-  - check-text: ".github/workflows/deploy.yml contains configure-pages" (critical)
-  - verify-file: "ads.txt exists" (critical)
-  - verify-file: "adsense.html exists" (critical)
-  - verify-file: "CNAME exists" (non-critical)
-  - verify-file: "manifest.json exists" (non-critical)
-  - check-text: "manifest.json contains name and start_url" (non-critical)
-  - verify-file: "sw.js exists" (non-critical)
-  - verify-file: "SETUP.md exists" (critical)
-- For **monetization** (web/H5):
-  - verify-file: "adsense.html exists and contains adsbygoogle script" (critical)
-  - check-text: "adsense.html contains pagead2.googlesyndication.com" (critical)
-  - verify-file: "ads.txt exists" (critical)
-  - verify-file: "MONETIZE.md exists" (critical)
-- action must be one of: "open", "click", "check-text", "check-element", "play-game", "load-url", "verify-file"
-- target should be specific enough for automation (CSS selector, file path, or URL)
-- critical=true for criteria that block acceptance; critical=false for nice-to-have
 
 ## Rules
 1. ALWAYS include a "project-setup" sub-project first (type: setup, dependencies: [], criticalPath: true)
@@ -333,13 +294,16 @@ async function tryIncubate(
   contract?: Contract,
 ): Promise<AIIncubateResult> {
   try {
+    const template = new PromptTemplate();
+    const incubatorRules = await template.getSystemMessage('incubator', {});
+
     let contractSection = '';
     if (contract) {
       contractSection = `\n\n## GAMEPLAY CONTRACT (MUST BE ENFORCED)\n${buildContractPrompt(contract, idea.rawText)}\n\n` +
         `CRITICAL: The acceptance criteria for the core development sub-project MUST include verify-file or play-game checks for EACH of the following core mechanics:\n` +
         contract.coreMechanics.filter((m) => m.immutable).map((m) => `- ${m.description}`).join('\n') + '\n';
     }
-    const prompt = `${INCUBATOR_PROMPT}${contractSection}\n\nUser idea: "${idea.rawText}"\nDetected type: ${idea.type}\nDetected complexity: ${idea.complexity}\nMonetization channel: ${idea.monetization}`;
+    const prompt = `${INCUBATOR_PROMPT}\n\n${incubatorRules}${contractSection}\n\nUser idea: "${idea.rawText}"\nDetected type: ${idea.type}\nDetected complexity: ${idea.complexity}\nMonetization channel: ${idea.monetization}`;
 
     debugLog('AI Incubator Prompt', prompt);
     const response = await adapter.execute(prompt, onToken);
@@ -370,11 +334,14 @@ async function tryFixIncubator(
   contract?: Contract,
 ): Promise<AIIncubateResult> {
   try {
+    const template = new PromptTemplate();
+    const incubatorRules = await template.getSystemMessage('incubator', {});
+
     let contractSection = '';
     if (contract) {
       contractSection = `\n\n## GAMEPLAY CONTRACT (MUST BE ENFORCED)\n${buildContractPrompt(contract, _idea.rawText)}\n`;
     }
-    const fixPrompt = `${INCUBATOR_PROMPT}${contractSection}\n\n` +
+    const fixPrompt = `${INCUBATOR_PROMPT}\n\n${incubatorRules}${contractSection}\n\n` +
       `FIX REQUEST: The following project plan has issues that need correction.\n\n` +
       `Current plan:\n${JSON.stringify({ subProjects: currentSubProjects, reasoning, monetizationPath }, null, 2)}\n\n` +
       `Errors to fix:\n${errors.map((e) => `- ${e}`).join('\n')}\n\n` +

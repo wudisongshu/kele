@@ -123,21 +123,21 @@ describe('token estimation', () => {
 });
 
 describe('buildChatPrompt', () => {
-  it('includes project name and idea', () => {
+  it('includes project name and idea', async () => {
     const ctx = createChatContext('proj-1');
     const project = makeMockProject();
-    const prompt = buildChatPrompt(ctx, '改颜色', project);
+    const prompt = await buildChatPrompt(ctx, '改颜色', project);
     expect(prompt).toContain('Test Tower Defense');
     expect(prompt).toContain('做一个塔防游戏');
     expect(prompt).toContain('改颜色');
   });
 
-  it('includes conversation history', () => {
+  it('includes conversation history', async () => {
     const ctx = createChatContext('proj-1');
     addTurn(ctx, 'user', 'Previous question');
     addTurn(ctx, 'assistant', 'Previous answer');
     const project = makeMockProject();
-    const prompt = buildChatPrompt(ctx, 'New question', project);
+    const prompt = await buildChatPrompt(ctx, 'New question', project);
     expect(prompt).toContain('Previous question');
     expect(prompt).toContain('Previous answer');
   });

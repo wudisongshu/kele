@@ -47,57 +47,57 @@ function makeTask(title: string): Task {
 }
 
 describe('buildTaskPrompt', () => {
-  it('includes project name and sub-project details', () => {
-    const prompt = buildTaskPrompt(makeTask('Core Feature'), makeSubProject('development'), makeProject());
+  it('includes project name and sub-project details', async () => {
+    const prompt = await buildTaskPrompt(makeTask('Core Feature'), makeSubProject('development'), makeProject());
     expect(prompt).toContain('Test Project');
     expect(prompt).toContain('Test SubProject');
     expect(prompt).toContain('Does something useful');
   });
 
-  it('includes JSON format requirement for coding tasks', () => {
-    const prompt = buildTaskPrompt(makeTask('Setup'), makeSubProject('setup'), makeProject());
+  it('includes JSON format requirement for coding tasks', async () => {
+    const prompt = await buildTaskPrompt(makeTask('Setup'), makeSubProject('setup'), makeProject());
     expect(prompt).toContain('"files"');
     expect(prompt).toContain('CODE QUALITY REQUIREMENTS');
   });
 
-  it('returns instruction-style prompt for non-coding tasks', () => {
-    const prompt = buildTaskPrompt(makeTask('Research'), makeSubProject('research'), makeProject());
+  it('returns instruction-style prompt for non-coding tasks', async () => {
+    const prompt = await buildTaskPrompt(makeTask('Research'), makeSubProject('research'), makeProject());
     expect(prompt).toContain('step-by-step instructions');
     expect(prompt).not.toContain('CODE QUALITY REQUIREMENTS');
   });
 
-  it('adds setup constraint for setup tasks', () => {
-    const prompt = buildTaskPrompt(makeTask('Init'), makeSubProject('setup'), makeProject());
+  it('adds setup constraint for setup tasks', async () => {
+    const prompt = await buildTaskPrompt(makeTask('Init'), makeSubProject('setup'), makeProject());
     expect(prompt).toContain('SETUP task');
     expect(prompt).toContain('generate ONLY project configuration files');
   });
 
-  it('adds game constraint for game development tasks', () => {
+  it('adds game constraint for game development tasks', async () => {
     const project = makeProject({ type: 'game' });
-    const prompt = buildTaskPrompt(makeTask('Game Logic'), makeSubProject('development'), project);
+    const prompt = await buildTaskPrompt(makeTask('Game Logic'), makeSubProject('development'), project);
     expect(prompt).toContain('GAME DEVELOPMENT');
     expect(prompt).toContain('core gameplay loop');
   });
 
-  it('includes platform section for deployment tasks', () => {
-    const prompt = buildTaskPrompt(makeTask('Deploy'), makeSubProject('deployment'), makeProject());
+  it('includes platform section for deployment tasks', async () => {
+    const prompt = await buildTaskPrompt(makeTask('Deploy'), makeSubProject('deployment'), makeProject());
     // For 'web' monetization with no credentials, it shows the no-credentials message
     expect(prompt).toContain('DEPLOYABLE CONFIG TEMPLATE');
     expect(prompt).toMatch(/No platform credentials|Platform credentials/);
   });
 
-  it('escapes quotes in user input to prevent prompt injection', () => {
+  it('escapes quotes in user input to prevent prompt injection', async () => {
     const project = makeProject({ rawText: 'say "hello" and `code`' });
-    const prompt = buildTaskPrompt(makeTask('Feature'), makeSubProject('development'), project);
+    const prompt = await buildTaskPrompt(makeTask('Feature'), makeSubProject('development'), project);
     // The escaped version should appear in the user idea section
     const ideaSection = prompt.split('User\'s original idea:')[1] || '';
     expect(ideaSection).toContain('\\"hello\\"');
     expect(ideaSection).not.toContain('"hello"');
   });
 
-  it('uses web-scaffold template for setup tasks regardless of monetization', () => {
+  it('uses web-scaffold template for setup tasks regardless of monetization', async () => {
     const project = makeProject({ monetization: 'douyin-mini-game' });
-    const prompt = buildTaskPrompt(makeTask('Init'), makeSubProject('setup'), project);
+    const prompt = await buildTaskPrompt(makeTask('Init'), makeSubProject('setup'), project);
     expect(prompt).toContain('Standard Web Project');
   });
 });
