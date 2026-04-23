@@ -104,5 +104,22 @@ describe('DeepSeekAdapter', () => {
       const result = await adapter.execute('hello');
       expect(result).toBe('');
     });
+
+    it('handles malformed JSON response', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({}),
+      } as unknown as Response);
+      const adapter = new DeepSeekAdapter({ apiKey: 'test-key' });
+      const result = await adapter.execute('hello');
+      expect(result).toBe('');
+    });
+
+    it('handles network timeout', async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error('timeout'));
+      const adapter = new DeepSeekAdapter({ apiKey: 'test-key' });
+      await expect(adapter.execute('hello')).rejects.toThrow('timeout');
+    });
   });
 });

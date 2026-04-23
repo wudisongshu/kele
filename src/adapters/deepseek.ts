@@ -71,6 +71,6 @@ export class DeepSeekAdapter implements AIAdapter {
       choices: Array<{ message: { content: string } }>;
     };
 
-    return data.choices[0]?.message?.content ?? '';
+    return data.choices?.[0]?.message?.content ?? '';
   }
 }

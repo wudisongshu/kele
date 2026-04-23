@@ -196,5 +196,24 @@ describe('Monetization Readiness', () => {
       expect(result.checks.some((c) => c.name === 'ad_frequency_cap' && c.passed)).toBe(true);
       cleanup(dir);
     });
+
+    it('returns score for all platforms', () => {
+      const dir = createTempDir();
+      writeFileSync(join(dir, 'index.html'), '<html></html>', 'utf-8');
+
+      const result = checkMonetizationReadiness(dir, 'web');
+      expect(typeof result.score).toBe('number');
+      expect(result.score).toBeGreaterThanOrEqual(0);
+      expect(result.score).toBeLessThanOrEqual(100);
+      cleanup(dir);
+    });
+
+    it('includes checks array in result', () => {
+      const dir = createTempDir();
+      const result = checkMonetizationReadiness(dir, 'web');
+      expect(Array.isArray(result.checks)).toBe(true);
+      expect(result.checks.length).toBeGreaterThan(0);
+      cleanup(dir);
+    });
   });
 });

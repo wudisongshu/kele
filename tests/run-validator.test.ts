@@ -106,4 +106,18 @@ describe('run-validator', () => {
     expect(result.stdout.length).toBeLessThanOrEqual(5000);
     expect(result.stderr.length).toBeLessThanOrEqual(5000);
   });
+
+  it('handles directory with only CSS files', async () => {
+    writeFileSync(join(TEST_DIR, 'style.css'), 'body { margin: 0; }');
+    const result = await runProject(TEST_DIR);
+    expect(result.success).toBe(true);
+    expect(result.command).toBe('none');
+  });
+
+  it('validates multiple HTML files', async () => {
+    writeFileSync(join(TEST_DIR, 'index.html'), '<!DOCTYPE html><html><body></body></html>');
+    writeFileSync(join(TEST_DIR, 'about.html'), '<!DOCTYPE html><html><body></body></html>');
+    const result = await runProject(TEST_DIR);
+    expect(result.success).toBe(true);
+  });
 });

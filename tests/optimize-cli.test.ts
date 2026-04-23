@@ -121,4 +121,19 @@ describe('optimize CLI', () => {
     expect(opts.dryRun).toBe(false);
     expect(opts.report).toBe(false);
   });
+
+  it('should have a description', () => {
+    const program = new Command();
+    setupOptimizeCommand(program);
+    const optimizeCmd = program.commands.find((c) => c.name() === 'optimize')!;
+    expect(optimizeCmd.description()).toBeTruthy();
+  });
+
+  it('should parse project-id as required argument', () => {
+    const program = new Command();
+    setupOptimizeCommand(program);
+    const optimizeCmd = program.commands.find((c) => c.name() === 'optimize')!;
+    const args = optimizeCmd.registeredArguments;
+    expect(args.length).toBeGreaterThanOrEqual(1);
+  });
 });
