@@ -224,4 +224,12 @@ describe('CLI command setup', () => {
     const commands = program.commands.map(c => c.name());
     expect(commands).toContain('deploy');
   });
+
+  it('deploy command accepts project-id argument', () => {
+    const program = new Command();
+    setupDeployCommand(program);
+    const deployCmd = program.commands.find(c => c.name() === 'deploy')!;
+    const args = deployCmd.registeredArguments.map(a => a.name());
+    expect(args).toContain('project-id');
+  });
 });

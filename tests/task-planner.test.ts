@@ -167,4 +167,14 @@ describe('TaskPlanner', () => {
       expect(task.version).toBe(1);
     }
   });
+
+  it('should assign unique task ids', () => {
+    const sp = makeSubProject({ type: 'development' });
+    const idea = makeIdea({ complexity: 'medium' });
+    const result = planTasks(sp, idea);
+
+    const ids = result.tasks!.map((t) => t.id);
+    const uniqueIds = new Set(ids);
+    expect(uniqueIds.size).toBe(ids.length);
+  });
 });

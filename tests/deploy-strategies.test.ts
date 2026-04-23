@@ -73,5 +73,11 @@ describe('deploy-strategies', () => {
       expect(strategy).toBeDefined();
       expect(strategy?.name).toBe('vps');
     });
+
+    it('returns strategy for github-pages', () => {
+      const strategy = getDeployStrategy('github-pages');
+      expect(strategy).toBeDefined();
+      expect(strategy?.name).toBe('github-pages');
+    });
   });
 });

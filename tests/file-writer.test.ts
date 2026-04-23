@@ -206,5 +206,20 @@ describe('FileWriter', () => {
       expect(written).toContain('src/utils/helper.js');
       expect(readFileSync(join(tmpDir, 'src', 'utils', 'helper.js'), 'utf-8')).toBe('export const help = () => {};');
     });
+
+    it('should overwrite existing files', () => {
+      const output1 = JSON.stringify({
+        files: [{ path: 'test.txt', content: 'version 1' }],
+      });
+      applyAIOutput(tmpDir, output1);
+
+      const output2 = JSON.stringify({
+        files: [{ path: 'test.txt', content: 'version 2' }],
+      });
+      const written = applyAIOutput(tmpDir, output2);
+
+      expect(written).toContain('test.txt');
+      expect(readFileSync(join(tmpDir, 'test.txt'), 'utf-8')).toBe('version 2');
+    });
   });
 });
