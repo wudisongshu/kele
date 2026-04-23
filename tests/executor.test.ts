@@ -212,6 +212,9 @@ describe('Executor', () => {
       expect(diag).toContain('gateway timeout');
       // API error happens during the first phase, so no phase has completed yet
       expect(diag).toContain('无（任务启动前即失败）');
+      // Log path should be shown
+      expect(diag).toContain('Debug 日志位置');
+      expect(diag).toContain('.jsonl');
     });
 
     it('should classify ValidationError correctly', async () => {

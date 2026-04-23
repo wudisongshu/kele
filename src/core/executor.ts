@@ -660,7 +660,7 @@ class PhaseTracker {
 // Error formatting — produces the human-friendly diagnostic block.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function formatExecutionError(taskTitle: string, err: unknown, tracker: PhaseTracker): string {
+function formatExecutionError(taskTitle: string, err: unknown, tracker: PhaseTracker, logPath?: string): string {
   const error = err instanceof Error ? err : new Error(String(err));
   const lines: string[] = [
     ``,
@@ -712,6 +712,11 @@ function formatExecutionError(taskTitle: string, err: unknown, tracker: PhaseTra
     if (error.elapsedMs) {
       lines.push(`⏱️ 已耗时: ${(error.elapsedMs / 1000).toFixed(1)} 秒`);
     }
+  }
+
+  // Log location
+  if (logPath) {
+    lines.push(`📝 Debug 日志位置: ${logPath}`);
   }
 
   // Suggestion
@@ -984,7 +989,7 @@ export async function executeTask(
     await logger.logError('executor', errorObj, { taskId: task.id, phase: 'execution' });
 
     // Pretty-print structured diagnostics
-    const diagnostic = formatExecutionError(task.title, err, phaseTracker);
+    const diagnostic = formatExecutionError(task.title, err, phaseTracker, logger.getLogPath());
     onProgress?.(diagnostic);
 
     const error = errorObj.message;

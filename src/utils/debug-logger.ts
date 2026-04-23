@@ -313,6 +313,13 @@ export class DebugLogger {
   }
 
   /**
+   * Return the absolute path to the current session log file.
+   */
+  getLogPath(): string {
+    return this.logPath;
+  }
+
+  /**
    * Finalize the session — flush and write footer.
    */
   async finalize(status: 'success' | 'failed' | 'aborted', summary?: Record<string, unknown>): Promise<void> {
