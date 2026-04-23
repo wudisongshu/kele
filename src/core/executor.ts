@@ -10,6 +10,7 @@ import { reviewTaskOutput } from './task-reviewer.js';
 import { runProject } from './run-validator.js';
 import { runAcceptanceCriteria } from './acceptance-runner.js';
 import { validateCriteriaAgainstWhitelist } from './incubator-validator.js';
+import { loadIncubatorConfig } from './incubator-config.js';
 import { validateGameInBrowser, quickGameCheck } from './game-validator-browser.js';
 import { matchContract } from './contract-engine.js';
 import { assembleProject } from './project-assembler.js';
@@ -429,10 +430,21 @@ async function runAcceptanceValidation(
   if (criteria.length === 0) return;
 
   // Filter criteria against whitelist before execution to prevent infinite repair loops
-  const { filtered: validCriteria, warnings: whitelistWarnings } = validateCriteriaAgainstWhitelist(criteria, subProject.type);
+  const config = loadIncubatorConfig(subProject.targetDir);
+  const {
+    filtered: validCriteria,
+    warnings: whitelistWarnings,
+    violations,
+  } = await validateCriteriaAgainstWhitelist(criteria, subProject.type, subProject.targetDir, config.whitelistOverrides || []);
   if (whitelistWarnings.length > 0) {
     for (const w of whitelistWarnings) {
       onProgress?.(`      ⚠️ ${w}`);
+    }
+  }
+  if (violations.length > 0) {
+    onProgress?.(`   ❌ 以下验收标准因超出白名单且未豁免而被拦截:`);
+    for (const v of violations) {
+      onProgress?.(`      ✗ ${v}`);
     }
   }
   if (validCriteria.length === 0) {
@@ -479,7 +491,7 @@ async function runAcceptanceValidation(
       task.result = retryOutput;
       db.saveTask(task, project.id);
 
-      const reAcceptance = runAcceptanceCriteria(subProject);
+      const reAcceptance = runAcceptanceCriteria(subProject, validCriteria);
       if (reAcceptance.passed) {
         onProgress?.(`   ✅ 修复后验收通过 (评分: ${reAcceptance.score}/100)`);
         return;

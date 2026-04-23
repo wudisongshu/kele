@@ -1,5 +1,8 @@
 import type { SubProject, Idea, AcceptanceCriterion } from '../types/index.js';
 import { SUBPROJECT_FILE_WHITELIST, matchWhitelist } from './file-writer.js';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import { logEvent } from './logger.js';
 
 export interface ValidationResult {
   valid: boolean;
@@ -7,14 +10,25 @@ export interface ValidationResult {
   warnings: string[];
 }
 
+/** Exemption source for whitelist bypass. */
+export type ExemptionSource = 'file-marker' | 'config-override' | 'none';
+
+export interface ExemptionResult {
+  allowed: boolean;
+  source: ExemptionSource;
+  reason?: string;
+}
+
 /**
  * Local validation of incubator output.
  * Catches structural problems without spending AI tokens.
  */
-export function validateIncubatorOutput(
+export async function validateIncubatorOutput(
   subProjects: SubProject[],
-  idea: Idea
-): ValidationResult {
+  idea: Idea,
+  projectRoot?: string,
+  configOverrides?: string[],
+): Promise<ValidationResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -111,7 +125,12 @@ export function validateIncubatorOutput(
 
   // 10. Acceptance criteria whitelist validation
   for (const sp of subProjects) {
-    const cw = validateCriteriaAgainstWhitelist(sp.acceptanceCriteria || [], sp.type);
+    const cw = await validateCriteriaAgainstWhitelist(
+      sp.acceptanceCriteria || [],
+      sp.type,
+      projectRoot ?? sp.targetDir,
+      configOverrides ?? [],
+    );
     for (const w of cw.warnings) {
       warnings.push(w);
     }
@@ -218,18 +237,27 @@ export function estimateTotalDays(subProjects: SubProject[]): number {
  * Validate acceptance criteria against the sub-project file whitelist.
  * Criteria targeting files outside the whitelist are filtered out with warnings.
  */
-export function validateCriteriaAgainstWhitelist(
+/**
+ * Validate acceptance criteria against the sub-project file whitelist.
+ * Criteria targeting files outside the whitelist are checked for exemptions
+ * (file marker or config override). Non-exempt criteria are filtered out
+ * with warnings.
+ */
+export async function validateCriteriaAgainstWhitelist(
   criteria: AcceptanceCriterion[],
   subProjectType: string,
-): { valid: boolean; filtered: AcceptanceCriterion[]; warnings: string[] } {
+  projectRoot: string,
+  configOverrides: string[],
+): Promise<{ valid: boolean; filtered: AcceptanceCriterion[]; warnings: string[]; violations: string[] }> {
   const whitelist = SUBPROJECT_FILE_WHITELIST[subProjectType];
   if (!whitelist) {
     // Unknown type — allow all (defensive)
-    return { valid: true, filtered: criteria, warnings: [] };
+    return { valid: true, filtered: criteria, warnings: [], violations: [] };
   }
 
   const filtered: AcceptanceCriterion[] = [];
   const warnings: string[] = [];
+  const violations: string[] = [];
 
   for (const c of criteria) {
     // Criteria without a target (e.g. some play-game checks) skip whitelist check
@@ -238,15 +266,92 @@ export function validateCriteriaAgainstWhitelist(
       continue;
     }
 
-    const allowed = matchWhitelist(c.target, whitelist);
-    if (!allowed) {
+    const allowedByWhitelist = matchWhitelist(c.target, whitelist);
+    if (allowedByWhitelist) {
+      filtered.push(c);
+      continue;
+    }
+
+    // Not in whitelist — check exemptions
+    const exemption = await checkExemption(c.target, projectRoot, configOverrides);
+    logEvent('info', `[EXEMPTION] file: ${c.target}, source: ${exemption.source}, allowed: ${exemption.allowed}`, {
+      filePath: c.target,
+      source: exemption.source,
+      allowed: exemption.allowed,
+      reason: exemption.reason,
+    });
+
+    if (exemption.allowed) {
+      filtered.push(c);
+      warnings.push(
+        `[EXEMPTION] 验收标准 "${c.description}" 检查 ${c.target} 被豁免 (${exemption.source}): ${exemption.reason}`,
+      );
+    } else {
+      violations.push(
+        `[WHITELIST] 验收标准 "${c.description}" 要求检查 ${c.target}，但 ${subProjectType} 子项目的白名单不包含此文件，且未找到豁免规则。`,
+      );
       warnings.push(
         `[WHITELIST] 验收标准 "${c.description}" 要求检查 ${c.target}，但 ${subProjectType} 子项目的白名单不包含此文件。该标准将被跳过。`,
       );
-    } else {
-      filtered.push(c);
     }
   }
 
-  return { valid: warnings.length === 0, filtered, warnings };
+  return { valid: violations.length === 0, filtered, warnings, violations };
+}
+
+/**
+ * Check whether a single file path is exempt from whitelist enforcement.
+ * 1. Reads the first 5 lines of the file looking for "kele-allow:" marker (slash-slash or slash-star style).
+ * 2. Falls back to matching against config-provided glob overrides.
+ */
+export async function checkExemption(
+  filePath: string,
+  projectRoot: string,
+  configOverrides: string[],
+): Promise<ExemptionResult> {
+  const fullPath = join(projectRoot, filePath);
+
+  // 1. File marker check
+  try {
+    const content = await readFile(fullPath, 'utf-8');
+    const firstLines = content.split('\n').slice(0, 5).join('\n');
+    const markerMatch = firstLines.match(/(?:\/\/|\/\*)\s*kele-allow:\s*(.+?)(?:\s*\*\/)?$/m);
+    if (markerMatch) {
+      return {
+        allowed: true,
+        source: 'file-marker',
+        reason: `File contains kele-allow marker: "${markerMatch[1].trim()}"`,
+      };
+    }
+  } catch {
+    // File does not exist or unreadable — treat as no marker
+  }
+
+  // 2. Config override check
+  for (const pattern of configOverrides) {
+    if (matchGlob(filePath, pattern)) {
+      return {
+        allowed: true,
+        source: 'config-override',
+        reason: `Matched whitelist override pattern: "${pattern}"`,
+      };
+    }
+  }
+
+  return { allowed: false, source: 'none' };
+}
+
+/**
+ * Simple glob matcher using native RegExp.
+ * Supports `*` (one path segment) and `**` (any chars including `/`).
+ */
+function matchGlob(path: string, pattern: string): boolean {
+  const regex = new RegExp(
+    '^' + pattern
+      .replace(/\./g, '\\.')
+      .replace(/\*\*\//g, '(.+/)?')
+      .replace(/\*\*/g, '(.*)')
+      .replace(/\*/g, '([^/]+)') + '$',
+  );
+  return regex.test(path);
 }

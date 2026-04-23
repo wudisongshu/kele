@@ -225,7 +225,7 @@ export async function incubateWithAI(
   }
 
   // --- Local validation (free, fast) — infinite fix loop ---
-  let localValidation = validateIncubatorOutput(result.subProjects!, idea);
+  let localValidation = await validateIncubatorOutput(result.subProjects!, idea, rootDir);
   validationMeta.localValid = localValidation.valid;
   validationMeta.localErrors = localValidation.errors;
   validationMeta.localWarnings = localValidation.warnings;
@@ -240,7 +240,7 @@ export async function incubateWithAI(
       if (fixed.success && fixed.subProjects) {
         result = fixed;
         validationMeta.revisions++;
-        localValidation = validateIncubatorOutput(result.subProjects!, idea);
+        localValidation = await validateIncubatorOutput(result.subProjects!, idea, rootDir);
         validationMeta.localValid = localValidation.valid;
         validationMeta.localErrors = localValidation.errors;
         validationMeta.localWarnings = localValidation.warnings;
@@ -278,7 +278,7 @@ export async function incubateWithAI(
           result = fixed;
           validationMeta.revisions++;
           // Re-validate after AI-guided fix
-          const reValidation = validateIncubatorOutput(result.subProjects!, idea);
+          const reValidation = await validateIncubatorOutput(result.subProjects!, idea, rootDir);
           validationMeta.localValid = reValidation.valid;
           validationMeta.localErrors = reValidation.errors;
           validationMeta.localWarnings = reValidation.warnings;
@@ -297,7 +297,7 @@ export async function incubateWithAI(
             if (structFixed.success && structFixed.subProjects) {
               result = structFixed;
               validationMeta.revisions++;
-              const sv = validateIncubatorOutput(result.subProjects!, idea);
+              const sv = await validateIncubatorOutput(result.subProjects!, idea, rootDir);
               validationMeta.localValid = sv.valid;
               validationMeta.localErrors = sv.errors;
               validationMeta.localWarnings = sv.warnings;

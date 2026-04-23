@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateIncubatorOutput, detectCycles, estimateTotalDays } from '../src/core/incubator-validator.js';
+import { validateIncubatorOutput, detectCycles, estimateTotalDays, checkExemption, validateCriteriaAgainstWhitelist } from '../src/core/incubator-validator.js';
 import type { SubProject, Idea } from '../src/types/index.js';
 
 function makeIdea(overrides: Partial<Idea> = {}): Idea {
@@ -19,91 +19,91 @@ function makeSP(overrides: Partial<SubProject> = {}): SubProject {
 }
 
 describe('validateIncubatorOutput', () => {
-  it('validates a correct structure', () => {
+  it('validates a correct structure', async () => {
     const sps = [
       makeSP({ id: 'setup', type: 'setup' }),
       makeSP({ id: 'dev', type: 'development', dependencies: ['setup'] }),
       makeSP({ id: 'deploy', type: 'deployment', dependencies: ['dev'], monetizationRelevance: 'core' }),
     ];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
-  it('errors when first project is not setup', () => {
+  it('errors when first project is not setup', async () => {
     const sps = [makeSP({ id: 'dev', type: 'development' })];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('setup');
   });
 
-  it('errors when setup has dependencies', () => {
+  it('errors when setup has dependencies', async () => {
     const sps = [makeSP({ id: 'setup', type: 'setup', dependencies: ['dev'] })];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('setup');
   });
 
-  it('errors on duplicate IDs', () => {
+  it('errors on duplicate IDs', async () => {
     const sps = [
       makeSP({ id: 'setup', type: 'setup' }),
       makeSP({ id: 'setup', type: 'development' }),
     ];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('重复');
   });
 
-  it('errors on dangling dependencies', () => {
+  it('errors on dangling dependencies', async () => {
     const sps = [
       makeSP({ id: 'setup', type: 'setup' }),
       makeSP({ id: 'dev', type: 'development', dependencies: ['missing'] }),
     ];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('不存在');
   });
 
-  it('errors when too many sub-projects for complexity', () => {
+  it('errors when too many sub-projects for complexity', async () => {
     const sps = Array.from({ length: 10 }, (_, i) => makeSP({ id: `sp${i}`, type: i === 0 ? 'setup' : 'development' }));
-    const result = validateIncubatorOutput(sps, makeIdea({ complexity: 'simple' }));
+    const result = await validateIncubatorOutput(sps, makeIdea({ complexity: 'simple' }));
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toContain('3');
   });
 
-  it('warns when no core monetization sub-project', () => {
+  it('warns when no core monetization sub-project', async () => {
     const sps = [
       makeSP({ id: 'setup', type: 'setup' }),
       makeSP({ id: 'dev', type: 'development', dependencies: ['setup'] }),
     ];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.warnings.some(w => w.includes('core'))).toBe(true);
   });
 
-  it('warns when no deployment for monetized idea', () => {
+  it('warns when no deployment for monetized idea', async () => {
     const sps = [
       makeSP({ id: 'setup', type: 'setup' }),
       makeSP({ id: 'dev', type: 'development', dependencies: ['setup'] }),
     ];
-    const result = validateIncubatorOutput(sps, makeIdea({ monetization: 'web' }));
+    const result = await validateIncubatorOutput(sps, makeIdea({ monetization: 'web' }));
     expect(result.warnings.some(w => w.includes('deployment') || w.includes('monetization'))).toBe(true);
   });
 
-  it('warns when all sub-projects are critical path', () => {
+  it('warns when all sub-projects are critical path', async () => {
     const sps = [
       makeSP({ id: 'setup', type: 'setup', criticalPath: true }),
       makeSP({ id: 'dev', type: 'development', dependencies: ['setup'], criticalPath: true }),
     ];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.warnings.some(w => w.includes('关键路径'))).toBe(true);
   });
 
-  it('warns when no critical path marked', () => {
+  it('warns when no critical path marked', async () => {
     const sps = [
       makeSP({ id: 'setup', type: 'setup', criticalPath: false }),
       makeSP({ id: 'dev', type: 'development', dependencies: ['setup'], criticalPath: false }),
     ];
-    const result = validateIncubatorOutput(sps, makeIdea());
+    const result = await validateIncubatorOutput(sps, makeIdea());
     expect(result.warnings.some(w => w.includes('关键路径'))).toBe(true);
   });
 });
