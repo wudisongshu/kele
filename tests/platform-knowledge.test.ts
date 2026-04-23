@@ -212,5 +212,10 @@ describe('platform-knowledge', () => {
       const text = getDeployableConfigTemplate('steam');
       expect(text.length).toBeGreaterThan(0);
     });
+
+    it('returns template for app-store', () => {
+      const text = getDeployableConfigTemplate('app-store');
+      expect(text.length).toBeGreaterThan(0);
+    });
   });
 });

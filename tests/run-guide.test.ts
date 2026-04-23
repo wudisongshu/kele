@@ -91,4 +91,10 @@ describe('findRunEntry', () => {
     const entry = findRunEntry(tempDir);
     expect(entry.type).toBe('miniprogram');
   });
+
+  it('detects Python project via main.py', () => {
+    writeFileSync(join(tempDir, 'main.py'), 'print("hello")');
+    const entry = findRunEntry(tempDir);
+    expect(entry.type).toBe('python');
+  });
 });

@@ -165,4 +165,14 @@ describe('estimateTotalDays', () => {
     ];
     expect(estimateTotalDays(sps)).toBeGreaterThan(0);
   });
+
+  it('detects cycle with multiple nodes', () => {
+    const sps = [
+      makeSP({ id: 'a', dependencies: ['b'] }),
+      makeSP({ id: 'b', dependencies: ['c'] }),
+      makeSP({ id: 'c', dependencies: ['a'] }),
+    ];
+    const cycles = detectCycles(sps);
+    expect(cycles.length).toBeGreaterThan(0);
+  });
 });

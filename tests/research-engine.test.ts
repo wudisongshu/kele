@@ -78,5 +78,11 @@ describe('ResearchEngine', () => {
       // AI research may fail if parsing fails; just verify it runs
       expect(result).toHaveProperty('success');
     });
+
+    it('returns error for empty input', async () => {
+      const mockAdapter = { name: 'mock', execute: vi.fn() } as any;
+      const result = await research('', mockAdapter);
+      expect(result.success).toBe(false);
+    });
   });
 });
