@@ -75,6 +75,14 @@ export class ProviderRegistry {
     const mock = this.adapters.get('mock')!;
     return { provider: 'mock' as AIProvider, adapter: mock };
   }
+
+  /**
+   * Get the primary (default) provider adapter.
+   * Shortcut for route('medium').adapter.
+   */
+  getPrimaryProvider(): AIAdapter {
+    return this.route('medium').adapter;
+  }
 }
 
 /**

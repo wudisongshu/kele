@@ -12,6 +12,8 @@ import { matchContract } from '../../core/contract-engine.js';
 import { planTasks } from '../../core/task-planner.js';
 import { executeProject } from '../../core/project-executor.js';
 import { parseIntent } from '../../core/intent-engine.js';
+import { QuickModeEngine } from '../../core/quick-mode.js';
+import { validateGameInBrowser } from '../../core/game-validator-browser.js';
 import { createRegistryFromConfig } from '../../adapters/index.js';
 import { createProgressLogger } from '../../core/logger.js';
 import { needsResearch, research } from '../../core/research-engine.js';
@@ -140,6 +142,44 @@ async function handleCreateIntent(
   console.log(`   复杂度: ${idea.complexity}`);
   console.log(`   关键词: ${idea.keywords.join(', ')}\n`);
 
+  // ── Quick Mode: bypass Incubator for simple games/tools ──
+  const projectName = generateProjectSlug(ideaText, idea.type);
+  const outputDir = options.output || join(process.env.HOME || process.env.USERPROFILE || '.', 'kele-projects');
+  const rootDir = join(outputDir, projectName);
+  mkdirSync(outputDir, { recursive: true });
+
+  const registry = createRegistryFromConfig();
+  if (useMock) {
+    const mockAdapter = registry.get('mock')!;
+    registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
+  }
+
+  const quickMode = new QuickModeEngine(registry.getPrimaryProvider(), rootDir);
+  if (quickMode.isSimpleGame(ideaText)) {
+    console.log('🚀 快速模式：生成单文件游戏...');
+    const result = await quickMode.execute(ideaText);
+
+    if (result.success) {
+      console.log(`✅ 生成完成: ${result.filePath}`);
+      const validation = await validateGameInBrowser(rootDir);
+
+      if (validation.playable) {
+        console.log('🎮 游戏可玩性验证通过！');
+        console.log(`\n✨ 项目完成！`);
+        console.log(`   项目目录: ${rootDir}`);
+        await printLocalRunGuide(rootDir);
+        return;
+      } else {
+        console.log('⚠️ 游戏验证未通过，进入标准孵化器流程...');
+      }
+    } else {
+      console.log(`⚠️ 快速模式失败: ${result.error}，进入标准孵化器流程...`);
+    }
+  }
+  // ── End Quick Mode ──
+
+  const route = registry.route('medium');
+
   // Show monetization route recommendations
   const routes = routeMonetization(idea);
   console.log(formatRouteRecommendations(routes));
@@ -172,13 +212,6 @@ async function handleCreateIntent(
       console.log(insight);
     }
   }
-
-  const registry = createRegistryFromConfig();
-  if (useMock) {
-    const mockAdapter = registry.get('mock')!;
-    registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
-  }
-  const route = registry.route('medium');
 
   // Test provider connectivity before starting
   if (!useMock) {
@@ -254,9 +287,6 @@ async function handleCreateIntent(
 
   printStep('AI 孵化器分析项目结构');
   // Step 3: Incubate sub-projects (AI-driven, fallback to local rules)
-  const projectName = generateProjectSlug(ideaText, idea.type);
-  const outputDir = options.output || join(process.env.HOME || process.env.USERPROFILE || '.', 'kele-projects');
-  const rootDir = join(outputDir, projectName);
   mkdirSync(outputDir, { recursive: true });
 
   // Debug/logs go into the project directory
