@@ -10,6 +10,7 @@ import { join } from 'path';
 import { mkdir, writeFile } from 'fs/promises';
 import type { AIAdapter } from '../adapters/base.js';
 import { PlayabilityValidator, type PlayabilityResult } from './playability-validator.js';
+import { FunctionLevelFixer } from './function-level-fixer.js';
 import { debugLog } from '../debug.js';
 
 export class QuickModeEngine {
@@ -77,6 +78,13 @@ export class QuickModeEngine {
       const filePath = join(this.projectRoot, 'index.html');
       await mkdir(this.projectRoot, { recursive: true });
       await writeFile(filePath, code, 'utf-8');
+
+      // 5. Fix any stub functions before validation
+      const fixer = new FunctionLevelFixer(this.provider);
+      const fixed = await fixer.fixFile(filePath, userInput, 3);
+      if (!fixed) {
+        debugLog('QuickMode fixer', '部分空函数未能自动修复');
+      }
 
       return { success: true, filePath };
     } catch (err) {
