@@ -14,7 +14,6 @@ import { executeProject } from '../../core/project-executor.js';
 import { parseIntent } from '../../core/intent-engine.js';
 import { QuickModeEngine } from '../../core/quick-mode.js';
 import { ProviderFallback } from '../../core/provider-fallback.js';
-import { FunctionLevelFixer } from '../../core/function-level-fixer.js';
 import { PlayabilityValidator } from '../../core/playability-validator.js';
 import { createRegistryFromConfig } from '../../adapters/index.js';
 import { createProgressLogger } from '../../core/logger.js';
@@ -154,15 +153,10 @@ async function handleCreateIntent(
 
       console.log(`✅ 生成完成: ${result.filePath}`);
 
-      // 2. Function-level fix
-      console.log('🔧 检查并修复空函数...');
-      const fixer = new FunctionLevelFixer(fallback.getPrimary());
-      await fixer.fixFile(result.filePath, ideaText);
-
-      // 3. Playability validation
+      // 2. Playability validation
       console.log('🎮 验证游戏可玩性...');
       const validator = new PlayabilityValidator(rootDir);
-      let playability = await validator.validate('index.html');
+      const playability = await validator.validate('index.html');
 
       console.log(`📊 可玩性评分: ${playability.score}/100`);
       playability.details.forEach((d) => console.log('  ' + d));
@@ -173,22 +167,6 @@ async function handleCreateIntent(
         console.log('💡 提示: 用浏览器打开 index.html 即可游玩');
         await printLocalRunGuide(rootDir);
         return;
-      }
-
-      // 4. Retry fix + validation once
-      console.log('⚠️ 可玩性验证未通过，尝试修复...');
-      const fixed = await fixer.fixFile(result.filePath, ideaText);
-      if (fixed) {
-        const retry = await validator.validate('index.html');
-        console.log(`📊 修复后可玩性评分: ${retry.score}/100`);
-        retry.details.forEach((d) => console.log('  ' + d));
-        if (retry.playable) {
-          console.log('✅ 修复后验证通过！');
-          console.log(`📂 文件位置: ${result.filePath}`);
-          console.log('💡 提示: 用浏览器打开 index.html 即可游玩');
-          await printLocalRunGuide(rootDir);
-          return;
-        }
       }
 
       console.log('❌ 快速模式验证未通过。');
