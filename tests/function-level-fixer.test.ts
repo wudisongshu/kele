@@ -130,6 +130,55 @@ describe('FunctionLevelFixer', () => {
       const stubs = await fixer.findStubFunctions(filePath);
       expect(stubs).toHaveLength(0);
     });
+
+    it('detects contaminated functions with leaked game logic in catch blocks', async () => {
+      const fixer = new FunctionLevelFixer(makeMockAdapter(''));
+      const filePath = join(TEST_DIR, 'game.js');
+      // Simulate a function whose body contains a catch block with leaked lockPiece/clearLines logic
+      writeFileSync(
+        filePath,
+        `function drop() {
+  try {
+    this.piece.y++;
+  } catch (err) {
+    this.piece.y--;
+    this.lockPiece();
+    this.board[this.piece.y][this.piece.x] = this.piece.color;
+    this.clearLines();
+    this.score += 100;
+    this.piece = this.newPiece();
+    if (this.collide(this.piece)) {
+      this.gameOver = true;
+    }
+  }
+}\n`,
+      );
+
+      const stubs = await fixer.findStubFunctions(filePath);
+      expect(stubs.length).toBeGreaterThanOrEqual(1);
+      const contaminated = stubs.find((s) => s.name === 'drop');
+      expect(contaminated).toBeDefined();
+      expect(contaminated!.isContaminated).toBe(true);
+      expect(contaminated!.originalBody).toContain('this.lockPiece');
+    });
+
+    it('ignores clean functions without leaked logic', async () => {
+      const fixer = new FunctionLevelFixer(makeMockAdapter(''));
+      const filePath = join(TEST_DIR, 'game.js');
+      writeFileSync(
+        filePath,
+        `function drop() {
+  try {
+    this.piece.y++;
+  } catch (err) {
+    console.error('drop failed', err);
+  }
+}\n`,
+      );
+
+      const stubs = await fixer.findStubFunctions(filePath);
+      expect(stubs).toHaveLength(0);
+    });
   });
 
   describe('fixStub', () => {

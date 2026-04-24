@@ -3,6 +3,9 @@
  *
  * Scans a file for empty functions / TODOs / stubs, extracts context,
  * asks AI to fill in just that one function, and patches it back in place.
+ *
+ * Also detects "contaminated" functions where code fragments from other
+ * functions have leaked into catch/finally blocks or wrong scopes.
  */
 
 import { readFile, writeFile } from 'fs/promises';
@@ -16,6 +19,7 @@ export interface StubFunction {
   originalBody: string;
   contextBefore: string;
   contextAfter: string;
+  isContaminated?: boolean; // true if body contains leaked code fragments
 }
 
 export class FunctionLevelFixer {
@@ -26,7 +30,15 @@ export class FunctionLevelFixer {
   }
 
   /**
+   * Keywords that look like method calls but are actually control-flow statements.
+   */
+  private static readonly FALSE_POSITIVES = new Set([
+    'if', 'while', 'for', 'switch', 'catch', 'with', 'else', 'do', 'try', 'finally', 'case',
+  ]);
+
+  /**
    * Scan a file for empty functions / TODOs / stubs.
+   * Also detects "contaminated" blocks where unrelated code leaked in.
    */
   async findStubFunctions(filePath: string): Promise<StubFunction[]> {
     const content = await readFile(filePath, 'utf-8');
@@ -54,10 +66,6 @@ export class FunctionLevelFixer {
         // Object method shorthand:  foo() {
         funcName = methodMatch[1];
       }
-
-      // Exclude JavaScript keywords that look like method calls: if(...){, while(...){, etc.
-      const jsKeywords = new Set(['if', 'while', 'for', 'switch', 'catch', 'with', 'else', 'do', 'try', 'finally']);
-      if (funcName && jsKeywords.has(funcName)) continue;
 
       if (!funcName) continue;
 
@@ -107,7 +115,21 @@ export class FunctionLevelFixer {
         stripped.length < 5 ||
         /\bTODO\b|\bFIXME\b|\bstub\b|\bplaceholder\b/i.test(bodyOnly);
 
-      if (isStub) {
+      // Detect contamination: large body with unrelated this-references
+      // (e.g. catch block containing lockPiece/clearLines logic)
+      const thisRefs = bodyOnly.match(/this\.\w+/g) || [];
+      const uniqueThisRefs = new Set(thisRefs);
+      const isContaminated =
+        bodyOnly.length > 200 &&
+        uniqueThisRefs.size >= 3 &&
+        (bodyOnly.includes('this.piece') || bodyOnly.includes('this.board'));
+
+      // Control-flow keywords (catch, finally, etc.) are NOT functions,
+      // but if their block is CONTAMINATED we still need to clean it up.
+      const isFalsePositive = funcName && FunctionLevelFixer.FALSE_POSITIVES.has(funcName);
+      if (isFalsePositive && !isContaminated) continue;
+
+      if (isStub || isContaminated) {
         stubs.push({
           name: funcName,
           startLine: braceLine,   // line where { starts
@@ -115,6 +137,7 @@ export class FunctionLevelFixer {
           originalBody: bodyOnly,
           contextBefore: lines.slice(Math.max(0, startLine - 5), startLine).join('\n'),
           contextAfter: lines.slice(endLine + 1, Math.min(lines.length, endLine + 4)).join('\n'),
+          isContaminated,
         });
       }
     }
@@ -124,35 +147,19 @@ export class FunctionLevelFixer {
 
   /**
    * Fix a single stub function.
+   * For contaminated blocks, uses a "clean up" strategy instead of "fill in".
    */
   async fixStub(stub: StubFunction, filePath: string, gameDescription: string): Promise<boolean> {
-    const prompt = `你是一个前端游戏开发专家。请补全以下函数的完整实现。
-
-游戏描述：${gameDescription}
-函数名：${stub.name}
-上下文代码（函数前5行）：
-${stub.contextBefore}
-
-当前空函数体：
-${stub.originalBody}
-
-上下文代码（函数后3行）：
-${stub.contextAfter}
-
-要求：
-1. 只返回函数体的完整实现（从 { 开始到 } 结束），不要返回函数签名
-2. 代码必须完整可运行，不允许有 TODO 或空逻辑
-3. 与上下文代码风格保持一致
-4. 直接返回代码字符串，不要包裹在 markdown 中
-
-DEATH LINE: 如果返回空函数体或 TODO，任务将被拒绝。`;
+    const prompt = stub.isContaminated
+      ? this.buildCleanupPrompt(stub, gameDescription)
+      : this.buildFillPrompt(stub, gameDescription);
 
     debugLog('FunctionLevelFixer prompt', prompt.slice(0, 500));
     const response = await this.provider.execute(prompt);
     const newBody = this.extractCode(response);
     debugLog('FunctionLevelFixer response length', String(newBody.length));
 
-    if (!newBody.includes('{') || newBody.length < stub.originalBody.length + 10) {
+    if (!newBody.includes('{') || newBody.length < 5) {
       debugLog('FunctionLevelFixer skipped', `函数 ${stub.name} 修复结果疑似不完整`);
       return false;
     }
@@ -172,8 +179,61 @@ DEATH LINE: 如果返回空函数体或 TODO，任务将被拒绝。`;
     const newContent = before + '\n' + signaturePrefix + newBody + '\n' + after;
 
     await writeFile(filePath, newContent, 'utf-8');
-    debugLog('FunctionLevelFixer fixed', `函数 ${stub.name} 已修复（${stub.originalBody.length} → ${newBody.length} 字符）`);
+    debugLog('FunctionLevelFixer fixed', `函数 ${stub.name} 已修复（${stub.originalBody.length} → ${newBody.length} 字符）${stub.isContaminated ? '[清理污染]' : ''}`);
     return true;
+  }
+
+  /**
+   * Build a "fill in" prompt for normal empty stubs.
+   */
+  private buildFillPrompt(stub: StubFunction, gameDescription: string): string {
+    return `你是一个前端游戏开发专家。请补全以下函数的完整实现。
+
+游戏描述：${gameDescription}
+函数名：${stub.name}
+上下文代码（函数前5行）：
+${stub.contextBefore}
+
+当前空函数体：
+${stub.originalBody}
+
+上下文代码（函数后3行）：
+${stub.contextAfter}
+
+要求：
+1. 只返回函数体的完整实现（从 { 开始到 } 结束），不要返回函数签名
+2. 代码必须完整可运行，不允许有 TODO 或空逻辑
+3. 与上下文代码风格保持一致
+4. 直接返回代码字符串，不要包裹在 markdown 中
+
+DEATH LINE: 如果返回空函数体或 TODO，任务将被拒绝。`;
+  }
+
+  /**
+   * Build a "clean up" prompt for contaminated blocks.
+   */
+  private buildCleanupPrompt(stub: StubFunction, gameDescription: string): string {
+    return `你是一个前端代码清理专家。以下代码块中被混入了不属于它的代码片段，请将其清理干净。
+
+游戏描述：${gameDescription}
+代码块名：${stub.name}
+上下文代码（前面5行）：
+${stub.contextBefore}
+
+当前混乱的代码块：
+${stub.originalBody}
+
+上下文代码（后面3行）：
+${stub.contextAfter}
+
+要求：
+1. 删除所有不属于该代码块职责的代码（例如：catch 块中不应该包含游戏核心逻辑如方块锁定、消行、得分计算等）
+2. 只保留适当的错误处理代码（如 console.error、console.warn、或简单的空操作）
+3. 返回清理后的完整代码块（从 { 开始到 } 结束）
+4. 不要返回函数签名，只返回 { ... } 部分
+5. 直接返回代码字符串，不要包裹在 markdown 中
+
+DEATH LINE: 如果返回的代码块仍然包含不属于它的游戏逻辑，任务将被拒绝。`;
   }
 
   /**
@@ -190,7 +250,7 @@ DEATH LINE: 如果返回空函数体或 TODO，任务将被拒绝。`;
         const todo = stubs.filter((s) => !fixedNames.has(s.name));
         if (todo.length === 0) break;
 
-        debugLog('FunctionLevelFixer round', `第 ${round}/${maxRounds} 轮修复：${todo[0].name}`);
+        debugLog('FunctionLevelFixer round', `第 ${round}/${maxRounds} 轮修复：${todo[0].name}${todo[0].isContaminated ? ' [污染]' : ''}`);
         const success = await this.fixStub(todo[0], filePath, gameDescription);
         if (success) {
           fixedNames.add(todo[0].name);
