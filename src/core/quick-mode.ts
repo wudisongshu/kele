@@ -63,8 +63,15 @@ export class QuickModeEngine {
       const prompt = this.buildPrompt(userInput);
       debugLog('QuickMode prompt', prompt);
 
-      // 2. Call AI (with automatic provider failover)
-      const rawCode = await this.fallback.execute(prompt);
+      // 2. Call AI (with automatic provider failover, streaming for long generations)
+      let tokenCount = 0;
+      const rawCode = await this.fallback.execute(prompt, (_token: string) => {
+        tokenCount++;
+        if (tokenCount % 100 === 0) {
+          process.stdout.write('.');
+        }
+      });
+      if (tokenCount >= 100) process.stdout.write('\n');
       debugLog('QuickMode raw response length', String(rawCode.length));
 
       // 3. Extract code from markdown / JSON wrappers

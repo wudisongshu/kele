@@ -118,6 +118,18 @@ describe('FunctionLevelFixer', () => {
       expect(stubs).toHaveLength(1);
       expect(stubs[0].name).toBe('longName');
     });
+
+    it('ignores JavaScript keywords like if/while/for', async () => {
+      const fixer = new FunctionLevelFixer(makeMockAdapter(''));
+      const filePath = join(TEST_DIR, 'game.js');
+      writeFileSync(
+        filePath,
+        'function checkWin() {\n  if (player.score >= 5) {\n    winner = \"player\";\n  }\n  while (running) {\n    update();\n  }\n  for (let i = 0; i < 10; i++) {\n    draw();\n  }\n}\n',
+      );
+
+      const stubs = await fixer.findStubFunctions(filePath);
+      expect(stubs).toHaveLength(0);
+    });
   });
 
   describe('fixStub', () => {

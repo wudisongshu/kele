@@ -55,6 +55,10 @@ export class FunctionLevelFixer {
         funcName = methodMatch[1];
       }
 
+      // Exclude JavaScript keywords that look like method calls: if(...){, while(...){, etc.
+      const jsKeywords = new Set(['if', 'while', 'for', 'switch', 'catch', 'with', 'else', 'do', 'try', 'finally']);
+      if (funcName && jsKeywords.has(funcName)) continue;
+
       if (!funcName) continue;
 
       // Find opening brace
