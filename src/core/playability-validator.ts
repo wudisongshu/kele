@@ -3,11 +3,13 @@
  *
  * Opens the generated index.html in a headless browser (puppeteer if available)
  * and checks whether the game is actually interactive and rendering.
- * Falls back to static code analysis when puppeteer is not installed.
+ * Falls back to static code analysis + vm.Script syntax check when puppeteer
+ * is not available or Chrome is not installed.
  */
 
 import { join } from 'path';
 import { access, readFile } from 'fs/promises';
+import { Script } from 'vm';
 import { debugLog } from '../debug.js';
 
 export interface PlayabilityResult {
@@ -15,6 +17,7 @@ export interface PlayabilityResult {
   score: number; // 0-100
   checks: {
     http200: boolean;
+    syntaxValid: boolean;
     canvasRendering: boolean;
     inputResponsive: boolean;
     noConsoleErrors: boolean;
@@ -33,6 +36,7 @@ export class PlayabilityValidator {
     const filePath = join(this.projectRoot, fileName);
     const checks = {
       http200: false,
+      syntaxValid: false,
       canvasRendering: false,
       inputResponsive: false,
       noConsoleErrors: false,
@@ -57,14 +61,36 @@ export class PlayabilityValidator {
     if (!hasCanvas) details.push('❌ 缺少 Canvas 元素');
     if (!hasGameLoop) details.push('❌ 缺少 requestAnimationFrame 游戏循环');
 
-    // Check 3: headless browser validation (puppeteer) with static fallback
+    // Check 3: JavaScript syntax validation (mandatory, not optional)
+    const scriptMatches = content.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g);
+    let allScripts = '';
+    for (const match of scriptMatches) {
+      allScripts += match[1] + '\n';
+    }
+
+    if (allScripts.trim().length > 0) {
+      try {
+        new Script(allScripts);
+        checks.syntaxValid = true;
+        details.push('✅ JavaScript 语法检查通过');
+      } catch (syntaxErr) {
+        checks.syntaxValid = false;
+        const msg = syntaxErr instanceof Error ? syntaxErr.message : String(syntaxErr);
+        details.push(`❌ JavaScript 语法错误: ${msg.slice(0, 200)}`);
+        // Syntax error is fatal — game cannot run
+        return { playable: false, score: Math.max(0, 25), checks, details };
+      }
+    } else {
+      // No inline scripts — might be external, skip syntax check
+      checks.syntaxValid = true;
+    }
+
+    // Check 4: headless browser validation (puppeteer) with static fallback
     if (hasCanvas && hasGameLoop) {
       try {
-        // Dynamically import puppeteer if available; eval bypasses TS module resolution
-        // so we don't need puppeteer as a hard dependency.
-        const puppeteer = await (new Function("return import('puppeteer')")() as Promise<any>).catch(() => null);
+        const puppeteer = await (new Function("return import('puppeteer-core')")() as Promise<any>).catch(() => null);
         if (!puppeteer || !puppeteer.launch) {
-          throw new Error('puppeteer not installed');
+          throw new Error('puppeteer-core not available');
         }
 
         const browser = await puppeteer.launch({
@@ -164,10 +190,11 @@ export class PlayabilityValidator {
 
     // Score calculation
     let score = 0;
-    if (checks.http200) score += 25;
-    if (checks.canvasRendering) score += 25;
-    if (checks.inputResponsive) score += 25;
-    if (checks.noConsoleErrors) score += 25;
+    if (checks.http200) score += 20;
+    if (checks.syntaxValid) score += 20;
+    if (checks.canvasRendering) score += 20;
+    if (checks.inputResponsive) score += 20;
+    if (checks.noConsoleErrors) score += 20;
 
     const playable = score >= 75;
 
