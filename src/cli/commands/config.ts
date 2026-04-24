@@ -24,6 +24,7 @@ export function setupConfigCommand(program: Command): void {
     .option('--url <baseURL>', 'Base URL for the API')
     .option('--model <model>', 'Model name')
     .option('--timeout <seconds>', 'Request timeout in seconds (default: 3000 = 50min)', parseTimeout)
+    .option('--max-tokens <number>', 'Max tokens per response (default: 100000)', parseInt)
     .option('--header <header>', 'Extra header in key:value format (repeatable)', collectHeaders, {})
     .option('--default <name>', 'Set default provider')
     .option('--remove <name>', 'Remove a provider')
@@ -39,6 +40,7 @@ export function setupConfigCommand(program: Command): void {
       url?: string;
       model?: string;
       timeout?: number;
+      maxTokens?: number;
       header?: Record<string, string>;
       default?: string;
       remove?: string;
@@ -134,6 +136,7 @@ export function setupConfigCommand(program: Command): void {
           baseURL: options.url,
           model: options.model,
           timeout: options.timeout,
+          maxTokens: options.maxTokens,
           headers: options.header && Object.keys(options.header).length > 0 ? options.header : undefined,
         });
 

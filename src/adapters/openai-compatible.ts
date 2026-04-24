@@ -174,9 +174,7 @@ export class OpenAICompatibleAdapter implements AIAdapter {
       temperature: this.config.temperature ?? 0.3,
     };
 
-    if (this.config.maxTokens) {
-      body.max_tokens = this.config.maxTokens;
-    }
+    body.max_tokens = this.config.maxTokens ?? 100000;
 
     // Use streaming when onToken callback is provided
     const useStreaming = !!onToken;

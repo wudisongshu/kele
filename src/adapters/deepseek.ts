@@ -10,6 +10,7 @@ const API_BASE = 'https://api.deepseek.com/v1';
 export interface DeepSeekConfig {
   apiKey: string;
   model?: string;
+  maxTokens?: number;
 }
 
 export class DeepSeekAdapter implements AIAdapter {
@@ -19,6 +20,7 @@ export class DeepSeekAdapter implements AIAdapter {
   constructor(config: DeepSeekConfig) {
     this.config = {
       model: 'deepseek-chat',
+      maxTokens: 100000,
       ...config,
     };
   }
@@ -58,6 +60,7 @@ export class DeepSeekAdapter implements AIAdapter {
           { role: 'system', content: 'You are a senior software engineer. Respond in structured JSON when generating code.' },
           { role: 'user', content: prompt },
         ],
+        max_tokens: this.config.maxTokens,
         temperature: 0.7,
       }),
     });

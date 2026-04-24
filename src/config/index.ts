@@ -24,7 +24,7 @@ export interface ProviderConfig {
   headers?: Record<string, string>;
   /** Request timeout in seconds (default: 3000 = 50 minutes) */
   timeout?: number;
-  /** Max tokens for response (default: 4096) */
+  /** Max tokens for response (default: 100000) */
   maxTokens?: number;
   /** Temperature for sampling (default: 0.7) */
   temperature?: number;
