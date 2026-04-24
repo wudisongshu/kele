@@ -14,6 +14,8 @@ import { executeProject } from '../../core/project-executor.js';
 import { parseIntent } from '../../core/intent-engine.js';
 import { QuickModeEngine } from '../../core/quick-mode.js';
 import { ProviderFallback } from '../../core/provider-fallback.js';
+import { FunctionLevelFixer } from '../../core/function-level-fixer.js';
+import { PlayabilityValidator } from '../../core/playability-validator.js';
 import { createRegistryFromConfig } from '../../adapters/index.js';
 import { createProgressLogger } from '../../core/logger.js';
 import { needsResearch, research } from '../../core/research-engine.js';
@@ -40,8 +42,9 @@ export function setupCreateCommand(program: Command): void {
     .option('--dry-run', 'Show what would be done without executing AI calls', false)
     .option('--recovery-mode <mode>', 'Failure recovery: auto, skip, interactive (default)', 'interactive')
     .option('--skip-partner', 'Skip Product Partner analysis (competitor + monetization + virality)', false)
+    .option('--full', 'Force full Incubator mode (skip quick mode)', false)
     .option('--quiet', 'Suppress non-error output', false)
-    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean; recoveryMode?: string; skipPartner?: boolean }) => {
+    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; timeout?: number; debug: boolean; mock: boolean; json: boolean; dryRun: boolean; quiet: boolean; recoveryMode?: string; skipPartner?: boolean; full?: boolean }) => {
       if (options.quiet) {
         const originalLog = console.log;
         console.log = () => {};
@@ -110,7 +113,7 @@ export function setupCreateCommand(program: Command): void {
 
 async function handleCreateIntent(
   ideaText: string,
-  options: { output?: string; yes: boolean; timeout?: number; json?: boolean; skipPartner?: boolean; recoveryMode?: string },
+  options: { output?: string; yes: boolean; timeout?: number; json?: boolean; skipPartner?: boolean; recoveryMode?: string; full?: boolean },
   db: KeleDatabase,
   useMock: boolean = false,
 ) {
@@ -118,6 +121,84 @@ async function handleCreateIntent(
 
   logger.log('🥤 kele 收到了你的想法（创建项目）：');
   logger.log(`   "${ideaText}"\n`);
+
+  // ── Step 0: Quick Mode (default path for simple games) ──
+  const projectName = generateProjectSlug(ideaText, 'game');
+  const outputDir = options.output || join(process.env.HOME || process.env.USERPROFILE || '.', 'kele-projects');
+  const rootDir = join(outputDir, projectName);
+  mkdirSync(outputDir, { recursive: true });
+
+  const registry = createRegistryFromConfig();
+  let fallback: ProviderFallback;
+  if (useMock) {
+    const mockAdapter = registry.get('mock')!;
+    registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
+    fallback = new ProviderFallback([mockAdapter]);
+  } else {
+    fallback = new ProviderFallback(registry.getAllAvailableAdapters());
+  }
+  const quickMode = new QuickModeEngine(fallback, rootDir);
+
+  if (!options.full && quickMode.isSimpleGame(ideaText)) {
+    console.log('🚀 快速模式：生成单文件游戏...');
+    console.log('   （简单游戏跳过 AI Incubator，直接生成可玩代码）');
+
+    try {
+      // 1. Generate code
+      const result = await quickMode.execute(ideaText);
+      if (!result.success) {
+        console.log('❌ 生成失败:', result.error);
+        console.log('🔄 快速模式失败，切换到复杂模式...');
+        // fall through to incubator
+      } else {
+        console.log(`✅ 生成完成: ${result.filePath}`);
+
+        // 2. Function-level fix
+        console.log('🔧 检查并修复空函数...');
+        const fixer = new FunctionLevelFixer(fallback.getPrimary());
+        await fixer.fixFile(result.filePath, ideaText);
+
+        // 3. Playability validation
+        console.log('🎮 验证游戏可玩性...');
+        const validator = new PlayabilityValidator(rootDir);
+        let playability = await validator.validate('index.html');
+
+        console.log(`📊 可玩性评分: ${playability.score}/100`);
+        playability.details.forEach((d) => console.log('  ' + d));
+
+        if (playability.playable) {
+          console.log('✅ 游戏生成完成且可玩！');
+          console.log(`📂 文件位置: ${result.filePath}`);
+          console.log('💡 提示: 用浏览器打开 index.html 即可游玩');
+          await printLocalRunGuide(rootDir);
+          return;
+        }
+
+        // 4. Retry fix + validation once
+        console.log('⚠️ 可玩性验证未通过，尝试修复...');
+        const fixed = await fixer.fixFile(result.filePath, ideaText);
+        if (fixed) {
+          const retry = await validator.validate('index.html');
+          console.log(`📊 修复后可玩性评分: ${retry.score}/100`);
+          retry.details.forEach((d) => console.log('  ' + d));
+          if (retry.playable) {
+            console.log('✅ 修复后验证通过！');
+            console.log(`📂 文件位置: ${result.filePath}`);
+            console.log('💡 提示: 用浏览器打开 index.html 即可游玩');
+            await printLocalRunGuide(rootDir);
+            return;
+          }
+        }
+
+        console.log('🔄 快速模式验证未通过，切换到复杂模式重新生成...');
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log('❌ 快速模式异常:', msg);
+      console.log('🔄 切换到复杂模式...');
+    }
+  }
+  // ── End Quick Mode ──
 
   // Step tracker: total 5 major steps
   const totalSteps = 5;
@@ -141,50 +222,6 @@ async function handleCreateIntent(
   console.log(`   变现渠道: ${idea.monetization}`);
   console.log(`   复杂度: ${idea.complexity}`);
   console.log(`   关键词: ${idea.keywords.join(', ')}\n`);
-
-  // ── Quick Mode: bypass Incubator for simple games/tools ──
-  const projectName = generateProjectSlug(ideaText, idea.type);
-  const outputDir = options.output || join(process.env.HOME || process.env.USERPROFILE || '.', 'kele-projects');
-  const rootDir = join(outputDir, projectName);
-  mkdirSync(outputDir, { recursive: true });
-
-  const registry = createRegistryFromConfig();
-  if (useMock) {
-    const mockAdapter = registry.get('mock')!;
-    registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
-  }
-
-  const fallback = new ProviderFallback(registry.getAllAvailableAdapters());
-  const quickMode = new QuickModeEngine(fallback, rootDir);
-  if (quickMode.isSimpleGame(ideaText)) {
-    console.log('🚀 快速模式：生成单文件游戏...');
-    const result = await quickMode.execute(ideaText);
-
-    if (result.success) {
-      console.log(`✅ 生成完成: ${result.filePath}`);
-      const validation = await quickMode.validate();
-
-      if (validation.playable) {
-        console.log('🎮 游戏可玩性验证通过！');
-        console.log(`   可玩性评分: ${validation.score}/100`);
-        for (const d of validation.details) {
-          console.log(`   ${d}`);
-        }
-        console.log(`\n✨ 项目完成！`);
-        console.log(`   项目目录: ${rootDir}`);
-        await printLocalRunGuide(rootDir);
-        return;
-      } else {
-        console.log('⚠️ 游戏验证未通过，进入标准孵化器流程...');
-        for (const d of validation.details) {
-          console.log(`   ${d}`);
-        }
-      }
-    } else {
-      console.log(`⚠️ 快速模式失败: ${result.error}，进入标准孵化器流程...`);
-    }
-  }
-  // ── End Quick Mode ──
 
   const route = registry.route('medium');
 
