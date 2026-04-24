@@ -179,6 +179,98 @@ describe('FunctionLevelFixer', () => {
       const stubs = await fixer.findStubFunctions(filePath);
       expect(stubs).toHaveLength(0);
     });
+
+    it('preCheckSyntax detects unclosed string quote', async () => {
+      const fixer = new FunctionLevelFixer(makeMockAdapter(''));
+      const filePath = join(TEST_DIR, 'broken.html');
+      writeFileSync(
+        filePath,
+        `<!DOCTYPE html>
+<html>
+<script>
+  const x = 'unclosed string;
+</script>
+</html>`,
+      );
+
+      const result = await fixer.preCheckSyntax(filePath);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('preCheckSyntax passes for valid JS', async () => {
+      const fixer = new FunctionLevelFixer(makeMockAdapter(''));
+      const filePath = join(TEST_DIR, 'valid.html');
+      writeFileSync(
+        filePath,
+        `<!DOCTYPE html>
+<html>
+<script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  function loop() {
+    requestAnimationFrame(loop);
+  }
+</script>
+</html>`,
+      );
+
+      const result = await fixer.preCheckSyntax(filePath);
+      expect(result.valid).toBe(true);
+    });
+
+    it('preCheckSyntax fails when no script tag', async () => {
+      const fixer = new FunctionLevelFixer(makeMockAdapter(''));
+      const filePath = join(TEST_DIR, 'no-script.html');
+      writeFileSync(filePath, `<!DOCTYPE html><html><body>Hello</body></html>`);
+
+      const result = await fixer.preCheckSyntax(filePath);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('No inline script');
+    });
+
+    it('fixSyntaxError rewrites file and verifies syntax', async () => {
+      const fixedHtml = `<!DOCTYPE html>
+<html>
+<script>
+  const x = 'fixed';
+</script>
+</html>`;
+      const fixer = new FunctionLevelFixer(makeMockAdapter(fixedHtml));
+      const filePath = join(TEST_DIR, 'syntax-broken.html');
+      writeFileSync(
+        filePath,
+        `<!DOCTYPE html>
+<html>
+<script>
+  const x = 'broken;
+</script>
+</html>`,
+      );
+
+      const result = await fixer.fixSyntaxError(filePath, 'Unclosed string', 3, 'test game');
+      expect(result).toBe(true);
+
+      const content = readFileSync(filePath, 'utf-8');
+      expect(content).toContain('fixed');
+    });
+
+    it('fixSyntaxError returns false when AI gives bad response', async () => {
+      const fixer = new FunctionLevelFixer(makeMockAdapter('too short'));
+      const filePath = join(TEST_DIR, 'syntax-bad.html');
+      writeFileSync(
+        filePath,
+        `<!DOCTYPE html>
+<html>
+<script>
+  const x = 'broken;
+</script>
+</html>`,
+      );
+
+      const result = await fixer.fixSyntaxError(filePath, 'Unclosed string', 3, 'test game');
+      expect(result).toBe(false);
+    });
   });
 
   describe('fixStub', () => {

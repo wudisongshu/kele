@@ -86,8 +86,28 @@ export class QuickModeEngine {
       await mkdir(this.projectRoot, { recursive: true });
       await writeFile(filePath, code, 'utf-8');
 
-      // 5. Fix any stub functions before validation
+      // 5. Syntax pre-check: catch JS syntax errors before stub fixing
       const fixer = new FunctionLevelFixer(this.fallback.getPrimary());
+      const syntaxCheck = await fixer.preCheckSyntax(filePath);
+      if (!syntaxCheck.valid) {
+        console.log(`❌ 检测到语法错误: ${syntaxCheck.error?.slice(0, 100)}`);
+        if (syntaxCheck.line) {
+          console.log(`   错误位置: 第 ${syntaxCheck.line} 行附近`);
+        }
+        console.log('🔧 尝试修复语法错误...');
+        const syntaxFixed = await fixer.fixSyntaxError(
+          filePath,
+          syntaxCheck.error ?? 'Unknown syntax error',
+          syntaxCheck.line,
+          userInput,
+        );
+        if (!syntaxFixed) {
+          return { success: false, filePath: '', error: `语法错误修复失败: ${syntaxCheck.error}` };
+        }
+        console.log('✅ 语法错误已修复');
+      }
+
+      // 6. Fix any stub functions before validation
       const fixed = await fixer.fixFile(filePath, userInput, 3);
       if (!fixed) {
         debugLog('QuickMode fixer', '部分空函数未能自动修复');
