@@ -8,17 +8,17 @@
 
 import { join } from 'path';
 import { mkdir, writeFile } from 'fs/promises';
-import type { AIAdapter } from '../adapters/base.js';
+import { ProviderFallback } from './provider-fallback.js';
 import { PlayabilityValidator, type PlayabilityResult } from './playability-validator.js';
 import { FunctionLevelFixer } from './function-level-fixer.js';
 import { debugLog } from '../debug.js';
 
 export class QuickModeEngine {
-  private provider: AIAdapter;
+  private fallback: ProviderFallback;
   private projectRoot: string;
 
-  constructor(provider: AIAdapter, projectRoot: string) {
-    this.provider = provider;
+  constructor(fallback: ProviderFallback, projectRoot: string) {
+    this.fallback = fallback;
     this.projectRoot = projectRoot;
   }
 
@@ -63,8 +63,8 @@ export class QuickModeEngine {
       const prompt = this.buildPrompt(userInput);
       debugLog('QuickMode prompt', prompt);
 
-      // 2. Call AI
-      const rawCode = await this.provider.execute(prompt);
+      // 2. Call AI (with automatic provider failover)
+      const rawCode = await this.fallback.execute(prompt);
       debugLog('QuickMode raw response length', String(rawCode.length));
 
       // 3. Extract code from markdown / JSON wrappers
@@ -80,7 +80,7 @@ export class QuickModeEngine {
       await writeFile(filePath, code, 'utf-8');
 
       // 5. Fix any stub functions before validation
-      const fixer = new FunctionLevelFixer(this.provider);
+      const fixer = new FunctionLevelFixer(this.fallback.getPrimary());
       const fixed = await fixer.fixFile(filePath, userInput, 3);
       if (!fixed) {
         debugLog('QuickMode fixer', '部分空函数未能自动修复');

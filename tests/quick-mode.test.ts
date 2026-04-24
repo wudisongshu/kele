@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QuickModeEngine } from '../src/core/quick-mode.js';
+import { ProviderFallback } from '../src/core/provider-fallback.js';
 import type { AIAdapter } from '../src/adapters/base.js';
 import { rmSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -24,6 +25,10 @@ function makeFailingAdapter(errorMsg: string): AIAdapter {
   } as unknown as AIAdapter;
 }
 
+function makeFallback(adapter: AIAdapter): ProviderFallback {
+  return new ProviderFallback([adapter]);
+}
+
 describe('QuickModeEngine', () => {
   beforeEach(() => {
     if (existsSync(TEST_DIR)) {
@@ -40,7 +45,7 @@ describe('QuickModeEngine', () => {
 
   describe('isSimpleGame', () => {
     it('returns true for simple game keywords', () => {
-      const engine = new QuickModeEngine(makeMockAdapter(''), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter('')), TEST_DIR);
       expect(engine.isSimpleGame('我要做一个贪吃蛇游戏')).toBe(true);
       expect(engine.isSimpleGame('做个俄罗斯方块')).toBe(true);
       expect(engine.isSimpleGame('snake game')).toBe(true);
@@ -52,7 +57,7 @@ describe('QuickModeEngine', () => {
     });
 
     it('returns false for complex keywords', () => {
-      const engine = new QuickModeEngine(makeMockAdapter(''), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter('')), TEST_DIR);
       expect(engine.isSimpleGame('做个带支付的RPG游戏')).toBe(false);
       expect(engine.isSimpleGame('多人在线对战游戏')).toBe(false);
       expect(engine.isSimpleGame('小程序版本的塔防')).toBe(false);
@@ -62,12 +67,12 @@ describe('QuickModeEngine', () => {
     });
 
     it('returns false when both simple and complex keywords present', () => {
-      const engine = new QuickModeEngine(makeMockAdapter(''), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter('')), TEST_DIR);
       expect(engine.isSimpleGame('做个带支付的贪吃蛇游戏')).toBe(false);
     });
 
     it('returns false for unrelated input', () => {
-      const engine = new QuickModeEngine(makeMockAdapter(''), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter('')), TEST_DIR);
       expect(engine.isSimpleGame('帮我写一篇论文')).toBe(false);
       expect(engine.isSimpleGame('分析股票市场')).toBe(false);
     });
@@ -76,7 +81,7 @@ describe('QuickModeEngine', () => {
   describe('execute', () => {
     it('writes raw HTML to index.html when AI returns plain HTML', async () => {
       const html = '<!DOCTYPE html><html><head><title>Game</title></head><body><canvas id="game"></canvas><script>const canvas=document.getElementById("game");const ctx=canvas.getContext("2d");let score=0;let level=1;function gameLoop(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillRect(10,10,50,50);requestAnimationFrame(gameLoop);}document.addEventListener("keydown",function(e){score++;});gameLoop();</script></body></html>';
-      const engine = new QuickModeEngine(makeMockAdapter(html), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(html)), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(true);
@@ -88,7 +93,7 @@ describe('QuickModeEngine', () => {
     it('extracts code from markdown html block', async () => {
       const html = '<!DOCTYPE html><html><head><title>Game</title></head><body><canvas id="game"></canvas><script>const canvas=document.getElementById("game");const ctx=canvas.getContext("2d");let score=0;let level=1;function gameLoop(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillRect(10,10,50,50);requestAnimationFrame(gameLoop);}document.addEventListener("keydown",function(e){score++;});gameLoop();</script></body></html>';
       const wrapped = `\`\`\`html\n${html}\n\`\`\``;
-      const engine = new QuickModeEngine(makeMockAdapter(wrapped), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(wrapped)), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(true);
@@ -98,7 +103,7 @@ describe('QuickModeEngine', () => {
     it('extracts code from generic markdown block', async () => {
       const html = '<!DOCTYPE html><html><head><title>Game</title></head><body><canvas id="game"></canvas><script>const canvas=document.getElementById("game");const ctx=canvas.getContext("2d");let score=0;let level=1;function gameLoop(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillRect(10,10,50,50);requestAnimationFrame(gameLoop);}document.addEventListener("keydown",function(e){score++;});gameLoop();</script></body></html>';
       const wrapped = `\`\`\`\n${html}\n\`\`\``;
-      const engine = new QuickModeEngine(makeMockAdapter(wrapped), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(wrapped)), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(true);
@@ -108,7 +113,7 @@ describe('QuickModeEngine', () => {
     it('extracts code from JSON files array', async () => {
       const html = '<!DOCTYPE html><html><head><title>Game</title></head><body><canvas id="game"></canvas><script>const canvas=document.getElementById("game");const ctx=canvas.getContext("2d");let score=0;let level=1;function gameLoop(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillRect(10,10,50,50);requestAnimationFrame(gameLoop);}document.addEventListener("keydown",function(e){score++;});gameLoop();</script></body></html>';
       const json = JSON.stringify({ files: [{ path: 'index.html', content: html }] });
-      const engine = new QuickModeEngine(makeMockAdapter(json), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(json)), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(true);
@@ -118,7 +123,7 @@ describe('QuickModeEngine', () => {
     it('extracts code from JSON content field', async () => {
       const html = '<!DOCTYPE html><html><head><title>Game</title></head><body><canvas id="game"></canvas><script>const canvas=document.getElementById("game");const ctx=canvas.getContext("2d");let score=0;let level=1;function gameLoop(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillRect(10,10,50,50);requestAnimationFrame(gameLoop);}document.addEventListener("keydown",function(e){score++;});gameLoop();</script></body></html>';
       const json = JSON.stringify({ content: html });
-      const engine = new QuickModeEngine(makeMockAdapter(json), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(json)), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(true);
@@ -128,7 +133,7 @@ describe('QuickModeEngine', () => {
     it('extracts code from JSON code field', async () => {
       const html = '<!DOCTYPE html><html><head><title>Game</title></head><body><canvas id="game"></canvas><script>const canvas=document.getElementById("game");const ctx=canvas.getContext("2d");let score=0;let level=1;function gameLoop(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillRect(10,10,50,50);requestAnimationFrame(gameLoop);}document.addEventListener("keydown",function(e){score++;});gameLoop();</script></body></html>';
       const json = JSON.stringify({ code: html });
-      const engine = new QuickModeEngine(makeMockAdapter(json), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(json)), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(true);
@@ -136,7 +141,7 @@ describe('QuickModeEngine', () => {
     });
 
     it('returns error for empty AI response', async () => {
-      const engine = new QuickModeEngine(makeMockAdapter('   '), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter('   ')), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(false);
@@ -144,7 +149,7 @@ describe('QuickModeEngine', () => {
     });
 
     it('returns error when AI adapter throws', async () => {
-      const engine = new QuickModeEngine(makeFailingAdapter('network error'), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeFailingAdapter('network error')), TEST_DIR);
       const result = await engine.execute('贪吃蛇');
 
       expect(result.success).toBe(false);
@@ -154,7 +159,7 @@ describe('QuickModeEngine', () => {
 
   describe('validate', () => {
     it('returns false for missing index.html', async () => {
-      const engine = new QuickModeEngine(makeMockAdapter(''), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter('')), TEST_DIR);
       const result = await engine.validate();
       expect(result.playable).toBe(false);
       expect(result.score).toBe(0);
@@ -162,7 +167,7 @@ describe('QuickModeEngine', () => {
 
     it('returns false for invalid HTML game', async () => {
       const html = '<html><body>Not a game, just some text to make it longer than one hundred characters for the length check</body></html>';
-      const engine = new QuickModeEngine(makeMockAdapter(html), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(html)), TEST_DIR);
       await engine.execute('test');
       const result = await engine.validate();
       // Missing canvas, game loop, input handlers → not playable
@@ -196,7 +201,7 @@ describe('QuickModeEngine', () => {
 </script>
 </body>
 </html>`;
-      const engine = new QuickModeEngine(makeMockAdapter(html), TEST_DIR);
+      const engine = new QuickModeEngine(makeFallback(makeMockAdapter(html)), TEST_DIR);
       await engine.execute('test');
       const result = await engine.validate();
       expect(result.playable).toBe(true);

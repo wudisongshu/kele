@@ -34,6 +34,17 @@ export class ProviderRegistry {
   }
 
   /**
+   * Get all available adapters (excluding mock unless it's the only one).
+   */
+  getAllAvailableAdapters(excludeMock: boolean = true): AIAdapter[] {
+    const all = Array.from(this.adapters.values()).filter((a) => a.isAvailable());
+    if (excludeMock) {
+      return all.filter((a) => a.name !== 'mock');
+    }
+    return all;
+  }
+
+  /**
    * Route a task to the most appropriate AI provider.
    *
    * Rules:

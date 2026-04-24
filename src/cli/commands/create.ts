@@ -13,6 +13,7 @@ import { planTasks } from '../../core/task-planner.js';
 import { executeProject } from '../../core/project-executor.js';
 import { parseIntent } from '../../core/intent-engine.js';
 import { QuickModeEngine } from '../../core/quick-mode.js';
+import { ProviderFallback } from '../../core/provider-fallback.js';
 import { createRegistryFromConfig } from '../../adapters/index.js';
 import { createProgressLogger } from '../../core/logger.js';
 import { needsResearch, research } from '../../core/research-engine.js';
@@ -153,7 +154,8 @@ async function handleCreateIntent(
     registry.route = () => ({ provider: 'mock' as AIProvider, adapter: mockAdapter });
   }
 
-  const quickMode = new QuickModeEngine(registry.getPrimaryProvider(), rootDir);
+  const fallback = new ProviderFallback(registry.getAllAvailableAdapters());
+  const quickMode = new QuickModeEngine(fallback, rootDir);
   if (quickMode.isSimpleGame(ideaText)) {
     console.log('🚀 快速模式：生成单文件游戏...');
     const result = await quickMode.execute(ideaText);
