@@ -12,6 +12,40 @@ import { access, readFile } from 'fs/promises';
 import { Script } from 'vm';
 import { debugLog } from '../debug.js';
 
+/**
+ * Common Chrome/Chromium executable paths per platform.
+ */
+const CHROME_PATHS: Record<string, string[]> = {
+  darwin: [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/opt/homebrew/bin/chromium',
+  ],
+  linux: [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+  ],
+  win32: [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+  ],
+};
+
+async function findChromePath(): Promise<string | undefined> {
+  const candidates = CHROME_PATHS[process.platform] ?? [];
+  for (const p of candidates) {
+    try {
+      await access(p);
+      return p;
+    } catch { /* not found */ }
+  }
+  return undefined;
+}
+
 export interface PlayabilityResult {
   playable: boolean;
   score: number; // 0-100
@@ -87,14 +121,21 @@ export class PlayabilityValidator {
 
     // Check 4: headless browser validation (puppeteer) with static fallback
     if (hasCanvas && hasGameLoop) {
+      let browser: any;
       try {
         const puppeteer = await (new Function("return import('puppeteer-core')")() as Promise<any>).catch(() => null);
         if (!puppeteer || !puppeteer.launch) {
           throw new Error('puppeteer-core not available');
         }
 
-        const browser = await puppeteer.launch({
+        const chromePath = await findChromePath();
+        if (!chromePath) {
+          throw new Error('Chrome not found on system');
+        }
+
+        browser = await puppeteer.launch({
           headless: true,
+          executablePath: chromePath,
           args: ['--no-sandbox', '--disable-setuid-sandbox'],
         });
         const page = await browser.newPage();
