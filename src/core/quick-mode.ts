@@ -9,7 +9,7 @@
 import { join } from 'path';
 import { mkdir, writeFile } from 'fs/promises';
 import type { AIAdapter } from '../adapters/base.js';
-import { validateGameInBrowser } from './game-validator-browser.js';
+import { PlayabilityValidator, type PlayabilityResult } from './playability-validator.js';
 import { debugLog } from '../debug.js';
 
 export class QuickModeEngine {
@@ -89,15 +89,9 @@ export class QuickModeEngine {
   /**
    * Validate the generated index.html for playability.
    */
-  async validate(): Promise<boolean> {
-    try {
-      const result = await validateGameInBrowser(this.projectRoot);
-      return result.playable;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      debugLog('QuickMode validation error', msg);
-      return false;
-    }
+  async validate(): Promise<PlayabilityResult> {
+    const validator = new PlayabilityValidator(this.projectRoot);
+    return validator.validate('index.html');
   }
 
   /**

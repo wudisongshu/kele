@@ -155,17 +155,20 @@ describe('QuickModeEngine', () => {
   describe('validate', () => {
     it('returns false for missing index.html', async () => {
       const engine = new QuickModeEngine(makeMockAdapter(''), TEST_DIR);
-      const playable = await engine.validate();
-      expect(playable).toBe(false);
+      const result = await engine.validate();
+      expect(result.playable).toBe(false);
+      expect(result.score).toBe(0);
     });
 
     it('returns false for invalid HTML game', async () => {
-      const html = '<html><body>Not a game</body></html>';
+      const html = '<html><body>Not a game, just some text to make it longer than one hundred characters for the length check</body></html>';
       const engine = new QuickModeEngine(makeMockAdapter(html), TEST_DIR);
       await engine.execute('test');
-      const playable = await engine.validate();
+      const result = await engine.validate();
       // Missing canvas, game loop, input handlers → not playable
-      expect(playable).toBe(false);
+      expect(result.playable).toBe(false);
+      expect(result.checks.http200).toBe(true);
+      expect(result.checks.canvasRendering).toBe(false);
     });
 
     it('returns true for a valid canvas game HTML', async () => {
@@ -195,8 +198,9 @@ describe('QuickModeEngine', () => {
 </html>`;
       const engine = new QuickModeEngine(makeMockAdapter(html), TEST_DIR);
       await engine.execute('test');
-      const playable = await engine.validate();
-      expect(playable).toBe(true);
+      const result = await engine.validate();
+      expect(result.playable).toBe(true);
+      expect(result.score).toBe(100);
     });
   });
 });

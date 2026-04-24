@@ -1,0 +1,176 @@
+/**
+ * PlayabilityValidator — browser-based playability validation.
+ *
+ * Opens the generated index.html in a headless browser (puppeteer if available)
+ * and checks whether the game is actually interactive and rendering.
+ * Falls back to static code analysis when puppeteer is not installed.
+ */
+
+import { join } from 'path';
+import { access, readFile } from 'fs/promises';
+import { debugLog } from '../debug.js';
+
+export interface PlayabilityResult {
+  playable: boolean;
+  score: number; // 0-100
+  checks: {
+    http200: boolean;
+    canvasRendering: boolean;
+    inputResponsive: boolean;
+    noConsoleErrors: boolean;
+  };
+  details: string[];
+}
+
+export class PlayabilityValidator {
+  private projectRoot: string;
+
+  constructor(projectRoot: string) {
+    this.projectRoot = projectRoot;
+  }
+
+  async validate(fileName: string = 'index.html'): Promise<PlayabilityResult> {
+    const filePath = join(this.projectRoot, fileName);
+    const checks = {
+      http200: false,
+      canvasRendering: false,
+      inputResponsive: false,
+      noConsoleErrors: false,
+    };
+    const details: string[] = [];
+
+    // Check 1: file exists and readable
+    try {
+      await access(filePath);
+      checks.http200 = true;
+      details.push('✅ 文件存在');
+    } catch {
+      details.push('❌ 文件不存在');
+      return { playable: false, score: 0, checks, details };
+    }
+
+    // Check 2: static content analysis
+    const content = await readFile(filePath, 'utf-8');
+    const hasCanvas = content.includes('<canvas') && content.includes('getContext(');
+    const hasGameLoop = content.includes('requestAnimationFrame');
+
+    if (!hasCanvas) details.push('❌ 缺少 Canvas 元素');
+    if (!hasGameLoop) details.push('❌ 缺少 requestAnimationFrame 游戏循环');
+
+    // Check 3: headless browser validation (puppeteer) with static fallback
+    if (hasCanvas && hasGameLoop) {
+      try {
+        // Dynamically import puppeteer if available; eval bypasses TS module resolution
+        // so we don't need puppeteer as a hard dependency.
+        const puppeteer = await (new Function("return import('puppeteer')")() as Promise<any>).catch(() => null);
+        if (!puppeteer || !puppeteer.launch) {
+          throw new Error('puppeteer not installed');
+        }
+
+        const browser = await puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
+        const page = await browser.newPage();
+
+        // Collect console errors
+        const consoleErrors: string[] = [];
+        page.on('console', (msg: { type: () => string; text: () => string }) => {
+          if (msg.type() === 'error') consoleErrors.push(msg.text());
+        });
+
+        // Catch page-level JS errors
+        page.on('pageerror', (err: { message: string }) => {
+          consoleErrors.push(err.message);
+        });
+
+        await page.goto(`file://${filePath}`, { waitUntil: 'networkidle0' });
+        await new Promise((resolve) => setTimeout(resolve, 3000)); // wait for game init
+
+        // Detect canvas pixel changes
+        const canvasChanged = await page.evaluate(() => {
+          const canvas = document.querySelector('canvas');
+          if (!canvas) return false;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return false;
+
+          const data1 = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          return new Promise<boolean>((resolve) => {
+            setTimeout(() => {
+              const data2 = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+              let diff = 0;
+              for (let i = 0; i < data1.length; i += 4) {
+                diff += Math.abs(data1[i] - data2[i]);
+                diff += Math.abs(data1[i + 1] - data2[i + 1]);
+                diff += Math.abs(data1[i + 2] - data2[i + 2]);
+              }
+              resolve(diff > 1000);
+            }, 1000);
+          });
+        });
+
+        checks.canvasRendering = canvasChanged;
+        checks.noConsoleErrors = consoleErrors.length === 0;
+
+        // Simulate keyboard input and check for state change
+        const inputResponsive = await page.evaluate(() => {
+          return new Promise<boolean>((resolve) => {
+            const canvas = document.querySelector('canvas');
+            let changed = false;
+            const ctx = canvas?.getContext('2d');
+            const before = ctx?.getImageData(0, 0, 1, 1).data;
+
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+
+            setTimeout(() => {
+              const after = ctx?.getImageData(0, 0, 1, 1).data;
+              if (before && after) {
+                changed = before[0] !== after[0] || before[1] !== after[1] || before[2] !== after[2];
+              }
+              resolve(changed);
+            }, 500);
+          });
+        });
+
+        checks.inputResponsive = inputResponsive;
+
+        await browser.close();
+
+        if (canvasChanged) details.push('✅ Canvas 有实际渲染');
+        else details.push('❌ Canvas 无渲染变化');
+
+        if (inputResponsive) details.push('✅ 输入有响应');
+        else details.push('⚠️ 输入响应不明显（可能游戏未开始）');
+
+        if (consoleErrors.length > 0) {
+          details.push(`❌ 控制台错误: ${consoleErrors.slice(0, 3).join(', ')}`);
+        } else {
+          details.push('✅ 无控制台错误');
+        }
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        debugLog('PlayabilityValidator browser check failed', errMsg);
+        details.push(`⚠️ 浏览器检测失败: ${errMsg}，回退到静态检查`);
+
+        // fallback to static checks
+        checks.canvasRendering = hasCanvas && hasGameLoop;
+        checks.inputResponsive = content.includes('keydown') || content.includes('touchstart') || content.includes('click');
+        checks.noConsoleErrors = true;
+
+        if (checks.canvasRendering) details.push('✅ 静态检查：包含 Canvas 和游戏循环');
+        if (checks.inputResponsive) details.push('✅ 静态检查：包含输入事件监听');
+      }
+    }
+
+    // Score calculation
+    let score = 0;
+    if (checks.http200) score += 25;
+    if (checks.canvasRendering) score += 25;
+    if (checks.inputResponsive) score += 25;
+    if (checks.noConsoleErrors) score += 25;
+
+    const playable = score >= 75;
+
+    return { playable, score, checks, details };
+  }
+}

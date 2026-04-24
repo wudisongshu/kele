@@ -13,7 +13,6 @@ import { planTasks } from '../../core/task-planner.js';
 import { executeProject } from '../../core/project-executor.js';
 import { parseIntent } from '../../core/intent-engine.js';
 import { QuickModeEngine } from '../../core/quick-mode.js';
-import { validateGameInBrowser } from '../../core/game-validator-browser.js';
 import { createRegistryFromConfig } from '../../adapters/index.js';
 import { createProgressLogger } from '../../core/logger.js';
 import { needsResearch, research } from '../../core/research-engine.js';
@@ -161,16 +160,23 @@ async function handleCreateIntent(
 
     if (result.success) {
       console.log(`✅ 生成完成: ${result.filePath}`);
-      const validation = await validateGameInBrowser(rootDir);
+      const validation = await quickMode.validate();
 
       if (validation.playable) {
         console.log('🎮 游戏可玩性验证通过！');
+        console.log(`   可玩性评分: ${validation.score}/100`);
+        for (const d of validation.details) {
+          console.log(`   ${d}`);
+        }
         console.log(`\n✨ 项目完成！`);
         console.log(`   项目目录: ${rootDir}`);
         await printLocalRunGuide(rootDir);
         return;
       } else {
         console.log('⚠️ 游戏验证未通过，进入标准孵化器流程...');
+        for (const d of validation.details) {
+          console.log(`   ${d}`);
+        }
       }
     } else {
       console.log(`⚠️ 快速模式失败: ${result.error}，进入标准孵化器流程...`);
