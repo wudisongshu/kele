@@ -147,55 +147,58 @@ async function handleCreateIntent(
       // 1. Generate code
       const result = await quickMode.execute(ideaText);
       if (!result.success) {
-        console.log('❌ 生成失败:', result.error);
-        console.log('🔄 快速模式失败，切换到复杂模式...');
-        // fall through to incubator
-      } else {
-        console.log(`✅ 生成完成: ${result.filePath}`);
+        console.log('❌ 快速模式生成失败:', result.error);
+        console.log('💡 建议: 使用 --full 参数强制使用复杂模式（AI Incubator）');
+        process.exit(1);
+      }
 
-        // 2. Function-level fix
-        console.log('🔧 检查并修复空函数...');
-        const fixer = new FunctionLevelFixer(fallback.getPrimary());
-        await fixer.fixFile(result.filePath, ideaText);
+      console.log(`✅ 生成完成: ${result.filePath}`);
 
-        // 3. Playability validation
-        console.log('🎮 验证游戏可玩性...');
-        const validator = new PlayabilityValidator(rootDir);
-        let playability = await validator.validate('index.html');
+      // 2. Function-level fix
+      console.log('🔧 检查并修复空函数...');
+      const fixer = new FunctionLevelFixer(fallback.getPrimary());
+      await fixer.fixFile(result.filePath, ideaText);
 
-        console.log(`📊 可玩性评分: ${playability.score}/100`);
-        playability.details.forEach((d) => console.log('  ' + d));
+      // 3. Playability validation
+      console.log('🎮 验证游戏可玩性...');
+      const validator = new PlayabilityValidator(rootDir);
+      let playability = await validator.validate('index.html');
 
-        if (playability.playable) {
-          console.log('✅ 游戏生成完成且可玩！');
+      console.log(`📊 可玩性评分: ${playability.score}/100`);
+      playability.details.forEach((d) => console.log('  ' + d));
+
+      if (playability.playable) {
+        console.log('✅ 游戏生成完成且可玩！');
+        console.log(`📂 文件位置: ${result.filePath}`);
+        console.log('💡 提示: 用浏览器打开 index.html 即可游玩');
+        await printLocalRunGuide(rootDir);
+        return;
+      }
+
+      // 4. Retry fix + validation once
+      console.log('⚠️ 可玩性验证未通过，尝试修复...');
+      const fixed = await fixer.fixFile(result.filePath, ideaText);
+      if (fixed) {
+        const retry = await validator.validate('index.html');
+        console.log(`📊 修复后可玩性评分: ${retry.score}/100`);
+        retry.details.forEach((d) => console.log('  ' + d));
+        if (retry.playable) {
+          console.log('✅ 修复后验证通过！');
           console.log(`📂 文件位置: ${result.filePath}`);
           console.log('💡 提示: 用浏览器打开 index.html 即可游玩');
           await printLocalRunGuide(rootDir);
           return;
         }
-
-        // 4. Retry fix + validation once
-        console.log('⚠️ 可玩性验证未通过，尝试修复...');
-        const fixed = await fixer.fixFile(result.filePath, ideaText);
-        if (fixed) {
-          const retry = await validator.validate('index.html');
-          console.log(`📊 修复后可玩性评分: ${retry.score}/100`);
-          retry.details.forEach((d) => console.log('  ' + d));
-          if (retry.playable) {
-            console.log('✅ 修复后验证通过！');
-            console.log(`📂 文件位置: ${result.filePath}`);
-            console.log('💡 提示: 用浏览器打开 index.html 即可游玩');
-            await printLocalRunGuide(rootDir);
-            return;
-          }
-        }
-
-        console.log('🔄 快速模式验证未通过，切换到复杂模式重新生成...');
       }
+
+      console.log('❌ 快速模式验证未通过。');
+      console.log('💡 建议: 使用 --full 参数强制使用复杂模式（AI Incubator）');
+      process.exit(1);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.log('❌ 快速模式异常:', msg);
-      console.log('🔄 切换到复杂模式...');
+      console.log('💡 建议: 使用 --full 参数强制使用复杂模式（AI Incubator）');
+      process.exit(1);
     }
   }
   // ── End Quick Mode ──
