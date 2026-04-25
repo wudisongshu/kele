@@ -6,6 +6,7 @@ import {
   migrateRootGame,
   generateRootIndex,
   buildNavPage,
+  detectGameType,
 } from '../../../src/deploy/platforms/github-pages.js';
 
 describe('Unit: migrateRootGame', () => {
@@ -56,6 +57,32 @@ describe('Unit: migrateRootGame', () => {
   });
 });
 
+describe('Unit: detectGameType', () => {
+  it('detects snake game', () => {
+    expect(detectGameType('做个贪吃蛇游戏')).toEqual({ icon: '🐍', color: '#4ade80', tag: '经典' });
+    expect(detectGameType('Snake Game')).toEqual({ icon: '🐍', color: '#4ade80', tag: '经典' });
+  });
+
+  it('detects tetris game', () => {
+    expect(detectGameType('做个俄罗斯方块游戏')).toEqual({ icon: '🧱', color: '#60a5fa', tag: '益智' });
+    expect(detectGameType('Tetris')).toEqual({ icon: '🧱', color: '#60a5fa', tag: '益智' });
+  });
+
+  it('detects shooter game', () => {
+    expect(detectGameType('做个飞行射击游戏')).toEqual({ icon: '✈️', color: '#f87171', tag: '射击' });
+    expect(detectGameType('Space Shooter')).toEqual({ icon: '✈️', color: '#f87171', tag: '射击' });
+  });
+
+  it('detects tool', () => {
+    expect(detectGameType('做个计算器工具')).toEqual({ icon: '🛠️', color: '#94a3b8', tag: '工具' });
+    expect(detectGameType('Todo List')).toEqual({ icon: '🛠️', color: '#94a3b8', tag: '工具' });
+  });
+
+  it('defaults to generic game', () => {
+    expect(detectGameType('Unknown')).toEqual({ icon: '🎮', color: '#667eea', tag: '游戏' });
+  });
+});
+
 describe('Unit: generateRootIndex', () => {
   let deployDir: string;
 
@@ -72,13 +99,13 @@ describe('Unit: generateRootIndex', () => {
     mkdirSync(join(deployDir, 'proj-abc123'));
     writeFileSync(
       join(deployDir, 'proj-abc123', 'manifest.json'),
-      JSON.stringify({ name: 'Snake Game' }),
+      JSON.stringify({ name: '做个贪吃蛇游戏' }),
     );
 
     mkdirSync(join(deployDir, 'proj-xyz789'));
     writeFileSync(
       join(deployDir, 'proj-xyz789', 'manifest.json'),
-      JSON.stringify({ name: 'Tetris' }),
+      JSON.stringify({ name: '做个俄罗斯方块游戏' }),
     );
 
     generateRootIndex(deployDir);
@@ -90,17 +117,30 @@ describe('Unit: generateRootIndex', () => {
       id: string;
       name: string;
       url: string;
+      icon: string;
+      color: string;
+      tag: string;
     }>;
     expect(games).toHaveLength(2);
-    expect(games.map((g) => g.name).sort()).toEqual(['Snake Game', 'Tetris']);
+    expect(games.map((g) => g.name).sort()).toEqual(['做个俄罗斯方块游戏', '做个贪吃蛇游戏']);
+
+    // Verify type detection was applied
+    const snake = games.find((g) => g.name.includes('蛇'));
+    expect(snake?.icon).toBe('🐍');
+    expect(snake?.tag).toBe('经典');
+
+    const tetris = games.find((g) => g.name.includes('方块'));
+    expect(tetris?.icon).toBe('🧱');
+    expect(tetris?.tag).toBe('益智');
 
     // Verify index.html
     const htmlPath = join(deployDir, 'index.html');
     expect(existsSync(htmlPath)).toBe(true);
     const html = readFileSync(htmlPath, 'utf-8');
     expect(html).toContain('kele 游戏合集');
-    expect(html).toContain('proj-abc123');
-    expect(html).toContain('proj-xyz789');
+    expect(html).toContain('打开游戏');
+    expect(html).toContain('复制链接');
+    expect(html).toContain('stats-bar');
   });
 
   it('uses directory name when manifest is missing', () => {
@@ -129,24 +169,28 @@ describe('Unit: buildNavPage', () => {
     const html = buildNavPage([]);
     expect(html).toContain('还没有部署任何游戏');
     expect(html).toContain('kele 游戏合集');
+    expect(html).toContain('stats-bar');
   });
 
-  it('renders game cards', () => {
+  it('renders game cards with actions', () => {
     const html = buildNavPage([
-      { id: 'proj-a', name: 'Snake', url: './proj-a/' },
-      { id: 'proj-b', name: 'Tetris', url: './proj-b/' },
+      { id: 'proj-a', name: 'Snake', url: './proj-a/', icon: '🐍', color: '#4ade80', tag: '经典' },
+      { id: 'proj-b', name: 'Tetris', url: './proj-b/', icon: '🧱', color: '#60a5fa', tag: '益智' },
     ]);
     expect(html).toContain('Snake');
     expect(html).toContain('Tetris');
-    expect(html).toContain('./proj-a/');
-    expect(html).toContain('./proj-b/');
-    expect(html).toContain('kele 游戏合集');
+    expect(html).toContain('🐍');
+    expect(html).toContain('🧱');
+    expect(html).toContain('经典');
+    expect(html).toContain('益智');
+    expect(html).toContain('打开游戏');
+    expect(html).toContain('复制链接');
+    expect(html).toContain('copyLink');
   });
 
   it('escapes HTML in game names', () => {
-    const html = buildNavPage([{ id: 'x', name: '<script>alert(1)</script>', url: './x/' }]);
+    const html = buildNavPage([{ id: 'x', name: '<script>alert(1)</script>', url: './x/', icon: '🎮', color: '#667eea', tag: '游戏' }]);
     expect(html).not.toContain('<script>alert(1)</script>');
-    // The name is JSON-stringified with unicode escapes in the inline script
     expect(html).toContain('\\u003c');
   });
 });
