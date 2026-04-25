@@ -5,7 +5,12 @@
 import { join } from 'path';
 import type { DeployOptions, DeployResult, PlatformStatus, DeployPlatform } from './types.js';
 import { deployStatic } from './platforms/static.js';
-import { deployGitHubPages } from './platforms/github-pages.js';
+import {
+  deployGitHubPages,
+  undeployGitHubPages,
+  pruneGitHubPages,
+  cleanAllGitHubPages,
+} from './platforms/github-pages.js';
 import { deployVercel, isVercelInstalled } from './platforms/vercel.js';
 import { deployNetlify, isNetlifyInstalled } from './platforms/netlify.js';
 import { loadConfig } from '../config/manager.js';
@@ -108,6 +113,12 @@ function tryInferGitRepo(): string | undefined {
 /**
  * Get the default platform from config, falling back to 'static'.
  */
+export {
+  undeployGitHubPages,
+  pruneGitHubPages,
+  cleanAllGitHubPages,
+};
+
 export function getDefaultPlatform(): DeployPlatform {
   const config = loadConfig();
   const platform = config.defaultPlatform;

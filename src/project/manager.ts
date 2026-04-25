@@ -114,6 +114,14 @@ export class ProjectManager {
       .run(JSON.stringify(deployments), new Date().toISOString(), id);
   }
 
+  removeDeployment(id: string, platform: string): void {
+    const project = this.get(id);
+    if (!project) return;
+    const deployments = project.deployments.filter((d) => d.platform !== platform);
+    this.db.prepare('UPDATE projects SET deployments = ?, updated_at = ? WHERE id = ?')
+      .run(JSON.stringify(deployments), new Date().toISOString(), id);
+  }
+
   delete(id: string): void {
     this.db.prepare('DELETE FROM projects WHERE id = ?').run(id);
   }

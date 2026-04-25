@@ -95,7 +95,7 @@ describe('Integration: GitHub Pages deploy', () => {
     // Verify the temp deploy dir was created (from git init cwd)
     const initCall = execaCalls.find((c) => c.args[0] === 'init');
     expect(initCall?.cwd).toBeDefined();
-    expect(initCall?.cwd).toContain('kele-deploy-');
+    expect(initCall?.cwd).toContain('kele-ghp-');
   });
 
   it('sanitizes token from error messages', async () => {

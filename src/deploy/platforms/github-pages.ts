@@ -19,110 +19,255 @@ import {
   readFileSync,
   writeFileSync,
   existsSync,
+  statSync,
 } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { DeployResult } from '../types.js';
 
-export async function deployGitHubPages(
-  projectRoot: string,
-  projectId: string,
-  options: { token?: string; repo?: string; branch?: string } = {},
-): Promise<DeployResult> {
-  // 1. Pre-flight checks
+interface GitHubOptions {
+  token?: string;
+  repo?: string;
+  branch?: string;
+}
+
+const DEFAULT_REPO = 'wudisongshu/kele-games';
+const DEFAULT_BRANCH = 'gh-pages';
+
+function normalizeOptions(options: GitHubOptions): Required<GitHubOptions> {
+  return {
+    token: options.token ?? '',
+    repo: options.repo ?? DEFAULT_REPO,
+    branch: options.branch ?? DEFAULT_BRANCH,
+  };
+}
+
+function checkGit(): Promise<boolean> {
+  return execa('git', ['--version']).then(() => true).catch(() => false);
+}
+
+/**
+ * Open a fresh temp clone of the gh-pages branch.
+ * Returns { deployDir, branch } and caller must rmSync(deployDir) when done.
+ */
+async function openGhPagesBranch(options: GitHubOptions): Promise<
+  | { ok: true; deployDir: string; config: Required<GitHubOptions> }
+  | { ok: false; error: string }
+> {
   if (!options.token) {
-    return {
-      success: false,
-      message: 'GitHub token 未配置。运行：kele config --github-token <token>',
-    };
+    return { ok: false, error: 'GitHub token 未配置。运行：kele config --github-token <token>' };
   }
 
-  let gitOk = false;
-  try {
-    await execa('git', ['--version']);
-    gitOk = true;
-  } catch {
-    gitOk = false;
-  }
+  const gitOk = await checkGit();
   if (!gitOk) {
-    return {
-      success: false,
-      message: 'git 未安装，请先安装 git',
-    };
+    return { ok: false, error: 'git 未安装，请先安装 git' };
   }
 
-  const repo = options.repo ?? 'wudisongshu/kele-games';
-  const branch = options.branch ?? 'gh-pages';
-  const [owner, repoName] = repo.split('/');
-  const remoteUrl = `https://${options.token}@github.com/${repo}.git`;
-  const gameSubdir = projectId;
-
-  const deployDir = mkdtempSync(join(tmpdir(), `kele-deploy-${Date.now()}-`));
+  const cfg = normalizeOptions(options);
+  const remoteUrl = `https://${cfg.token}@github.com/${cfg.repo}.git`;
+  const deployDir = mkdtempSync(join(tmpdir(), `kele-ghp-${Date.now()}-`));
 
   try {
-    // 2. Init temp git repo
     await execa('git', ['init'], { cwd: deployDir });
     await execa('git', ['config', 'user.name', 'kele'], { cwd: deployDir });
     await execa('git', ['config', 'user.email', 'kele@localhost'], { cwd: deployDir });
-
-    // 3. Fetch existing gh-pages (preserve other games)
     await execa('git', ['remote', 'add', 'origin', remoteUrl], { cwd: deployDir });
+
     try {
-      await execa('git', ['fetch', '--depth=1', 'origin', branch], { cwd: deployDir });
-      await execa('git', ['reset', '--hard', `origin/${branch}`], { cwd: deployDir });
+      await execa('git', ['fetch', '--depth=1', 'origin', cfg.branch], { cwd: deployDir });
+      await execa('git', ['reset', '--hard', `origin/${cfg.branch}`], { cwd: deployDir });
     } catch {
-      // Branch doesn't exist yet — create empty orphan branch
-      await execa('git', ['checkout', '--orphan', branch], { cwd: deployDir });
+      await execa('git', ['checkout', '--orphan', cfg.branch], { cwd: deployDir });
       await execa('git', ['rm', '-rf', '.'], { cwd: deployDir }).catch(() => {});
     }
 
-    // 4. Copy current game into subdir (overwrite if same game, keep others)
-    const targetDir = join(deployDir, gameSubdir);
+    return { ok: true, deployDir, config: cfg };
+  } catch (err) {
+    rmSync(deployDir, { recursive: true, force: true });
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `GitHub Pages 操作失败: ${msg.replace(cfg.token, '***')}` };
+  }
+}
+
+/**
+ * Commit changes in deployDir and push to gh-pages.
+ */
+async function commitAndPush(deployDir: string, message: string, branch: string): Promise<void> {
+  await execa('git', ['add', '.'], { cwd: deployDir });
+  const { stdout: status } = await execa('git', ['status', '--porcelain'], { cwd: deployDir });
+  if (status.trim()) {
+    await execa('git', ['commit', '-m', message], { cwd: deployDir });
+    await execa('git', ['push', 'origin', `HEAD:${branch}`], { cwd: deployDir });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Deploy
+// ---------------------------------------------------------------------------
+
+export async function deployGitHubPages(
+  projectRoot: string,
+  projectId: string,
+  options: GitHubOptions = {},
+): Promise<DeployResult> {
+  const open = await openGhPagesBranch(options);
+  if (!open.ok) return { success: false, message: open.error };
+
+  const { deployDir, config } = open;
+  const [owner, repoName] = config.repo.split('/');
+
+  try {
+    const targetDir = join(deployDir, projectId);
     rmSync(targetDir, { recursive: true, force: true });
     mkdirSync(targetDir, { recursive: true });
     copyDirContents(projectRoot, targetDir);
 
-    // 5. Migrate root-level legacy game (if any) into game-legacy/
-    try {
-      migrateRootGame(deployDir);
-    } catch {
-      // Non-fatal: continue without migration
-    }
+    try { migrateRootGame(deployDir); } catch { /* non-fatal */ }
+    try { generateRootIndex(deployDir); } catch { /* non-fatal */ }
 
-    // 6. Generate root navigation page + games.json
-    try {
-      generateRootIndex(deployDir);
-    } catch {
-      // Non-fatal: at least the subdir game is still accessible
-    }
+    await commitAndPush(deployDir, `deploy: ${projectId}`, config.branch);
 
-    // 7. Commit and push
-    await execa('git', ['add', '.'], { cwd: deployDir });
-    const { stdout: status } = await execa('git', ['status', '--porcelain'], { cwd: deployDir });
-    if (status.trim()) {
-      await execa('git', ['commit', '-m', `deploy: ${projectId}`], { cwd: deployDir });
-      await execa('git', ['push', 'origin', `HEAD:${branch}`], { cwd: deployDir });
-    }
-
-    // 8. Build URL
-    const url = `https://${owner}.github.io/${repoName}/${gameSubdir}/`;
-    return {
-      success: true,
-      url,
-      message: `GitHub Pages 部署成功: ${url}`,
-    };
+    const url = `https://${owner}.github.io/${repoName}/${projectId}/`;
+    return { success: true, url, message: `GitHub Pages 部署成功: ${url}` };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    const safeMsg = msg.replace(options.token, '***');
-    return {
-      success: false,
-      message: `GitHub Pages 部署失败: ${safeMsg}`,
-    };
+    return { success: false, message: `GitHub Pages 部署失败: ${msg.replace(config.token, '***')}` };
   } finally {
-    // Always clean up temp dir (contains token in .git/config)
     rmSync(deployDir, { recursive: true, force: true });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Undeploy
+// ---------------------------------------------------------------------------
+
+export async function undeployGitHubPages(
+  projectId: string,
+  options: GitHubOptions = {},
+): Promise<{ removed: boolean; message: string }> {
+  const open = await openGhPagesBranch(options);
+  if (!open.ok) return { removed: false, message: open.error };
+
+  const { deployDir, config } = open;
+
+  try {
+    const targetDir = join(deployDir, projectId);
+    if (!existsSync(targetDir)) {
+      return { removed: false, message: `项目 ${projectId} 在 GitHub Pages 上不存在` };
+    }
+
+    rmSync(targetDir, { recursive: true, force: true });
+    try { generateRootIndex(deployDir); } catch { /* non-fatal */ }
+    await commitAndPush(deployDir, `undeploy: ${projectId}`, config.branch);
+
+    return { removed: true, message: `已下线: ${projectId}` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { removed: false, message: `下线失败: ${msg.replace(config.token, '***')}` };
+  } finally {
+    rmSync(deployDir, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Prune — keep only N most recent deployments
+// ---------------------------------------------------------------------------
+
+export async function pruneGitHubPages(
+  keepCount: number,
+  options: GitHubOptions = {},
+): Promise<{ removed: string[]; message: string }> {
+  const open = await openGhPagesBranch(options);
+  if (!open.ok) return { removed: [], message: open.error };
+
+  const { deployDir, config } = open;
+
+  try {
+    const dirs: Array<{ name: string; mtime: number }> = [];
+    for (const entry of readdirSync(deployDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === '.git') continue;
+
+      const dirPath = join(deployDir, entry.name);
+      try {
+        const s = statSync(dirPath);
+        dirs.push({ name: entry.name, mtime: s.mtimeMs });
+      } catch {
+        // ignore unreadable dirs
+      }
+    }
+
+    dirs.sort((a, b) => b.mtime - a.mtime); // newest first
+
+    const toRemove = dirs.slice(keepCount);
+    const removed: string[] = [];
+    for (const dir of toRemove) {
+      const dirPath = join(deployDir, dir.name);
+      try {
+        rmSync(dirPath, { recursive: true, force: true });
+        removed.push(dir.name);
+      } catch {
+        // skip failures
+      }
+    }
+
+    try { generateRootIndex(deployDir); } catch { /* non-fatal */ }
+    await commitAndPush(deployDir, `prune: keep ${keepCount}`, config.branch);
+
+    return {
+      removed,
+      message: removed.length
+        ? `已清理 ${removed.length} 个旧部署，保留最近 ${Math.min(keepCount, dirs.length)} 个`
+        : `没有需要清理的旧部署（共 ${dirs.length} 个）`,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { removed: [], message: `清理失败: ${msg.replace(config.token, '***')}` };
+  } finally {
+    rmSync(deployDir, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Clean all — remove every game directory
+// ---------------------------------------------------------------------------
+
+export async function cleanAllGitHubPages(
+  options: GitHubOptions = {},
+): Promise<{ message: string }> {
+  const open = await openGhPagesBranch(options);
+  if (!open.ok) return { message: open.error };
+
+  const { deployDir, config } = open;
+
+  try {
+    for (const entry of readdirSync(deployDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === '.git') continue;
+
+      const dirPath = join(deployDir, entry.name);
+      try {
+        rmSync(dirPath, { recursive: true, force: true });
+      } catch {
+        // skip failures
+      }
+    }
+
+    generateRootIndex(deployDir); // will produce empty-state page
+    await commitAndPush(deployDir, 'clean: remove all deployments', config.branch);
+
+    return { message: '已清空所有 GitHub Pages 部署' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { message: `清空失败: ${msg.replace(config.token, '***')}` };
+  } finally {
+    rmSync(deployDir, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 /**
  * If a legacy game lives at the root of deployDir (manifest.json + index.html),
@@ -182,10 +327,7 @@ export function generateRootIndex(deployDir: string): void {
     games.push({ id: entry.name, name, url: `./${entry.name}/` });
   }
 
-  // Write games.json
   writeFileSync(join(deployDir, 'games.json'), JSON.stringify(games, null, 2), 'utf-8');
-
-  // Write root navigation page
   const html = buildNavPage(games);
   writeFileSync(join(deployDir, 'index.html'), html, 'utf-8');
 }
