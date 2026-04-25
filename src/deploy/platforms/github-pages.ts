@@ -24,6 +24,7 @@ import {
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { DeployResult } from '../types.js';
+import { ProjectManager } from '../../project/manager.js';
 
 interface GitHubOptions {
   token?: string;
@@ -261,6 +262,87 @@ export async function cleanAllGitHubPages(
     const msg = err instanceof Error ? err.message : String(err);
     return { message: `清空失败: ${msg.replace(config.token, '***')}` };
   } finally {
+    rmSync(deployDir, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Refresh nav page only — re-generate index.html without adding/removing games
+// ---------------------------------------------------------------------------
+
+export async function refreshGitHubPagesNav(
+  options: GitHubOptions = {},
+): Promise<{ message: string }> {
+  const open = await openGhPagesBranch(options);
+  if (!open.ok) return { message: open.error };
+
+  const { deployDir, config } = open;
+
+  try {
+    try { migrateRootGame(deployDir); } catch { /* non-fatal */ }
+    try { generateRootIndex(deployDir); } catch { /* non-fatal */ }
+
+    await commitAndPush(deployDir, 'refresh: regenerate nav page', config.branch);
+
+    return { message: '导航页已刷新' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { message: `刷新失败: ${msg.replace(config.token, '***')}` };
+  } finally {
+    rmSync(deployDir, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Clean orphans — remove deployments whose local project no longer exists
+// ---------------------------------------------------------------------------
+
+export async function cleanOrphanGitHubPages(
+  options: GitHubOptions = {},
+): Promise<{ removed: string[]; message: string }> {
+  const open = await openGhPagesBranch(options);
+  if (!open.ok) return { removed: [], message: open.error };
+
+  const { deployDir, config } = open;
+  const pm = new ProjectManager();
+
+  try {
+    const removed: string[] = [];
+
+    for (const entry of readdirSync(deployDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === '.git') continue;
+
+      // Check if local project still exists
+      const project = pm.get(entry.name);
+      if (!project) {
+        const dirPath = join(deployDir, entry.name);
+        try {
+          rmSync(dirPath, { recursive: true, force: true });
+          removed.push(entry.name);
+        } catch {
+          // skip failures
+        }
+      }
+    }
+
+    try { generateRootIndex(deployDir); } catch { /* non-fatal */ }
+
+    if (removed.length > 0) {
+      await commitAndPush(deployDir, `clean: remove ${removed.length} orphan deployments`, config.branch);
+    }
+
+    return {
+      removed,
+      message: removed.length
+        ? `已清理 ${removed.length} 个孤儿部署: ${removed.join(', ')}`
+        : '没有需要清理的孤儿部署',
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { removed: [], message: `清理失败: ${msg.replace(config.token, '***')}` };
+  } finally {
+    pm.close();
     rmSync(deployDir, { recursive: true, force: true });
   }
 }

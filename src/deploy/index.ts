@@ -10,6 +10,8 @@ import {
   undeployGitHubPages,
   pruneGitHubPages,
   cleanAllGitHubPages,
+  refreshGitHubPagesNav,
+  cleanOrphanGitHubPages,
 } from './platforms/github-pages.js';
 import { deployVercel, isVercelInstalled } from './platforms/vercel.js';
 import { deployNetlify, isNetlifyInstalled } from './platforms/netlify.js';
@@ -117,6 +119,8 @@ export {
   undeployGitHubPages,
   pruneGitHubPages,
   cleanAllGitHubPages,
+  refreshGitHubPagesNav,
+  cleanOrphanGitHubPages,
 };
 
 export function getDefaultPlatform(): DeployPlatform {

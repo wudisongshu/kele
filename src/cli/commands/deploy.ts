@@ -6,7 +6,7 @@
 import { Command } from 'commander';
 import { existsSync } from 'fs';
 import { ProjectManager } from '../../project/manager.js';
-import { deployProject, getDefaultPlatform, pruneGitHubPages, cleanAllGitHubPages } from '../../deploy/index.js';
+import { deployProject, getDefaultPlatform, pruneGitHubPages, cleanAllGitHubPages, refreshGitHubPagesNav, cleanOrphanGitHubPages } from '../../deploy/index.js';
 import { loadConfig } from '../../config/manager.js';
 import type { DeployPlatform } from '../../deploy/types.js';
 import { error, success, info } from '../../utils/logger.js';
@@ -19,9 +19,11 @@ export function setupDeployCommand(program: Command): void {
     .option('-o, --out <dir>', 'Output directory (for static platform)')
     .option('--prune <n>', 'Keep only the N most recent GitHub Pages deployments')
     .option('--clean-all', 'Remove ALL GitHub Pages deployments (dangerous)')
+    .option('--refresh', 'Re-generate nav page without adding/removing games')
+    .option('--clean-orphans', 'Remove deployments whose local project no longer exists')
     .action(async (
       id: string | undefined,
-      options: { platform?: string; out?: string; prune?: string; cleanAll?: boolean },
+      options: { platform?: string; out?: string; prune?: string; cleanAll?: boolean; refresh?: boolean; cleanOrphans?: boolean },
     ) => {
       const config = loadConfig();
 
@@ -39,6 +41,34 @@ export function setupDeployCommand(program: Command): void {
           branch: config.github?.branch,
         });
         success(result.message);
+        return;
+      }
+
+      // --- Refresh nav page ---
+      if (options.refresh) {
+        info('刷新导航页...');
+        const result = await refreshGitHubPagesNav({
+          token: config.github?.token,
+          repo: config.github?.repo,
+          branch: config.github?.branch,
+        });
+        success(result.message);
+        return;
+      }
+
+      // --- Clean orphans ---
+      if (options.cleanOrphans) {
+        info('清理孤儿部署...');
+        const result = await cleanOrphanGitHubPages({
+          token: config.github?.token,
+          repo: config.github?.repo,
+          branch: config.github?.branch,
+        });
+        if (result.removed.length > 0) {
+          success(result.message);
+        } else {
+          console.log(result.message);
+        }
         return;
       }
 
