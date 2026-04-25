@@ -29,6 +29,12 @@ function initDb(): Database.Database {
   if (!columnNames.has('prompt')) {
     db.exec(`ALTER TABLE projects ADD COLUMN prompt TEXT`);
   }
+  if (!columnNames.has('type')) {
+    db.exec(`ALTER TABLE projects ADD COLUMN type TEXT DEFAULT 'simple'`);
+  }
+  if (!columnNames.has('pages')) {
+    db.exec(`ALTER TABLE projects ADD COLUMN pages TEXT`);
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
@@ -39,6 +45,8 @@ function initDb(): Database.Database {
       status TEXT DEFAULT 'pending',
       deployments TEXT DEFAULT '[]',
       prompt TEXT,
+      type TEXT DEFAULT 'simple',
+      pages TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -66,15 +74,21 @@ export class ProjectManager {
       status: 'pending',
       deployments: [],
       prompt: input.prompt,
+      type: input.type ?? 'simple',
+      pages: input.pages,
       createdAt: now,
       updatedAt: now,
     };
 
     const stmt = this.db.prepare(`
-      INSERT INTO projects (id, name, description, root_dir, status, deployments, prompt, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO projects (id, name, description, root_dir, status, deployments, prompt, type, pages, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(project.id, project.name, project.description, project.rootDir, project.status, '[]', project.prompt ?? null, project.createdAt, project.updatedAt);
+    stmt.run(
+      project.id, project.name, project.description, project.rootDir,
+      project.status, '[]', project.prompt ?? null, project.type ?? 'simple',
+      project.pages ?? null, project.createdAt, project.updatedAt,
+    );
     return project;
   }
 
@@ -195,6 +209,8 @@ export class ProjectManager {
       status: row.status as Project['status'],
       deployments,
       prompt: (row.prompt as string | undefined) ?? undefined,
+      type: (row.type as 'simple' | 'complex' | undefined) ?? undefined,
+      pages: (row.pages as string | undefined) ?? undefined,
       createdAt: row.created_at as string,
       updatedAt: row.updated_at as string,
     };

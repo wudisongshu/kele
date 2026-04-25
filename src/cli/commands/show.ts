@@ -19,7 +19,9 @@ export function setupShowCommand(program: Command): void {
         return;
       }
 
+      const typeLabel = project.type === 'complex' ? '多页面产品' : '单文件游戏';
       console.log(`项目: ${project.name}`);
+      console.log(`类型: ${typeLabel}`);
       if (project.prompt && project.prompt !== project.name) {
         console.log(`Prompt: ${project.prompt}`);
       }
@@ -28,6 +30,18 @@ export function setupShowCommand(program: Command): void {
       console.log(`状态: ${project.status}`);
       console.log(`目录: ${project.rootDir}`);
       console.log(`创建时间: ${project.createdAt}`);
+
+      if (project.type === 'complex' && project.pages) {
+        try {
+          const pages = JSON.parse(project.pages) as Array<{ name: string; fileName: string }>;
+          console.log(`\n子页面 (${pages.length} 个):`);
+          for (const p of pages) {
+            console.log(`  - ${p.name} (${p.fileName})`);
+          }
+        } catch {
+          // ignore malformed pages JSON
+        }
+      }
 
       if (project.deployments.length > 0) {
         console.log('\n部署历史:');

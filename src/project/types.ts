@@ -18,6 +18,8 @@ export interface Project {
   updatedAt: string;
   deployments: Deployment[];
   prompt?: string;
+  type?: 'simple' | 'complex';
+  pages?: string; // JSON string of GeneratedPage[]
 }
 
 export interface ProjectCreateInput {
@@ -25,4 +27,6 @@ export interface ProjectCreateInput {
   description: string;
   rootDir: string;
   prompt?: string;
+  type?: 'simple' | 'complex';
+  pages?: string;
 }

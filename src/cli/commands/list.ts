@@ -10,6 +10,20 @@ function isTestProject(rootDir: string): boolean {
   return rootDir.includes('/tmp/') || rootDir.includes('/var/folders/');
 }
 
+function formatTypeLabel(p: { type?: string; pages?: string }): string {
+  if (p.type === 'complex') {
+    let pageCount = 0;
+    try {
+      const parsed = JSON.parse(p.pages || '[]') as unknown[];
+      pageCount = parsed.length;
+    } catch {
+      // ignore
+    }
+    return `多页面产品 (${pageCount} 页)`;
+  }
+  return '单文件游戏';
+}
+
 export function setupListCommand(program: Command): void {
   program
     .command('list')
@@ -40,9 +54,11 @@ export function setupListCommand(program: Command): void {
       console.log(`项目列表 (${projects.length} 个)${suffix}\n`);
       for (const p of projects) {
         const icon = p.status === 'completed' ? '✅' : p.status === 'failed' ? '❌' : '⏳';
+        const typeIcon = p.type === 'complex' ? '🏗️' : '🎮';
         const slug = basename(p.rootDir);
-        console.log(`  ${icon} ${slug} (${p.id})`);
+        console.log(`  ${icon} ${typeIcon} ${slug} (${p.id})`);
         console.log(`     ${p.name}`);
+        console.log(`     类型: ${formatTypeLabel(p)}`);
         if (p.prompt && p.prompt !== p.name) {
           console.log(`     Prompt: ${p.prompt}`);
         }
