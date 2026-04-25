@@ -5,8 +5,8 @@
  */
 
 import Database from 'better-sqlite3';
-import { mkdirSync } from 'fs';
-import { dirname, join } from 'path';
+import { mkdirSync, existsSync, readFileSync } from 'fs';
+import { basename, dirname, join } from 'path';
 import { homedir } from 'os';
 import type { Project, ProjectCreateInput, Deployment } from './types.js';
 
@@ -81,7 +81,8 @@ export class ProjectManager {
   get(id: string): Project | undefined {
     const row = this.db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as Record<string, unknown> | undefined;
     if (!row) return undefined;
-    return this.rowToProject(row);
+    const project = this.rowToProject(row);
+    return this.normalizeName(project);
   }
 
   /**
@@ -101,7 +102,7 @@ export class ProjectManager {
 
   list(): Project[] {
     const rows = this.db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all() as Record<string, unknown>[];
-    return rows.map((r) => this.rowToProject(r));
+    return rows.map((r) => this.normalizeName(this.rowToProject(r)));
   }
 
   updateStatus(id: string, status: Project['status']): void {
@@ -136,6 +137,34 @@ export class ProjectManager {
 
   close(): void {
     this.db.close();
+  }
+
+  /**
+   * For legacy projects where name was stored as the slug (e.g. game-b9fd19),
+   * try to extract the real game title from index.html and update the DB.
+   */
+  private normalizeName(project: Project): Project {
+    const slug = basename(project.rootDir);
+    // If name matches the directory slug, try to extract real title from index.html
+    if (project.name === slug) {
+      const indexPath = join(project.rootDir, 'index.html');
+      if (existsSync(indexPath)) {
+        try {
+          const html = readFileSync(indexPath, 'utf-8');
+          const match = html.match(/<title>([^<]*)<\/title>/i);
+          const extracted = match ? match[1].trim() : '';
+          if (extracted && extracted !== slug && extracted !== project.id) {
+            // eslint-disable-next-line no-console
+            console.log(`[DEBUG] Extracted title for ${project.id}: ${extracted}`);
+            this.updateName(project.id, extracted);
+            project.name = extracted;
+          }
+        } catch {
+          // ignore read errors
+        }
+      }
+    }
+    return project;
   }
 
   private rowToProject(row: Record<string, unknown>): Project {

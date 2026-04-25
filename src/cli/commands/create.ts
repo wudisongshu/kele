@@ -85,10 +85,15 @@ export function setupCreateCommand(program: Command): void {
         process.exit(1);
       }
 
-      // Save project
+      // Extract title and save project
       const pm = new ProjectManager();
+      const gameTitle = result.gameTitle;
+      if (gameTitle && gameTitle !== ideaText) {
+        success(`游戏名称: ${gameTitle}`);
+      }
+      const finalName = gameTitle || ideaText;
       const project = pm.create({
-        name: result.gameTitle || projectName,
+        name: finalName,
         description: ideaText,
         rootDir,
         prompt: ideaText,
