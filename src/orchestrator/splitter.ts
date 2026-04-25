@@ -42,11 +42,62 @@ ${siblingPages || '（无）'}
 - 页面标题使用 <title>${req.name}</title>`;
 }
 
+const NAME_TO_FILE: Record<string, string> = {
+  '首页': 'home',
+  '主页': 'home',
+  '单人挑战': 'single-player',
+  '单人': 'single',
+  '练习': 'practice',
+  '双人对战': 'duel',
+  '对战': 'battle',
+  '双人': 'multiplayer',
+  '规则说明': 'rules',
+  '规则': 'rules',
+  '说明': 'guide',
+  '教程': 'tutorial',
+  '战绩统计': 'stats',
+  '战绩': 'stats',
+  '统计': 'statistics',
+  '排行榜': 'leaderboard',
+  '设置': 'settings',
+  '购物车': 'cart',
+  '结算': 'checkout',
+  '商品列表': 'products',
+  '商品': 'products',
+  '列表': 'list',
+  '关于': 'about',
+  '联系我们': 'contact',
+  '登录': 'login',
+  '注册': 'register',
+  '个人中心': 'profile',
+  '搜索': 'search',
+  '详情': 'detail',
+  '评论': 'reviews',
+  '收藏': 'favorites',
+  '订单': 'orders',
+  '支付': 'payment',
+  '分类': 'categories',
+  '标签': 'tags',
+  '归档': 'archive',
+  '文章': 'posts',
+  '博客': 'blog',
+  '作品': 'works',
+  '项目': 'projects',
+  '技能': 'skills',
+  '经历': 'experience',
+  '教育': 'education',
+  '证书': 'certificates',
+};
+
 function slugify(name: string): string {
+  // Direct mapping for common Chinese page names
+  if (NAME_TO_FILE[name]) return NAME_TO_FILE[name];
+
+  // For English or mixed names: clean and kebab-case
   return name
     .toLowerCase()
-    .replace(/[^\u4e00-\u9fa5a-z0-9\s-]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
-    .replace(/[\u4e00-\u9fa5]/g, (c) => c.charCodeAt(0).toString(36).slice(0, 4));
+    || 'page';
 }

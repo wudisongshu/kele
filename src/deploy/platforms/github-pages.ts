@@ -493,8 +493,26 @@ export function generateRootIndex(deployDir: string): void {
       }
     }
 
+    // Detect complex products (multiple HTML files in the directory)
+    const dirPath = join(deployDir, entry.name);
+    let htmlCount = 0;
+    try {
+      htmlCount = readdirSync(dirPath)
+        .filter((f) => f.endsWith('.html') && !f.startsWith('.')).length;
+    } catch {
+      // ignore
+    }
+
     const typeInfo = detectGameType(name);
-    games.push({ id: entry.name, name, url: `./${entry.name}/`, ...typeInfo });
+    const isComplex = htmlCount > 1;
+    games.push({
+      id: entry.name,
+      name,
+      url: `./${entry.name}/`,
+      icon: isComplex ? '🏗️' : typeInfo.icon,
+      color: isComplex ? '#8b5cf6' : typeInfo.color,
+      tag: isComplex ? `多页面 (${htmlCount})` : typeInfo.tag,
+    });
   }
 
   writeFileSync(join(deployDir, 'games.json'), JSON.stringify(games, null, 2), 'utf-8');

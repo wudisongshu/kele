@@ -75,9 +75,24 @@ export async function orchestrateComplexProduct(
     return { success: false, projectPath: fullProjectPath, projectId, productName: userPrompt, pages: [], failedPages, error: '所有页面生成失败' };
   }
 
-  // 4. Assemble
+  // 4. Extract product name from first page title
+  let productName = userPrompt;
+  if (generatedPages.length > 0) {
+    const firstPagePath = join(fullProjectPath, generatedPages[0].fileName);
+    try {
+      const firstHtml = readFileSync(firstPagePath, 'utf-8');
+      const titleMatch = firstHtml.match(/<title>([^<]*)<\/title>/i);
+      if (titleMatch && titleMatch[1].trim()) {
+        productName = titleMatch[1].trim();
+      }
+    } catch {
+      // fallback to userPrompt
+    }
+  }
+
+  // 5. Assemble
   console.log('🔧 组装产品...');
-  assembleProduct(fullProjectPath, generatedPages, userPrompt);
+  assembleProduct(fullProjectPath, generatedPages, productName);
 
   // 5. Inject PWA into main entry
   try {
@@ -146,7 +161,7 @@ async function generatePage(
       return {
         name: task.name,
         fileName: task.outputFile,
-        description: task.prompt.slice(0, 80) + '...',
+        description: task.name, // Short name, not the full prompt
         icon: '📄',
         title,
       };
