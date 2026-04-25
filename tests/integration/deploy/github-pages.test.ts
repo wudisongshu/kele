@@ -74,7 +74,7 @@ describe('Integration: GitHub Pages deploy', () => {
     expect(cmds.some((c) => c.includes('git fetch'))).toBe(true);
     expect(cmds.some((c) => c.includes('git add .'))).toBe(true);
     expect(cmds.some((c) => c.includes('git commit'))).toBe(true);
-    expect(cmds.some((c) => c.includes('git push origin HEAD:gh-pages'))).toBe(true);
+    expect(cmds.some((c) => c.includes('git push origin HEAD:gh-pages --force'))).toBe(true);
 
     // Verify remote URL contains token
     const remoteCall = execaCalls.find((c) => c.args[0] === 'remote' && c.args[1] === 'add');

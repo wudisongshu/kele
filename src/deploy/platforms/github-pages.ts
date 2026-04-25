@@ -97,7 +97,7 @@ async function commitAndPush(deployDir: string, message: string, branch: string)
   const { stdout: status } = await execa('git', ['status', '--porcelain'], { cwd: deployDir });
   if (status.trim()) {
     await execa('git', ['commit', '-m', message], { cwd: deployDir });
-    await execa('git', ['push', 'origin', `HEAD:${branch}`], { cwd: deployDir });
+    await execa('git', ['push', 'origin', `HEAD:${branch}`, '--force'], { cwd: deployDir });
   }
 }
 
