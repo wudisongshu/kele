@@ -96,16 +96,30 @@ export class OpenAICompatibleAdapter implements AIAdapter {
 
     const maxRetries = 2; // 3 attempts total
     let lastError: Error | undefined;
+    let hasReceivedTokens = false;
+
+    // Wrap onToken to track whether the stream has started
+    const wrappedOnToken = onToken
+      ? (token: string) => {
+          hasReceivedTokens = true;
+          onToken(token);
+        }
+      : undefined;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        return await this.executeOnce(prompt, onToken);
+        return await this.executeOnce(prompt, wrappedOnToken);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         const msg = lastError.message;
 
         // Never retry auth errors
         if (msg.includes('401') || msg.includes('403')) {
+          throw lastError;
+        }
+
+        // If stream already started, do NOT retry — AI is generating.
+        if (hasReceivedTokens) {
           throw lastError;
         }
 
@@ -119,8 +133,6 @@ export class OpenAICompatibleAdapter implements AIAdapter {
         }
 
         // Exponential backoff
-        // For gateway errors with streaming, this usually means the upstream
-        // is genuinely overloaded. Wait longer.
         const baseDelay = isGatewayError ? 5000 : 1000;
         const delay = baseDelay * Math.pow(2, attempt);
 

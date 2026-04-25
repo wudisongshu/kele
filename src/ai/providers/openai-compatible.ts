@@ -67,15 +67,30 @@ export class OpenAICompatibleAdapter implements AIAdapter {
 
     const maxRetries = 2;
     let lastError: Error | undefined;
+    let hasReceivedTokens = false;
+
+    // Wrap onToken to track whether the stream has started
+    const wrappedOnToken = onToken
+      ? (token: string) => {
+          hasReceivedTokens = true;
+          onToken(token);
+        }
+      : undefined;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        return await this.executeOnce(prompt, onToken);
+        return await this.executeOnce(prompt, wrappedOnToken);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         const msg = lastError.message;
 
         if (msg.includes('401') || msg.includes('403')) {
+          throw lastError;
+        }
+
+        // If stream already started, do NOT retry — AI is generating,
+        // and retrying would restart from scratch. Better to surface the error.
+        if (hasReceivedTokens) {
           throw lastError;
         }
 

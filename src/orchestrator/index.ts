@@ -120,7 +120,13 @@ async function generatePage(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const rawCode = await provider.execute(task.prompt);
+      // Use streaming to avoid gateway timeouts during long generations
+      let tokenCount = 0;
+      const rawCode = await provider.execute(task.prompt, (_token: string) => {
+        tokenCount++;
+        if (tokenCount % 100 === 0) process.stdout.write('.');
+      });
+      if (tokenCount >= 100) process.stdout.write('\n');
       const code = extractCode(rawCode);
 
       if (!code || code.length < 100) {
