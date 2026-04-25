@@ -139,8 +139,10 @@ describe('Unit: generateRootIndex', () => {
     const html = readFileSync(htmlPath, 'utf-8');
     expect(html).toContain('kele 游戏合集');
     expect(html).toContain('打开游戏');
-    expect(html).toContain('复制链接');
     expect(html).toContain('stats-bar');
+    expect(html).toContain('var games =');
+    expect(html).toContain('try {');
+    expect(html).not.toContain('const games =');
   });
 
   it('uses directory name when manifest is missing', () => {
@@ -184,8 +186,11 @@ describe('Unit: buildNavPage', () => {
     expect(html).toContain('经典');
     expect(html).toContain('益智');
     expect(html).toContain('打开游戏');
-    expect(html).toContain('复制链接');
-    expect(html).toContain('copyLink');
+    expect(html).toContain('var games =');
+    expect(html).toContain('for (var j = 0;');
+    expect(html).toContain('try {');
+    expect(html).not.toContain('const games =');
+    expect(html).not.toContain('=>');
   });
 
   it('escapes HTML in game names', () => {
