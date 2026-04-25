@@ -77,11 +77,26 @@ async function openGhPagesBranch(options: GitHubOptions): Promise<
     try {
       await execa('git', ['fetch', '--depth=1', 'origin', cfg.branch], { cwd: deployDir });
       await execa('git', ['reset', '--hard', `origin/${cfg.branch}`], { cwd: deployDir });
-      // eslint-disable-next-line no-console
-      console.log(`[DEBUG] 成功拉取 origin/${cfg.branch}`);
     } catch (fetchErr) {
-      // eslint-disable-next-line no-console
-      console.log(`[DEBUG] 拉取 origin/${cfg.branch} 失败，将创建空分支: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+      // fetch failed — distinguish first deploy from network error
+      let branchExists = false;
+      try {
+        const { stdout } = await execa('git', ['ls-remote', 'origin', cfg.branch], { cwd: deployDir });
+        branchExists = stdout.trim().length > 0;
+      } catch {
+        // ls-remote also failed — treat as network error
+      }
+
+      if (branchExists) {
+        const fetchMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        throw new Error(
+          `无法拉取远程 ${cfg.branch} 分支: ${fetchMsg}\n` +
+          `检测到该分支在远程存在，可能是网络问题。\n` +
+          `为避免覆盖已有部署，已中止操作。请检查网络后重试。`,
+        );
+      }
+
+      // First deploy — branch does not exist on remote
       await execa('git', ['checkout', '--orphan', cfg.branch], { cwd: deployDir });
       await execa('git', ['rm', '-rf', '.'], { cwd: deployDir }).catch(() => {});
     }
