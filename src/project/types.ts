@@ -17,10 +17,12 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   deployments: Deployment[];
+  prompt?: string;
 }
 
 export interface ProjectCreateInput {
   name: string;
   description: string;
   rootDir: string;
+  prompt?: string;
 }

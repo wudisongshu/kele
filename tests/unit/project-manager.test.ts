@@ -28,6 +28,7 @@ describe('Unit: ProjectManager', () => {
       name: `game-find-by-id-${Date.now()}`,
       description: 'test',
       rootDir: testDir,
+      prompt: 'test prompt',
     });
     createdIds.push(project.id);
 
@@ -88,5 +89,41 @@ describe('Unit: ProjectManager', () => {
   it('findByIdentifier returns undefined for non-existent', () => {
     expect(pm.findByIdentifier('nonexistent')).toBeUndefined();
     expect(pm.findByIdentifier(`game-does-not-exist-${Date.now()}`)).toBeUndefined();
+  });
+
+  it('stores and retrieves prompt', () => {
+    const testDir = join(tmpdir(), `kele-test-prompt-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+
+    const project = pm.create({
+      name: 'test-game',
+      description: 'test desc',
+      rootDir: testDir,
+      prompt: '做个贪吃蛇游戏',
+    });
+    createdIds.push(project.id);
+
+    const found = pm.get(project.id);
+    expect(found?.prompt).toBe('做个贪吃蛇游戏');
+
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('updateName changes project name', () => {
+    const testDir = join(tmpdir(), `kele-test-rename-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+
+    const project = pm.create({
+      name: 'old-name',
+      description: 'test',
+      rootDir: testDir,
+    });
+    createdIds.push(project.id);
+
+    pm.updateName(project.id, 'new-name');
+    const updated = pm.get(project.id);
+    expect(updated?.name).toBe('new-name');
+
+    rmSync(testDir, { recursive: true, force: true });
   });
 });

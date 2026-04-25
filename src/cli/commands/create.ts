@@ -88,9 +88,10 @@ export function setupCreateCommand(program: Command): void {
       // Save project
       const pm = new ProjectManager();
       const project = pm.create({
-        name: projectName,
+        name: result.gameTitle || projectName,
         description: ideaText,
         rootDir,
+        prompt: ideaText,
       });
       pm.updateStatus(project.id, 'completed');
 

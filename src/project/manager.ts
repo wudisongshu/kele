@@ -17,32 +17,17 @@ function initDb(): Database.Database {
   const db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
 
-  // Migrate: add deployments column if missing
+  // Migrate: add missing columns to existing table
   const columns = db.prepare(
     "SELECT name FROM pragma_table_info('projects')"
   ).all() as { name: string }[];
-  const hasDeployments = columns.some((c) => c.name === 'deployments');
+  const columnNames = new Set(columns.map((c) => c.name));
 
-  if (!hasDeployments) {
-    // Recreate table with new column
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS projects_new (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        root_dir TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        deployments TEXT DEFAULT '[]',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-    `);
-    db.exec(`
-      INSERT INTO projects_new (id, name, description, root_dir, status, deployments, created_at, updated_at)
-      SELECT id, name, description, root_dir, status, '[]', created_at, updated_at FROM projects;
-    `);
-    db.exec('DROP TABLE projects');
-    db.exec('ALTER TABLE projects_new RENAME TO projects');
+  if (!columnNames.has('deployments')) {
+    db.exec(`ALTER TABLE projects ADD COLUMN deployments TEXT DEFAULT '[]'`);
+  }
+  if (!columnNames.has('prompt')) {
+    db.exec(`ALTER TABLE projects ADD COLUMN prompt TEXT`);
   }
 
   db.exec(`
@@ -53,6 +38,7 @@ function initDb(): Database.Database {
       root_dir TEXT NOT NULL,
       status TEXT DEFAULT 'pending',
       deployments TEXT DEFAULT '[]',
+      prompt TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -79,15 +65,16 @@ export class ProjectManager {
       rootDir: input.rootDir,
       status: 'pending',
       deployments: [],
+      prompt: input.prompt,
       createdAt: now,
       updatedAt: now,
     };
 
     const stmt = this.db.prepare(`
-      INSERT INTO projects (id, name, description, root_dir, status, deployments, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO projects (id, name, description, root_dir, status, deployments, prompt, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(project.id, project.name, project.description, project.rootDir, project.status, '[]', project.createdAt, project.updatedAt);
+    stmt.run(project.id, project.name, project.description, project.rootDir, project.status, '[]', project.prompt ?? null, project.createdAt, project.updatedAt);
     return project;
   }
 
@@ -120,6 +107,11 @@ export class ProjectManager {
   updateStatus(id: string, status: Project['status']): void {
     this.db.prepare('UPDATE projects SET status = ?, updated_at = ? WHERE id = ?')
       .run(status, new Date().toISOString(), id);
+  }
+
+  updateName(id: string, name: string): void {
+    this.db.prepare('UPDATE projects SET name = ?, updated_at = ? WHERE id = ?')
+      .run(name, new Date().toISOString(), id);
   }
 
   addDeployment(id: string, deployment: Deployment): void {
@@ -164,6 +156,7 @@ export class ProjectManager {
       rootDir: row.root_dir as string,
       status: row.status as Project['status'],
       deployments,
+      prompt: (row.prompt as string | undefined) ?? undefined,
       createdAt: row.created_at as string,
       updatedAt: row.updated_at as string,
     };

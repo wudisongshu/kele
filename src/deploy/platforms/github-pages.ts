@@ -329,15 +329,38 @@ export function generateRootIndex(deployDir: string): void {
     if (entry.name === '.git') continue;
 
     let name = entry.name;
+    let manifest: Record<string, unknown> | undefined;
     const manifestPath = join(deployDir, entry.name, 'manifest.json');
     if (existsSync(manifestPath)) {
       try {
-        const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, unknown>;
+        manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, unknown>;
         if (manifest.name && typeof manifest.name === 'string') {
           name = manifest.name;
         }
       } catch {
         // ignore malformed manifest
+      }
+    }
+
+    // Legacy fallback: if name looks like a prompt, try extracting from index.html <title>
+    if (/^(做个|做一个)/.test(name)) {
+      const indexPath = join(deployDir, entry.name, 'index.html');
+      if (existsSync(indexPath)) {
+        try {
+          const html = readFileSync(indexPath, 'utf-8');
+          const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
+          if (titleMatch && titleMatch[1].trim() && !/^(做个|做一个)/.test(titleMatch[1].trim())) {
+            name = titleMatch[1].trim();
+            // Update manifest.json for next time
+            if (manifest) {
+              manifest.name = name;
+              manifest.short_name = name.slice(0, 12);
+              writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+            }
+          }
+        } catch {
+          // ignore read/write errors
+        }
       }
     }
 

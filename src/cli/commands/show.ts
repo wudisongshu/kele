@@ -20,6 +20,9 @@ export function setupShowCommand(program: Command): void {
       }
 
       console.log(`项目: ${project.name}`);
+      if (project.prompt && project.prompt !== project.name) {
+        console.log(`Prompt: ${project.prompt}`);
+      }
       console.log(`ID: ${project.id}`);
       console.log(`描述: ${project.description}`);
       console.log(`状态: ${project.status}`);

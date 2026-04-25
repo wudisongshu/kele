@@ -164,6 +164,29 @@ describe('Unit: generateRootIndex', () => {
     expect(games).toHaveLength(1);
     expect(games[0].id).toBe('proj-real');
   });
+
+  it('falls back to index.html title when manifest name is a prompt', () => {
+    mkdirSync(join(deployDir, 'proj-legacy'));
+    writeFileSync(
+      join(deployDir, 'proj-legacy', 'manifest.json'),
+      JSON.stringify({ name: '做个飞行射击游戏' }),
+    );
+    writeFileSync(
+      join(deployDir, 'proj-legacy', 'index.html'),
+      '<html><head><title>星际战机</title></head><body></body></html>',
+    );
+
+    generateRootIndex(deployDir);
+
+    const games = JSON.parse(readFileSync(join(deployDir, 'games.json'), 'utf-8'));
+    expect(games).toHaveLength(1);
+    expect(games[0].name).toBe('星际战机');
+
+    // manifest should be updated
+    const updatedManifest = JSON.parse(readFileSync(join(deployDir, 'proj-legacy', 'manifest.json'), 'utf-8'));
+    expect(updatedManifest.name).toBe('星际战机');
+    expect(updatedManifest.short_name).toBe('星际战机'.slice(0, 12));
+  });
 });
 
 describe('Unit: buildNavPage', () => {

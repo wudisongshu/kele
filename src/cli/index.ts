@@ -10,6 +10,7 @@ import { setupDoctorCommand } from './commands/doctor.js';
 import { setupDeployCommand } from './commands/deploy.js';
 import { setupUndeployCommand } from './commands/undeploy.js';
 import { setupPlatformsCommand } from './commands/platforms.js';
+import { setupRenameCommand } from './commands/rename.js';
 
 const program = new Command();
 
@@ -27,5 +28,6 @@ setupDoctorCommand(program);
 setupDeployCommand(program);
 setupUndeployCommand(program);
 setupPlatformsCommand(program);
+setupRenameCommand(program);
 
 program.parse();

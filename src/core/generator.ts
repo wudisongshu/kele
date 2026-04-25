@@ -24,6 +24,7 @@ export interface GenerateResult {
   filePath: string;
   error?: string;
   attempts: number;
+  gameTitle?: string;
 }
 
 export interface GeneratorOptions {
@@ -57,7 +58,10 @@ export class GameGenerator {
       const result = await this.attemptGenerate(userInput, filePath, attempt);
       if (result.success || attempt === this.options.maxAttempts) {
         if (result.success) {
-          await this.injectPWA(userInput);
+          const html = await readFile(filePath, 'utf-8');
+          const gameTitle = extractGameTitle(html) || userInput;
+          await this.injectPWA(gameTitle, userInput);
+          return { ...result, gameTitle };
         }
         return result;
       }
@@ -66,17 +70,16 @@ export class GameGenerator {
     return { success: false, filePath: '', error: 'Max attempts reached', attempts: this.options.maxAttempts };
   }
 
-  private async injectPWA(userInput: string): Promise<void> {
+  private async injectPWA(gameTitle: string, userInput: string): Promise<void> {
     try {
       const filePath = join(this.projectRoot, 'index.html');
       const html = await readFile(filePath, 'utf-8');
       const injected = injectPWATags(html);
       await writeFile(filePath, injected, 'utf-8');
 
-      const projectName = userInput.slice(0, 30);
       await generatePWA(this.projectRoot, {
-        name: projectName,
-        shortName: projectName.slice(0, 12),
+        name: gameTitle,
+        shortName: gameTitle.slice(0, 12),
         description: userInput,
       });
 
@@ -178,6 +181,14 @@ DEATH LINE: 如果输出包含空函数或 TODO，任务将被拒绝并重写。
     return base + '\n\n⚠️ 上一轮生成的代码存在 JavaScript 语法错误。请务必仔细检查代码，确保没有未闭合的括号、引号或其他语法问题。';
   }
   return base;
+}
+
+/**
+ * Extract game title from generated HTML <title> tag.
+ */
+export function extractGameTitle(html: string): string | null {
+  const match = html.match(/<title>([^<]*)<\/title>/i);
+  return match ? match[1].trim() || null : null;
 }
 
 /**

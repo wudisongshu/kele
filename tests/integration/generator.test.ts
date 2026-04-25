@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { GameGenerator, extractCode } from '../../src/core/generator.js';
+import { GameGenerator, extractCode, extractGameTitle } from '../../src/core/generator.js';
 import { mkdtempSync, rmSync, readFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -84,6 +84,24 @@ describe('GameGenerator', () => {
     expect(result.success).toBe(false);
     expect(result.attempts).toBe(2);
     expect(adapter.execute).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('extractGameTitle', () => {
+  it('extracts title from HTML', () => {
+    expect(extractGameTitle('<html><head><title>星际战机</title></head></html>')).toBe('星际战机');
+  });
+
+  it('handles whitespace in title', () => {
+    expect(extractGameTitle('<title>  Space Shooter  </title>')).toBe('Space Shooter');
+  });
+
+  it('returns null when no title', () => {
+    expect(extractGameTitle('<html><body>no title</body></html>')).toBeNull();
+  });
+
+  it('is case-insensitive', () => {
+    expect(extractGameTitle('<HTML><TITLE>Game</TITLE></HTML>')).toBe('Game');
   });
 });
 
