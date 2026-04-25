@@ -307,15 +307,21 @@ export async function cleanOrphanGitHubPages(
   const pm = new ProjectManager();
 
   try {
+    // Build a set of all valid local project IDs
+    const localProjects = pm.list();
+    const validIds = new Set<string>();
+    for (const p of localProjects) {
+      validIds.add(p.id);
+    }
+
     const removed: string[] = [];
 
     for (const entry of readdirSync(deployDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       if (entry.name === '.git') continue;
 
-      // Check if local project still exists
-      const project = pm.get(entry.name);
-      if (!project) {
+      // If directory name is not a known local project ID, it's an orphan
+      if (!validIds.has(entry.name)) {
         const dirPath = join(deployDir, entry.name);
         try {
           rmSync(dirPath, { recursive: true, force: true });
