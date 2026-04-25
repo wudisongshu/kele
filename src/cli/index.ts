@@ -7,6 +7,8 @@ import { setupShowCommand } from './commands/show.js';
 import { setupConfigCommand } from './commands/config.js';
 import { setupValidateCommand } from './commands/validate.js';
 import { setupDoctorCommand } from './commands/doctor.js';
+import { setupDeployCommand } from './commands/deploy.js';
+import { setupPlatformsCommand } from './commands/platforms.js';
 
 const program = new Command();
 
@@ -21,5 +23,7 @@ setupShowCommand(program);
 setupConfigCommand(program);
 setupValidateCommand(program);
 setupDoctorCommand(program);
+setupDeployCommand(program);
+setupPlatformsCommand(program);
 
 program.parse();

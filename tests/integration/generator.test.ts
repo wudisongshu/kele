@@ -42,7 +42,9 @@ describe('GameGenerator', () => {
     expect(result.success).toBe(true);
     expect(result.filePath).toBe(join(testDir, 'index.html'));
     expect(existsSync(result.filePath)).toBe(true);
-    expect(readFileSync(result.filePath, 'utf-8')).toBe(html);
+    const content = readFileSync(result.filePath, 'utf-8');
+    expect(content).toContain('<canvas id="c"></canvas>');
+    expect(content).toContain('manifest.json');
   });
 
   it('extracts code from markdown blocks', async () => {
@@ -52,7 +54,9 @@ describe('GameGenerator', () => {
     const result = await generator.generate('test');
 
     expect(result.success).toBe(true);
-    expect(readFileSync(result.filePath, 'utf-8')).toBe(html);
+    const content = readFileSync(result.filePath, 'utf-8');
+    expect(content).toContain('<canvas id="c"></canvas>');
+    expect(content).toContain('manifest.json');
   });
 
   it('returns error for empty response', async () => {

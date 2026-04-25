@@ -19,6 +19,9 @@ import { ProjectManager } from '../../project/manager.js';
 import { getOutputDir, hasAnyProvider } from '../../config/manager.js';
 import { generateProjectSlug } from '../utils.js';
 import { info, success, error } from '../../utils/logger.js';
+import { deployProject, getDefaultPlatform } from '../../deploy/index.js';
+import type { DeployPlatform } from '../../deploy/types.js';
+import { printChecklist } from '../../deploy/checklist.js';
 
 export function setupCreateCommand(program: Command): void {
   program
@@ -26,8 +29,9 @@ export function setupCreateCommand(program: Command): void {
     .option('-o, --output <dir>', 'Output directory')
     .option('-y, --yes', 'Skip confirmation', false)
     .option('--mock', 'Use mock AI (no API calls)', false)
+    .option('--deploy [platform]', 'Deploy after generation (auto-detects platform if no value)')
     .option('--debug', 'Enable debug logging', false)
-    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; mock: boolean; debug: boolean }) => {
+    .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; mock: boolean; debug: boolean; deploy?: string | true }) => {
       if (!ideaText || ideaText.trim().length === 0) {
         console.log('Usage: kele "<your idea>"');
         console.log('Example: kele "做一个贪吃蛇游戏"');
@@ -54,10 +58,6 @@ export function setupCreateCommand(program: Command): void {
       mkdirSync(outputDir, { recursive: true });
 
       const router = createRouterFromConfig();
-      if (options.mock) {
-        const mockAdapter = router.get('mock')!;
-        router.register(mockAdapter);
-      }
 
       const provider = router.route(options.mock ? 'mock' : undefined).adapter;
       info(`使用 ${provider.name} 生成代码...`);
@@ -87,16 +87,36 @@ export function setupCreateCommand(program: Command): void {
 
       // Save project
       const pm = new ProjectManager();
-      pm.create({
+      const project = pm.create({
         name: projectName,
         description: ideaText,
         rootDir,
       });
-      pm.updateStatus(pm.list()[0].id, 'completed');
-      pm.close();
+      pm.updateStatus(project.id, 'completed');
 
       success('游戏生成完成且可玩！');
       console.log(`📂 文件位置: ${result.filePath}`);
       console.log('💡 用浏览器打开 index.html 即可游玩');
+
+      // Deploy if requested
+      if (options.deploy !== undefined) {
+        const platform: DeployPlatform =
+          options.deploy === true ? getDefaultPlatform() : (options.deploy as DeployPlatform);
+        info(`部署到 ${platform}...`);
+        const deployResult = await deployProject(project, { platform });
+        if (deployResult.success) {
+          success(deployResult.message);
+          if (deployResult.url) {
+            console.log(`🔗 ${deployResult.url}`);
+          }
+        } else {
+          error(deployResult.message);
+        }
+      }
+
+      // Print checklist
+      printChecklist(project);
+
+      pm.close();
     });
 }

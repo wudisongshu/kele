@@ -19,4 +19,16 @@ export interface KeleConfig {
   telemetry?: boolean;
   outputDir?: string;
   defaultPlatform?: string;
+  github?: {
+    token?: string;
+    repo?: string;
+    branch?: string;
+  };
+  vercel?: {
+    token?: string;
+  };
+  netlify?: {
+    token?: string;
+    siteId?: string;
+  };
 }

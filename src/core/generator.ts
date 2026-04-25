@@ -13,10 +13,11 @@
  */
 
 import { join } from 'path';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, readFile } from 'fs/promises';
 import { Script } from 'vm';
 import type { AIAdapter } from '../ai/provider.js';
 import { debugLog } from '../utils/logger.js';
+import { injectPWATags, generatePWA } from '../pwa/generator.js';
 
 export interface GenerateResult {
   success: boolean;
@@ -55,11 +56,35 @@ export class GameGenerator {
     for (let attempt = 1; attempt <= this.options.maxAttempts; attempt++) {
       const result = await this.attemptGenerate(userInput, filePath, attempt);
       if (result.success || attempt === this.options.maxAttempts) {
+        if (result.success) {
+          await this.injectPWA(userInput);
+        }
         return result;
       }
     }
 
     return { success: false, filePath: '', error: 'Max attempts reached', attempts: this.options.maxAttempts };
+  }
+
+  private async injectPWA(userInput: string): Promise<void> {
+    try {
+      const filePath = join(this.projectRoot, 'index.html');
+      const html = await readFile(filePath, 'utf-8');
+      const injected = injectPWATags(html);
+      await writeFile(filePath, injected, 'utf-8');
+
+      const projectName = userInput.slice(0, 30);
+      await generatePWA(this.projectRoot, {
+        name: projectName,
+        shortName: projectName.slice(0, 12),
+        description: userInput,
+      });
+
+      debugLog('generator:pwa', 'PWA assets generated');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('generator:pwa-error', msg);
+    }
   }
 
   private async attemptGenerate(

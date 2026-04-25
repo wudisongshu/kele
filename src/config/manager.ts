@@ -111,5 +111,33 @@ export function getConfigSummary(): string {
   });
 
   const outputDir = config.outputDir ?? join(homedir(), 'kele-projects');
-  return `Providers (${providers.length}):\n${providers.join('\n')}\n\nDefault: ${config.defaultProvider ?? '(none)'}\nOutput dir: ${outputDir}`;
+  const platforms = [];
+  if (config.defaultPlatform) platforms.push(`Default platform: ${config.defaultPlatform}`);
+  if (config.github?.repo) platforms.push(`GitHub repo: ${config.github.repo}`);
+
+  return `Providers (${providers.length}):\n${providers.join('\n')}\n\nDefault: ${config.defaultProvider ?? '(none)'}\nOutput dir: ${outputDir}${platforms.length > 0 ? '\n' + platforms.join('\n') : ''}`;
+}
+
+export function setDefaultPlatform(platform: string): void {
+  const config = loadConfig();
+  config.defaultPlatform = platform;
+  saveConfig(config);
+}
+
+export function setGitHubConfig(repo?: string, token?: string, branch?: string): void {
+  const config = loadConfig();
+  config.github = { ...config.github, repo, token, branch };
+  saveConfig(config);
+}
+
+export function setVercelConfig(token?: string): void {
+  const config = loadConfig();
+  config.vercel = { ...config.vercel, token };
+  saveConfig(config);
+}
+
+export function setNetlifyConfig(token?: string, siteId?: string): void {
+  const config = loadConfig();
+  config.netlify = { ...config.netlify, token, siteId };
+  saveConfig(config);
 }

@@ -10,6 +10,10 @@ import {
   getConfigSummary,
   setOutputDir,
   setAutoYes,
+  setDefaultPlatform,
+  setGitHubConfig,
+  setVercelConfig,
+  setNetlifyConfig,
 } from '../../config/manager.js';
 
 export function setupConfigCommand(program: Command): void {
@@ -26,6 +30,12 @@ export function setupConfigCommand(program: Command): void {
     .option('--default <name>', 'Set default provider')
     .option('--output <dir>', 'Set output directory')
     .option('--auto-yes', 'Enable auto-yes mode')
+    .option('--deploy-platform <name>', 'Set default deploy platform')
+    .option('--github-repo <repo>', 'Set GitHub repo (owner/repo)')
+    .option('--github-token <token>', 'Set GitHub token')
+    .option('--vercel-token <token>', 'Set Vercel token')
+    .option('--netlify-token <token>', 'Set Netlify token')
+    .option('--netlify-site <id>', 'Set Netlify site ID')
     .option('--list', 'List current config')
     .action((options: {
       provider?: string;
@@ -36,10 +46,40 @@ export function setupConfigCommand(program: Command): void {
       default?: string;
       output?: string;
       autoYes?: boolean;
+      deployPlatform?: string;
+      githubRepo?: string;
+      githubToken?: string;
+      vercelToken?: string;
+      netlifyToken?: string;
+      netlifySite?: string;
       list?: boolean;
     }) => {
       if (options.list) {
         console.log(getConfigSummary());
+        return;
+      }
+
+      if (options.deployPlatform) {
+        setDefaultPlatform(options.deployPlatform);
+        console.log(`✅ 默认部署平台已设置为: ${options.deployPlatform}`);
+        return;
+      }
+
+      if (options.githubRepo || options.githubToken) {
+        setGitHubConfig(options.githubRepo, options.githubToken);
+        console.log('✅ GitHub 配置已更新');
+        return;
+      }
+
+      if (options.vercelToken) {
+        setVercelConfig(options.vercelToken);
+        console.log('✅ Vercel 配置已更新');
+        return;
+      }
+
+      if (options.netlifyToken || options.netlifySite) {
+        setNetlifyConfig(options.netlifyToken, options.netlifySite);
+        console.log('✅ Netlify 配置已更新');
         return;
       }
 
@@ -84,6 +124,10 @@ export function setupConfigCommand(program: Command): void {
       console.log('  kele config --default <name>');
       console.log('  kele config --remove <name>');
       console.log('  kele config --output <dir>');
+      console.log('  kele config --deploy-platform <static|github-pages|vercel|netlify>');
+      console.log('  kele config --github-repo <owner/repo>');
+      console.log('  kele config --vercel-token <token>');
+      console.log('  kele config --netlify-token <token>');
       console.log('  kele config --list');
     });
 }
