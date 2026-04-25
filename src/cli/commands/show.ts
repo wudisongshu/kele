@@ -11,7 +11,7 @@ export function setupShowCommand(program: Command): void {
     .description('Show project details')
     .action((id: string) => {
       const pm = new ProjectManager();
-      const project = pm.get(id);
+      const project = pm.findByIdentifier(id);
       pm.close();
 
       if (!project) {

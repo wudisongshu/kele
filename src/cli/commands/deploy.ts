@@ -4,6 +4,7 @@
  */
 
 import { Command } from 'commander';
+import { existsSync } from 'fs';
 import { ProjectManager } from '../../project/manager.js';
 import { deployProject, getDefaultPlatform, pruneGitHubPages, cleanAllGitHubPages } from '../../deploy/index.js';
 import { loadConfig } from '../../config/manager.js';
@@ -92,11 +93,18 @@ export function setupDeployCommand(program: Command): void {
       }
 
       const pm = new ProjectManager();
-      const project = pm.get(id);
+      const project = pm.findByIdentifier(id);
 
       if (!project) {
         pm.close();
         error(`未找到项目: ${id}`);
+        process.exit(1);
+      }
+
+      if (!existsSync(project.rootDir)) {
+        pm.close();
+        error(`项目文件已不存在: ${project.rootDir}`);
+        console.log('   请重新生成该项目');
         process.exit(1);
       }
 

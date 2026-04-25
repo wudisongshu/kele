@@ -69,7 +69,8 @@ export class ProjectManager {
   }
 
   create(input: ProjectCreateInput): Project {
-    const id = `proj-${Date.now().toString(36)}`;
+    const rand = Math.random().toString(36).slice(2, 6);
+    const id = `proj-${Date.now().toString(36)}-${rand}`;
     const now = new Date().toISOString();
     const project: Project = {
       id,
@@ -94,6 +95,21 @@ export class ProjectManager {
     const row = this.db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as Record<string, unknown> | undefined;
     if (!row) return undefined;
     return this.rowToProject(row);
+  }
+
+  /**
+   * Find a project by identifier — first try exact id match, then fall back to name match.
+   */
+  findByIdentifier(identifier: string): Project | undefined {
+    // 1. Try exact id match
+    const byId = this.get(identifier);
+    if (byId) return byId;
+
+    // 2. Fall back to name match (return first match)
+    const rows = this.db.prepare('SELECT * FROM projects WHERE name = ?').all(identifier) as Record<string, unknown>[];
+    if (rows.length > 0) return this.rowToProject(rows[0]);
+
+    return undefined;
   }
 
   list(): Project[] {

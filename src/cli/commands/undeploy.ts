@@ -14,7 +14,7 @@ export function setupUndeployCommand(program: Command): void {
     .description('Remove a project from GitHub Pages')
     .action(async (id: string) => {
       const pm = new ProjectManager();
-      const project = pm.get(id);
+      const project = pm.findByIdentifier(id);
 
       if (!project) {
         pm.close();

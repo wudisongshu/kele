@@ -12,7 +12,7 @@ export function setupValidateCommand(program: Command): void {
     .description('Validate project quality and score')
     .action((id: string) => {
       const pm = new ProjectManager();
-      const project = pm.get(id);
+      const project = pm.findByIdentifier(id);
       pm.close();
 
       if (!project) {
