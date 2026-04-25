@@ -8,7 +8,7 @@ import { ProjectManager } from '../../project/manager.js';
 export function setupShowCommand(program: Command): void {
   program
     .command('show <id>')
-    .description('Show project details')
+    .description('查看项目详情和部署历史')
     .action((id: string) => {
       const pm = new ProjectManager();
       const project = pm.findByIdentifier(id);

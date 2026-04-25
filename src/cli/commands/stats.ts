@@ -92,8 +92,8 @@ export function runStats(jsonMode = false): void {
 export function setupStatsCommand(program: Command): void {
   program
     .command('stats')
-    .description('Show usage statistics')
-    .option('--format <type>', 'Output format: text (default) or json', 'text')
+    .description('查看使用统计和项目分布')
+    .option('--format <type>', '输出格式: text (默认) 或 json', 'text')
     .action((options: { format: string }) => {
       runStats(options.format === 'json');
     });

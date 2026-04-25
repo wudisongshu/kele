@@ -19,7 +19,7 @@ import {
 export function setupConfigCommand(program: Command): void {
   const configCmd = program
     .command('config')
-    .description('Manage kele configuration');
+    .description('管理 kele 配置（AI Provider、部署平台等）');
 
   configCmd
     .option('--provider <name>', 'Provider name')

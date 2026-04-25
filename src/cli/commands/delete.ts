@@ -19,9 +19,9 @@ function isTestProject(rootDir: string): boolean {
 export function setupDeleteCommand(program: Command): void {
   program
     .command('delete [id]')
-    .description('Delete a project or bulk clean old projects')
-    .option('-f, --force', 'Skip confirmation', false)
-    .option('--keep-recent <n>', 'Keep only the N most recent projects')
+    .description('删除项目，或批量清理保留最近 N 个')
+    .option('-f, --force', '跳过确认直接删除', false)
+    .option('--keep-recent <n>', '只保留最近 N 个项目，其余删除')
     .action(async (id: string | undefined, options: { force: boolean; keepRecent?: string }) => {
       const pm = new ProjectManager();
 

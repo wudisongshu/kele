@@ -18,7 +18,7 @@ function hasGit(): boolean {
 export function setupDoctorCommand(program: Command): void {
   program
     .command('doctor')
-    .description('Check setup and diagnose issues')
+    .description('检查环境配置和诊断问题')
     .action(async () => {
       console.log('🔍 kele 诊断报告\n');
 

@@ -14,13 +14,13 @@ import { error, success, info } from '../../utils/logger.js';
 export function setupDeployCommand(program: Command): void {
   program
     .command('deploy [id]')
-    .description('Deploy a project, or prune/clean deployments')
-    .option('-p, --platform <name>', 'Platform: static, github-pages, vercel, netlify')
-    .option('-o, --out <dir>', 'Output directory (for static platform)')
-    .option('--prune <n>', 'Keep only the N most recent GitHub Pages deployments')
-    .option('--clean-all', 'Remove ALL GitHub Pages deployments (dangerous)')
-    .option('--refresh', 'Re-generate nav page without adding/removing games')
-    .option('--clean-orphans', 'Remove deployments whose local project no longer exists')
+    .description('部署项目，或进行部署维护（刷新导航页/清理孤儿部署等）')
+    .option('-p, --platform <name>', '部署平台: static, github-pages, vercel, netlify')
+    .option('-o, --out <dir>', '输出目录（仅 static 平台）')
+    .option('--prune <n>', '只保留最近 N 个 GitHub Pages 部署')
+    .option('--clean-all', '清空所有 GitHub Pages 部署（危险操作）')
+    .option('--refresh', '重新生成导航页，不增删游戏')
+    .option('--clean-orphans', '清理本地已不存在的孤儿部署')
     .action(async (
       id: string | undefined,
       options: { platform?: string; out?: string; prune?: string; cleanAll?: boolean; refresh?: boolean; cleanOrphans?: boolean },

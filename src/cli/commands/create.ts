@@ -25,12 +25,12 @@ import { printChecklist } from '../../deploy/checklist.js';
 
 export function setupCreateCommand(program: Command): void {
   program
-    .argument('[idea]', 'Your idea, e.g. "做个贪吃蛇游戏"')
-    .option('-o, --output <dir>', 'Output directory')
-    .option('-y, --yes', 'Skip confirmation', false)
-    .option('--mock', 'Use mock AI (no API calls)', false)
-    .option('--deploy [platform]', 'Deploy after generation (auto-detects platform if no value)')
-    .option('--debug', 'Enable debug logging', false)
+    .argument('[idea]', '你的想法，例如 "做个贪吃蛇游戏"')
+    .option('-o, --output <dir>', '指定输出目录')
+    .option('-y, --yes', '跳过确认', false)
+    .option('--mock', '使用 Mock AI（不调用真实 API）', false)
+    .option('--deploy [platform]', '生成后立即部署（可指定平台，不指定则自动检测）')
+    .option('--debug', '开启调试日志', false)
     .action(async (ideaText: string | undefined, options: { output?: string; yes: boolean; mock: boolean; debug: boolean; deploy?: string | true }) => {
       if (!ideaText || ideaText.trim().length === 0) {
         console.log('Usage: kele "<your idea>"');

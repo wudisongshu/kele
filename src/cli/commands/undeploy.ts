@@ -11,7 +11,7 @@ import { error, success, info } from '../../utils/logger.js';
 export function setupUndeployCommand(program: Command): void {
   program
     .command('undeploy <id>')
-    .description('Remove a project from GitHub Pages')
+    .description('从 GitHub Pages 撤下项目')
     .action(async (id: string) => {
       const pm = new ProjectManager();
       const project = pm.findByIdentifier(id);

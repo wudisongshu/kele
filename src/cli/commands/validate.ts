@@ -9,7 +9,7 @@ import { ProjectManager } from '../../project/manager.js';
 export function setupValidateCommand(program: Command): void {
   program
     .command('validate <id>')
-    .description('Validate project quality and score')
+    .description('验证项目可玩性并评分')
     .action((id: string) => {
       const pm = new ProjectManager();
       const project = pm.findByIdentifier(id);

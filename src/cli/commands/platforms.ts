@@ -8,7 +8,7 @@ import { getPlatformStatuses } from '../../deploy/index.js';
 export function setupPlatformsCommand(program: Command): void {
   program
     .command('platforms')
-    .description('List supported deployment platforms')
+    .description('查看支持的部署平台及其状态')
     .action(() => {
       console.log('支持的部署平台:\n');
       for (const status of getPlatformStatuses()) {

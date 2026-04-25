@@ -11,7 +11,7 @@ import { success, error } from '../../utils/logger.js';
 export function setupRenameCommand(program: Command): void {
   program
     .command('rename <id> <new-name>')
-    .description('Rename a project (local only; re-deploy to update online)')
+    .description('重命名项目（仅本地，需重新 deploy 更新线上）')
     .action((id: string, newName: string) => {
       const pm = new ProjectManager();
       const project = pm.findByIdentifier(id);

@@ -13,8 +13,8 @@ function isTestProject(rootDir: string): boolean {
 export function setupListCommand(program: Command): void {
   program
     .command('list')
-    .description('List all projects')
-    .option('-a, --all', 'Include test projects in /tmp', false)
+    .description('列出所有项目')
+    .option('-a, --all', '显示 /tmp 下的测试项目', false)
     .action((options: { all?: boolean }) => {
       const pm = new ProjectManager();
       let projects = pm.list();
