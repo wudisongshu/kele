@@ -75,15 +75,26 @@ export async function orchestrateComplexProduct(
     return { success: false, projectPath: fullProjectPath, projectId, productName: userPrompt, pages: [], failedPages, error: '所有页面生成失败' };
   }
 
-  // 4. Extract product name from first page title
+  // 4. Extract product name from first page title (before assembleProduct overwrites index.html)
   let productName = userPrompt;
   if (generatedPages.length > 0) {
     const firstPagePath = join(fullProjectPath, generatedPages[0].fileName);
     try {
       const firstHtml = readFileSync(firstPagePath, 'utf-8');
-      const titleMatch = firstHtml.match(/<title>([^<]*)<\/title>/i);
-      if (titleMatch && titleMatch[1].trim()) {
-        productName = titleMatch[1].trim();
+      // Match "首页 | Kele Snooker" or "首页 | Kele Snooker</title>"
+      const titleMatch = firstHtml.match(/<title>([^<|]*)[<|]/i);
+      if (titleMatch) {
+        const parts = titleMatch[1].split('|').map((s) => s.trim());
+        const extracted = parts[parts.length - 1];
+        if (extracted && extracted.length > 0) {
+          productName = extracted;
+        }
+      } else {
+        // Fallback: simple title extraction
+        const simpleMatch = firstHtml.match(/<title>([^<]*)<\/title>/i);
+        if (simpleMatch && simpleMatch[1].trim()) {
+          productName = simpleMatch[1].trim();
+        }
       }
     } catch {
       // fallback to userPrompt
@@ -94,19 +105,18 @@ export async function orchestrateComplexProduct(
   console.log('🔧 组装产品...');
   assembleProduct(fullProjectPath, generatedPages, productName);
 
-  // 5. Inject PWA into main entry
+  // 6. Inject PWA into main entry and generate PWA assets
   try {
     const mainHtmlPath = join(fullProjectPath, 'index.html');
     const mainHtml = readFileSync(mainHtmlPath, 'utf-8');
     const injected = injectPWATags(mainHtml);
     writeFileSync(mainHtmlPath, injected, 'utf-8');
 
-    const productTitle = generatedPages[0]?.title || userPrompt;
     await generatePWA(fullProjectPath, {
-      name: productTitle,
-      shortName: productTitle.slice(0, 12),
+      name: productName,
+      shortName: productName.slice(0, 12),
       description: userPrompt,
-    });
+    }, generatedPages);
   } catch {
     // PWA injection is non-fatal
   }
@@ -119,7 +129,7 @@ export async function orchestrateComplexProduct(
     success: true,
     projectPath: fullProjectPath,
     projectId: `complex-${projectId}`,
-    productName: userPrompt,
+    productName,
     pages: generatedPages,
     failedPages,
   };
@@ -161,7 +171,7 @@ async function generatePage(
       return {
         name: task.name,
         fileName: task.outputFile,
-        description: task.name, // Short name, not the full prompt
+        description: task.description || task.name,
         icon: '📄',
         title,
       };

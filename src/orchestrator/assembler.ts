@@ -17,7 +17,10 @@ export function assembleProduct(
   const mainHtml = buildMainPage(productName, pages);
   writeFileSync(join(projectPath, 'index.html'), mainHtml, 'utf-8');
 
-  // 2. Inject navigation into each sub-page if missing
+  // 2. Fix navigation links in each sub-page to match actual file names
+  fixPageNavigation(projectPath, pages);
+
+  // 3. Inject navigation into each sub-page if missing
   for (const page of pages) {
     const pagePath = join(projectPath, page.fileName);
     if (!existsSync(pagePath)) continue;
@@ -29,11 +32,11 @@ export function assembleProduct(
     }
   }
 
-  // 3. Generate shared data bridge
+  // 4. Generate shared data bridge
   const bridgePath = join(projectPath, 'data-bridge.js');
   writeFileSync(bridgePath, buildDataBridge(), 'utf-8');
 
-  // 4. Inject data-bridge into each page (including index.html)
+  // 5. Inject data-bridge into each page (including index.html)
   for (const file of ['index.html', ...pages.map((p) => p.fileName)]) {
     const filePath = join(projectPath, file);
     if (!existsSync(filePath)) continue;
@@ -51,7 +54,7 @@ function buildMainPage(productName: string, pages: GeneratedPage[]): string {
       (p) => `      <a href="./${p.fileName}" class="page-card">
         <div class="page-icon">${p.icon || '📄'}</div>
         <div class="page-name">${p.name}</div>
-        <div class="page-desc">${p.description || ''}</div>
+        <div class="page-desc">${escapeHtml(p.description) || ''}</div>
       </a>`,
     )
     .join('\n');
@@ -61,7 +64,7 @@ function buildMainPage(productName: string, pages: GeneratedPage[]): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${productName}</title>
+  <title>${escapeHtml(productName)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -98,7 +101,7 @@ function buildMainPage(productName: string, pages: GeneratedPage[]): string {
 </head>
 <body>
   <div class="container">
-    <h1>🥤 ${productName}</h1>
+    <h1>🥤 ${escapeHtml(productName)}</h1>
     <div class="pages-grid">
 ${cards}
     </div>
@@ -107,8 +110,81 @@ ${cards}
 </html>`;
 }
 
+function fixPageNavigation(projectPath: string, pages: GeneratedPage[]) {
+  // Build navMap: common reference names -> actual file names
+  const navMap: Record<string, string> = {};
+  for (const p of pages) {
+    navMap[p.name] = p.fileName;
+    // Also map the fileName to itself (idempotent)
+    navMap[p.fileName] = p.fileName;
+  }
+
+  // Add common aliases based on page names
+  for (const p of pages) {
+    const name = p.name;
+    if (name === '对战' || name === '双人对战' || name === '对战模式' || name === '双人模式' || name === '竞技对战') {
+      navMap['match.html'] = p.fileName;
+      navMap['duel.html'] = p.fileName;
+      navMap['battle.html'] = p.fileName;
+    }
+    if (name === '练习' || name === '单人挑战' || name === '练习场' || name === '练习模式') {
+      navMap['practice.html'] = p.fileName;
+      navMap['single-player.html'] = p.fileName;
+    }
+    if (name === '规则' || name === '规则说明' || name === '教程' || name === '规则馆') {
+      navMap['rules.html'] = p.fileName;
+      navMap['guide.html'] = p.fileName;
+      navMap['tutorial.html'] = p.fileName;
+    }
+    if (name === '战绩' || name === '战绩统计' || name === '统计' || name === '战绩中心' || name === '排行榜') {
+      navMap['records.html'] = p.fileName;
+      navMap['stats.html'] = p.fileName;
+      navMap['leaderboard.html'] = p.fileName;
+    }
+    if (name === '首页' || name === '主页' || name === '游戏首页') {
+      navMap['home.html'] = p.fileName;
+      navMap['index.html'] = 'index.html';
+    }
+  }
+
+  // Ensure index.html always points to itself
+  navMap['index.html'] = 'index.html';
+  navMap['首页'] = 'index.html';
+  navMap['主页'] = 'index.html';
+
+  for (const p of pages) {
+    const filePath = join(projectPath, p.fileName);
+    if (!existsSync(filePath)) continue;
+
+    let html = readFileSync(filePath, 'utf-8');
+    let modified = false;
+
+    for (const [oldRef, newRef] of Object.entries(navMap)) {
+      if (oldRef === newRef) continue;
+
+      // Replace href="oldRef" -> href="newRef"
+      const regex = new RegExp(`href=["']${escapeRegExp(oldRef)}["']`, 'g');
+      if (regex.test(html)) {
+        html = html.replace(regex, `href="${newRef}"`);
+        modified = true;
+      }
+
+      // Replace href="./oldRef" -> href="./newRef"
+      const regex2 = new RegExp(`href=["']\\./${escapeRegExp(oldRef)}["']`, 'g');
+      if (regex2.test(html)) {
+        html = html.replace(regex2, `href="./${newRef}"`);
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      writeFileSync(filePath, html, 'utf-8');
+    }
+  }
+}
+
 function injectNavigation(html: string, pageName: string): string {
-  const navBar = `<div style="background:#1f2937;color:#fff;padding:10px 20px;font-family:sans-serif;display:flex;align-items:center;gap:12px;"><a href="./index.html" style="color:#93c5fd;text-decoration:none;font-weight:600;">← 返回首页</a><span style="opacity:0.6;">|</span><span>${pageName}</span></div>`;
+  const navBar = `<div style="background:#1f2937;color:#fff;padding:10px 20px;font-family:sans-serif;display:flex;align-items:center;gap:12px;"><a href="./index.html" style="color:#93c5fd;text-decoration:none;font-weight:600;">← 返回首页</a><span style="opacity:0.6;">|</span><span>${escapeHtml(pageName)}</span></div>`;
 
   if (html.includes('<body')) {
     return html.replace('<body>', `<body>\n${navBar}`);
@@ -133,4 +209,16 @@ function injectDataBridge(html: string): string {
     return html.replace('<body>', `<body>\n${scriptTag}`);
   }
   return scriptTag + '\n' + html;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

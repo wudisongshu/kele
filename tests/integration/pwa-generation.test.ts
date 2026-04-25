@@ -44,6 +44,23 @@ describe('Integration: PWA generation', () => {
     expect(sw).toContain('caches.open');
   });
 
+  it('caches all sub-pages when pages are provided', async () => {
+    const pages = [
+      { name: '首页', fileName: 'home.html', description: '入口', icon: '🏠', title: '首页' },
+      { name: '对战', fileName: 'match.html', description: '对战模式', icon: '🎮', title: '对战' },
+    ];
+
+    await generatePWA(testDir, { name: 'Test Game' }, pages);
+
+    const swPath = join(testDir, 'sw.js');
+    const sw = readFileSync(swPath, 'utf-8');
+    expect(sw).toContain('./home.html');
+    expect(sw).toContain('./match.html');
+    expect(sw).toContain('./data-bridge.js');
+    expect(sw).toContain('./icons/icon-192.svg');
+    expect(sw).toContain('./icons/icon-512.svg');
+  });
+
   it('generates SVG icons', async () => {
     await generatePWA(testDir, { name: 'Test Game' });
 

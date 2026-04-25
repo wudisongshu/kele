@@ -8,6 +8,7 @@
 
 import { join } from 'path';
 import { mkdir, writeFile } from 'fs/promises';
+import type { GeneratedPage } from '../orchestrator/types.js';
 
 export interface PWAGenerationResult {
   manifestPath: string;
@@ -30,6 +31,7 @@ export interface PWAOptions {
 export async function generatePWA(
   projectRoot: string,
   options: PWAOptions = {},
+  pages?: GeneratedPage[],
 ): Promise<PWAGenerationResult> {
   const name = options.name ?? 'kele Game';
   const shortName = options.shortName ?? name.slice(0, 12);
@@ -58,9 +60,9 @@ export async function generatePWA(
   };
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
 
-  // Generate Service Worker
+  // Generate Service Worker with all pages cached
   const swPath = join(projectRoot, 'sw.js');
-  const swCode = generateServiceWorker();
+  const swCode = generateServiceWorker(pages);
   await writeFile(swPath, swCode, 'utf-8');
 
   // Generate SVG icons (zero dependencies, scalable)
@@ -76,14 +78,29 @@ export async function generatePWA(
 
 /**
  * Generate a simple Service Worker with Cache First strategy.
+ * If pages are provided, caches all sub-pages for offline use.
  */
-function generateServiceWorker(): string {
+function generateServiceWorker(pages?: GeneratedPage[]): string {
+  const cacheUrls = [
+    './',
+    './index.html',
+    './manifest.json',
+  ];
+
+  if (pages && pages.length > 0) {
+    for (const p of pages) {
+      cacheUrls.push(`./${p.fileName}`);
+    }
+  }
+
+  cacheUrls.push('./data-bridge.js');
+  cacheUrls.push('./icons/icon-192.svg');
+  cacheUrls.push('./icons/icon-512.svg');
+
+  const urlsToCacheJson = JSON.stringify(cacheUrls, null, 2);
+
   return `const CACHE_NAME = 'kele-game-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json'
-];
+const urlsToCache = ${urlsToCacheJson};
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

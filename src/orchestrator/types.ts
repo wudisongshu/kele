@@ -11,6 +11,7 @@ export interface PageRequirement {
 export interface GenerationTask {
   taskId: string;
   name: string;
+  description: string;
   prompt: string;
   outputFile: string;
   standalone: boolean;
