@@ -11,6 +11,7 @@ import { setupDeployCommand } from './commands/deploy.js';
 import { setupUndeployCommand } from './commands/undeploy.js';
 import { setupPlatformsCommand } from './commands/platforms.js';
 import { setupRenameCommand } from './commands/rename.js';
+import { setupDeleteCommand } from './commands/delete.js';
 
 const program = new Command();
 
@@ -29,5 +30,6 @@ setupDeployCommand(program);
 setupUndeployCommand(program);
 setupPlatformsCommand(program);
 setupRenameCommand(program);
+setupDeleteCommand(program);
 
 program.parse();
