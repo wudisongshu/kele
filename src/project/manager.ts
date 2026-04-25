@@ -8,7 +8,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
-import type { Project, ProjectCreateInput } from './types.js';
+import type { Project, ProjectCreateInput, Deployment } from './types.js';
 
 const DB_PATH = join(homedir(), '.kele', 'kele.db');
 
@@ -17,13 +17,32 @@ function initDb(): Database.Database {
   const db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
 
-  // Check if old schema exists (has raw_text column) and migrate if needed
-  const hasOldSchema = db.prepare(
-    "SELECT 1 FROM pragma_table_info('projects') WHERE name = 'raw_text'"
-  ).get();
+  // Migrate: add deployments column if missing
+  const columns = db.prepare(
+    "SELECT name FROM pragma_table_info('projects')"
+  ).all() as { name: string }[];
+  const hasDeployments = columns.some((c) => c.name === 'deployments');
 
-  if (hasOldSchema) {
+  if (!hasDeployments) {
+    // Recreate table with new column
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS projects_new (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        root_dir TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        deployments TEXT DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    db.exec(`
+      INSERT INTO projects_new (id, name, description, root_dir, status, deployments, created_at, updated_at)
+      SELECT id, name, description, root_dir, status, '[]', created_at, updated_at FROM projects;
+    `);
     db.exec('DROP TABLE projects');
+    db.exec('ALTER TABLE projects_new RENAME TO projects');
   }
 
   db.exec(`
@@ -33,6 +52,7 @@ function initDb(): Database.Database {
       description TEXT,
       root_dir TEXT NOT NULL,
       status TEXT DEFAULT 'pending',
+      deployments TEXT DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -57,15 +77,16 @@ export class ProjectManager {
       description: input.description,
       rootDir: input.rootDir,
       status: 'pending',
+      deployments: [],
       createdAt: now,
       updatedAt: now,
     };
 
     const stmt = this.db.prepare(`
-      INSERT INTO projects (id, name, description, root_dir, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO projects (id, name, description, root_dir, status, deployments, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(project.id, project.name, project.description, project.rootDir, project.status, project.createdAt, project.updatedAt);
+    stmt.run(project.id, project.name, project.description, project.rootDir, project.status, '[]', project.createdAt, project.updatedAt);
     return project;
   }
 
@@ -85,6 +106,14 @@ export class ProjectManager {
       .run(status, new Date().toISOString(), id);
   }
 
+  addDeployment(id: string, deployment: Deployment): void {
+    const project = this.get(id);
+    if (!project) return;
+    const deployments = [...project.deployments, deployment];
+    this.db.prepare('UPDATE projects SET deployments = ?, updated_at = ? WHERE id = ?')
+      .run(JSON.stringify(deployments), new Date().toISOString(), id);
+  }
+
   delete(id: string): void {
     this.db.prepare('DELETE FROM projects WHERE id = ?').run(id);
   }
@@ -94,12 +123,23 @@ export class ProjectManager {
   }
 
   private rowToProject(row: Record<string, unknown>): Project {
+    let deployments: Deployment[] = [];
+    try {
+      const raw = row.deployments as string;
+      if (raw && raw !== '[]') {
+        deployments = JSON.parse(raw) as Deployment[];
+      }
+    } catch {
+      deployments = [];
+    }
+
     return {
       id: row.id as string,
       name: row.name as string,
       description: row.description as string,
       rootDir: row.root_dir as string,
       status: row.status as Project['status'],
+      deployments,
       createdAt: row.created_at as string,
       updatedAt: row.updated_at as string,
     };

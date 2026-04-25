@@ -17,9 +17,9 @@ export function setupDeployCommand(program: Command): void {
     .action(async (id: string, options: { platform?: string; out?: string }) => {
       const pm = new ProjectManager();
       const project = pm.get(id);
-      pm.close();
 
       if (!project) {
+        pm.close();
         error(`未找到项目: ${id}`);
         process.exit(1);
       }
@@ -36,10 +36,21 @@ export function setupDeployCommand(program: Command): void {
         success(result.message);
         if (result.url) {
           console.log(`🔗 ${result.url}`);
+          console.log('   注意：首次访问可能需要 1-2 分钟生效');
         }
+
+        // Record deployment
+        pm.addDeployment(project.id, {
+          platform,
+          url: result.url ?? '',
+          deployedAt: new Date().toISOString(),
+        });
       } else {
         error(result.message);
+        pm.close();
         process.exit(1);
       }
+
+      pm.close();
     });
 }

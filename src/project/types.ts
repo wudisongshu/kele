@@ -2,6 +2,12 @@
  * Project type definitions.
  */
 
+export interface Deployment {
+  platform: string;
+  url: string;
+  deployedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -10,6 +16,7 @@ export interface Project {
   status: 'pending' | 'completed' | 'failed';
   createdAt: string;
   updatedAt: string;
+  deployments: Deployment[];
 }
 
 export interface ProjectCreateInput {

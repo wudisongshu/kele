@@ -25,5 +25,14 @@ export function setupShowCommand(program: Command): void {
       console.log(`状态: ${project.status}`);
       console.log(`目录: ${project.rootDir}`);
       console.log(`创建时间: ${project.createdAt}`);
+
+      if (project.deployments.length > 0) {
+        console.log('\n部署历史:');
+        for (const d of project.deployments) {
+          const time = new Date(d.deployedAt).toLocaleString('zh-CN');
+          console.log(`  - ${d.platform}: ${d.url}`);
+          console.log(`    时间: ${time}`);
+        }
+      }
     });
 }

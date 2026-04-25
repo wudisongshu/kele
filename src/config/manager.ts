@@ -126,18 +126,24 @@ export function setDefaultPlatform(platform: string): void {
 
 export function setGitHubConfig(repo?: string, token?: string, branch?: string): void {
   const config = loadConfig();
-  config.github = { ...config.github, repo, token, branch };
+  config.github = config.github ?? {};
+  if (repo !== undefined) config.github.repo = repo;
+  if (token !== undefined) config.github.token = token;
+  if (branch !== undefined) config.github.branch = branch;
   saveConfig(config);
 }
 
 export function setVercelConfig(token?: string): void {
   const config = loadConfig();
-  config.vercel = { ...config.vercel, token };
+  config.vercel = config.vercel ?? {};
+  if (token !== undefined) config.vercel.token = token;
   saveConfig(config);
 }
 
 export function setNetlifyConfig(token?: string, siteId?: string): void {
   const config = loadConfig();
-  config.netlify = { ...config.netlify, token, siteId };
+  config.netlify = config.netlify ?? {};
+  if (token !== undefined) config.netlify.token = token;
+  if (siteId !== undefined) config.netlify.siteId = siteId;
   saveConfig(config);
 }

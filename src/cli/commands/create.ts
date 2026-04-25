@@ -108,7 +108,15 @@ export function setupCreateCommand(program: Command): void {
           success(deployResult.message);
           if (deployResult.url) {
             console.log(`🔗 ${deployResult.url}`);
+            console.log('   注意：首次访问可能需要 1-2 分钟生效');
           }
+
+          // Record deployment
+          pm.addDeployment(project.id, {
+            platform,
+            url: deployResult.url ?? '',
+            deployedAt: new Date().toISOString(),
+          });
         } else {
           error(deployResult.message);
         }

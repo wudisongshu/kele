@@ -26,7 +26,7 @@ export async function deployProject(
 
     case 'github-pages': {
       const config = loadConfig();
-      return deployGitHubPages(projectRoot, {
+      return deployGitHubPages(projectRoot, project.id, {
         token: config.github?.token,
         repo: config.github?.repo,
         branch: config.github?.branch,
