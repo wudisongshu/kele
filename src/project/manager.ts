@@ -86,16 +86,25 @@ export class ProjectManager {
   }
 
   /**
-   * Find a project by identifier — first try exact id match, then fall back to name match.
+   * Find a project by identifier — try id, name, then rootDir basename (slug).
    */
   findByIdentifier(identifier: string): Project | undefined {
     // 1. Try exact id match
     const byId = this.get(identifier);
     if (byId) return byId;
 
-    // 2. Fall back to name match (return first match)
+    // 2. Fall back to name match
     const rows = this.db.prepare('SELECT * FROM projects WHERE name = ?').all(identifier) as Record<string, unknown>[];
     if (rows.length > 0) return this.rowToProject(rows[0]);
+
+    // 3. Fall back to rootDir basename (slug) match, e.g. "game-3adac4"
+    const allRows = this.db.prepare('SELECT * FROM projects').all() as Record<string, unknown>[];
+    for (const row of allRows) {
+      const rootDir = row.root_dir as string;
+      if (basename(rootDir) === identifier) {
+        return this.rowToProject(row);
+      }
+    }
 
     return undefined;
   }

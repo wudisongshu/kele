@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { rmSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { tmpdir } from 'os';
 import { ProjectManager } from '../../src/project/manager.js';
 
@@ -84,6 +84,26 @@ describe('Unit: ProjectManager', () => {
 
     rmSync(dir1, { recursive: true, force: true });
     rmSync(dir2, { recursive: true, force: true });
+  });
+
+  it('findByIdentifier finds by rootDir basename (slug)', () => {
+    const testDir = join(tmpdir(), `kele-test-slug-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+
+    const slug = basename(testDir);
+    const project = pm.create({
+      name: 'slug-lookup-test',
+      description: 'test',
+      rootDir: testDir,
+    });
+    createdIds.push(project.id);
+
+    // Search by slug (basename of rootDir), not id or name
+    const found = pm.findByIdentifier(slug);
+    expect(found).toBeDefined();
+    expect(found?.id).toBe(project.id);
+
+    rmSync(testDir, { recursive: true, force: true });
   });
 
   it('findByIdentifier returns undefined for non-existent', () => {
