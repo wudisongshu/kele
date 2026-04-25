@@ -77,7 +77,7 @@ export async function deployGitHubPages(
     const { stdout: status } = await execa('git', ['status', '--porcelain'], { cwd: deployDir });
     if (status.trim()) {
       await execa('git', ['commit', '-m', `deploy: ${projectId}`], { cwd: deployDir });
-      await execa('git', ['push', 'origin', branch], { cwd: deployDir });
+      await execa('git', ['push', 'origin', `HEAD:${branch}`], { cwd: deployDir });
     }
 
     // 6. Build URL (trailing slash ensures subdirectory resource paths work)
