@@ -77,7 +77,11 @@ async function openGhPagesBranch(options: GitHubOptions): Promise<
     try {
       await execa('git', ['fetch', '--depth=1', 'origin', cfg.branch], { cwd: deployDir });
       await execa('git', ['reset', '--hard', `origin/${cfg.branch}`], { cwd: deployDir });
-    } catch {
+      // eslint-disable-next-line no-console
+      console.log(`[DEBUG] 成功拉取 origin/${cfg.branch}`);
+    } catch (fetchErr) {
+      // eslint-disable-next-line no-console
+      console.log(`[DEBUG] 拉取 origin/${cfg.branch} 失败，将创建空分支: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
       await execa('git', ['checkout', '--orphan', cfg.branch], { cwd: deployDir });
       await execa('git', ['rm', '-rf', '.'], { cwd: deployDir }).catch(() => {});
     }
@@ -307,25 +311,47 @@ export async function cleanOrphanGitHubPages(
   const pm = new ProjectManager();
 
   try {
-    // Build a set of all valid local project IDs
+    // Build a set of all valid local project IDs and deployed directory names
     const localProjects = pm.list();
     const validIds = new Set<string>();
     for (const p of localProjects) {
       validIds.add(p.id);
+      // Also extract directory names from deployment URLs
+      for (const d of p.deployments) {
+        if (d.url) {
+          const urlParts = d.url.split('/').filter((s) => s.length > 0);
+          const lastPart = urlParts[urlParts.length - 1];
+          if (lastPart) validIds.add(lastPart);
+        }
+      }
     }
+
+    // Scan all entries in deployDir
+    const allEntries = readdirSync(deployDir, { withFileTypes: true });
+    const dirs = allEntries.filter((e) => e.isDirectory() && e.name !== '.git').map((e) => e.name);
+    const files = allEntries.filter((e) => e.isFile()).map((e) => e.name);
+
+    // eslint-disable-next-line no-console
+    console.log(`[DEBUG] deployDir 内容: ${dirs.length} 个目录, ${files.length} 个文件`);
+    // eslint-disable-next-line no-console
+    console.log(`[DEBUG] 扫描到的子目录: ${dirs.join(', ') || '(无)'}`);
+    // eslint-disable-next-line no-console
+    console.log(`[DEBUG] 本地项目 IDs: ${Array.from(validIds).join(', ') || '(无)'}`);
 
     const removed: string[] = [];
 
-    for (const entry of readdirSync(deployDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      if (entry.name === '.git') continue;
+    for (const dirName of dirs) {
+      const isOrphan = !validIds.has(dirName);
+      // eslint-disable-next-line no-console
+      console.log(`[DEBUG] 检查 ${dirName}: isOrphan=${isOrphan}`);
 
-      // If directory name is not a known local project ID, it's an orphan
-      if (!validIds.has(entry.name)) {
-        const dirPath = join(deployDir, entry.name);
+      if (isOrphan) {
+        const dirPath = join(deployDir, dirName);
         try {
           rmSync(dirPath, { recursive: true, force: true });
-          removed.push(entry.name);
+          removed.push(dirName);
+          // eslint-disable-next-line no-console
+          console.log(`[DEBUG] 已标记删除: ${dirName}`);
         } catch {
           // skip failures
         }
